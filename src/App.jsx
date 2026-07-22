@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 
 import { db } from "./firebase";
-import { collection, addDoc, doc, setDoc, getDocs } from "firebase/firestore";
+import { collection, addDoc, doc, setDoc, getDocs, updateDoc } from "firebase/firestore";
+
 
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -9,6 +10,15 @@ import reactLogo from "./assets/react.svg";
 import viteLogo from "./assets/vite.svg";
 import heroImg from "./assets/hero.png";
 import "./App.css";
+import Footer from "./components/Footer";
+import Header from "./components/Header";
+import Dashboard from "./components/Dashboard";
+import Buttons from "./components/Buttons";
+import StudentRegistration from "./components/StudentRegistration";
+import StudentLogin from "./components/StudentLogin";
+import StudentDashboard from "./components/StudentDashboard";
+import Plans from "./components/Plans";
+
 
 // --- Icons (SVG) ---
 const PhoneIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>;
@@ -79,7 +89,30 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [selectedSeat, setSelectedSeat] = useState(null);
   const [showQuickView, setShowQuickView] = useState(false);
+  const [activeAdminSection, setActiveAdminSection] = useState("seats");
+  const [showBookingPopup, setShowBookingPopup] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [showRegistration, setShowRegistration] = useState(false);
+  const [showStudentLogin, setShowStudentLogin] = useState(false);
+  const [studentUser, setStudentUser] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState("");
+const [selectedTiming, setSelectedTiming] = useState("");
+const [lockerOption, setLockerOption] = useState("");
+const [totalAmount, setTotalAmount] = useState(0);
 
+
+  const uploadSeatsToFirebase = async () => {
+    try {
+      for (const seat of initialSeats) {
+        await setDoc(doc(db, "seats", String(seat.id)), seat);
+      }
+
+      alert("All seats uploaded to Firebase successfully!");
+    } catch (error) {
+      console.error("Seat upload error:", error);
+      alert("Seats upload failed");
+    }
+  };
 
   useEffect(() => {
     const fetchSeats = async () => {
@@ -89,7 +122,10 @@ export default function App() {
         const firebaseSeats = [];
 
         querySnapshot.forEach((doc) => {
-          firebaseSeats.push(doc.data());
+          firebaseSeats.push({
+            ...doc.data(),
+            firebaseDocId: doc.id,
+          });
         });
 
         if (firebaseSeats.length > 0) {
@@ -99,7 +135,9 @@ export default function App() {
                 (item) => item.id === seat.id
               );
 
-              return savedSeat ? savedSeat : seat;
+              return savedSeat
+                ? { ...seat, ...savedSeat }
+                : seat;
             })
           );
         }
@@ -195,13 +233,67 @@ export default function App() {
       setSeats((prev) => prev.map((seat) => seat.id === selectedSeat.id ? { ...seat, ...newStatusUpdates } : seat));
       setSelectedSeat((prev) => ({ ...prev, ...newStatusUpdates }));
       return;
-    }
+    };
+    // yahan updateSeat ke baad
+
+    const toggleSeatVisibility = async (seatId) => {
+      const seat = seats.find((s) => s.id === seatId);
+
+      if (!seat) return;
+
+      const newVisibility = seat.isVisible === false;
+
+      try {
+        const seatRef = doc(db, "bookings", seat.firebaseDocId);
+
+        await updateDoc(seatRef, {
+          isVisible: newVisibility,
+        });
+
+        setSeats((prevSeats) =>
+          prevSeats.map((s) =>
+            s.id === seatId
+              ? { ...s, isVisible: newVisibility }
+              : s
+          )
+        );
+
+      } catch (error) {
+        console.error("Seat visibility update failed:", error);
+      }
+    };
 
     setSeats((prev) => prev.map((seat) => seat.id === selectedSeat.id ? { ...seat, [field]: value } : seat));
     setSelectedSeat((prev) => ({ ...prev, [field]: value }));
     setTimeout(() => saveSeatToFirebase(), 100);
   };
 
+  const toggleSeatVisibility = async (seatId) => {
+    const seat = seats.find((s) => s.id === seatId);
+
+    if (!seat) return;
+
+    const newVisibility = seat.isVisible === false;
+
+    try {
+      const seatRef = doc(db, "bookings", seat.firebaseDocId);
+
+      await updateDoc(seatRef, {
+        isVisible: newVisibility,
+      });
+
+      setSeats((prevSeats) =>
+        prevSeats.map((s) =>
+          s.id === seatId
+            ? { ...s, isVisible: newVisibility }
+            : s
+        )
+      );
+
+    } catch (error) {
+      console.error("Seat visibility update failed:", error);
+    }
+  };
 
   const saveSeatToFirebase = async () => {
     try {
@@ -301,13 +393,39 @@ export default function App() {
     return (
       <div className="flex h-screen bg-[#f8fafc] font-sans overflow-hidden text-gray-800">
 
+
+
         {/* ---> ADMIN: LEFT SIDEBAR (Seats ki list aur search box) <--- */}
-        <div className="w-[320px] bg-[#0f172a] text-white flex flex-col border-r border-gray-800 flex-shrink-0">
+        <div
+          className={`${isSidebarOpen ? "w-[320px]" : "w-0"
+            } bg-[#0f172a] text-white flex flex-col border-r border-gray-800 flex-shrink-0 overflow-hidden transition-all duration-300`}>
           <div className="p-5 border-b border-gray-800">
             <h2 className="text-yellow-400 font-black text-xl leading-tight tracking-wide">ANY TIME LIBRARY</h2>
             <p className="text-[10px] text-gray-400 tracking-[0.2em] font-bold mt-1 uppercase">Management System</p>
           </div>
+          <div className="p-4 border-b border-gray-800 space-y-2">
+            <button
+              onClick={() => setActiveAdminSection("seats")}
+              className={`w-full text-left px-4 py-3 rounded-xl transition ${activeAdminSection === "seats"
+                ? "bg-yellow-400 text-black font-bold"
+                : "text-gray-300 hover:bg-[#1e293b]"
+                }`}
+            >
+              💺 Seat Management
+            </button>
+            <button
+              onClick={() => setActiveAdminSection("dashboard")}
+              className={`w-full text-left px-4 py-3 rounded-xl transition ${activeAdminSection === "dashboard"
+                ? "bg-yellow-400 text-black font-bold"
+                : "text-gray-300 hover:bg-[#1e293b]"
+                }`}
+            >
+              📊 Dashboard
+            </button>
 
+
+
+          </div>
           <div className="p-5 pb-2">
             <h3 className="text-sm font-bold mb-4">All Seats ({filteredSeats.length})</h3>
             <div className="relative">
@@ -382,7 +500,12 @@ export default function App() {
 
           {/* ---> ADMIN: TOP NAVBAR (Logout button wagera) <--- */}
           <div className="h-16 bg-white border-b px-6 flex items-center justify-between shrink-0 shadow-sm z-10">
-            <MenuIcon className="w-5 h-5 text-gray-500 cursor-pointer hover:text-black transition" />
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-2 rounded-lg hover:bg-gray-100 transition"
+            >
+              <MenuIcon className="w-5 h-5 text-gray-500 hover:text-black transition" />
+            </button>
             <div className="flex items-center gap-6">
               <div className="relative cursor-pointer hover:text-blue-600 transition">
                 <BellIcon className="w-5 h-5 text-gray-600" />
@@ -396,7 +519,14 @@ export default function App() {
 
           {/* ---> ADMIN: EDIT & PREVIEW CONTAINER <--- */}
           <div className="flex-1 overflow-y-auto p-6 bg-[#f8fafc]">
-            {selectedSeat ? (
+
+            {activeAdminSection === "dashboard" ? (
+              <Dashboard
+                seats={seats}
+                onToggleSeatVisibility={toggleSeatVisibility}
+              />
+            ) : selectedSeat ? (
+
               <div className="max-w-[1400px] mx-auto grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
 
                 {/* ---> ADMIN: EDIT FORM (Left Side form jaha details bharte hain) <--- */}
@@ -941,9 +1071,9 @@ export default function App() {
                       )}
                     </div>
 
-                    
 
-                        {/* Contact Information */}
+
+                    {/* Contact Information */}
 
                     <div className="pt-2 text-xs text-gray-500">
                       <p>Developer- Aman Yashdeva</p>
@@ -974,253 +1104,1014 @@ export default function App() {
   // 🌍 8. PUBLIC USER VIEW (Bina login kiye website aisi dikhegi)
   // ============================================================================
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-800 font-sans">
+    <>
 
-      {/* ---> PUBLIC: MAIN HEADER <--- */}
-      <header className="bg-gradient-to-r from-black via-indigo-900 to-black text-white py-10 shadow-2xl border-b-4 border-yellow-400" style={{ fontFamily: "'Helvetica, sans-serif" }}>
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <h1 className="text-9xl md:text-6xl font-black tracking-[6px] text-yellow-300" >
-            ANY TIME LIBRARY
-          </h1>
-          <p className="mt-4 text-lg opacity-90" style={{ fontFamily: "Montserrat Tight" }}>
-            Bachhrawan's Premium Smart Library Management System
-          </p>
-        </div>
-      </header>
+      {studentUser ? (
 
-      {/* ---> PUBLIC: ADMIN LOGIN BUTTON (Top Right) <--- */}
-      <div className="fixed top-4 right-4 z-50">
-        <button
-          onClick={() => document.getElementById('adminLoginPanel')?.classList.remove('hidden')}
-          className="bg-yellow-400 text-black px-5 py-2 rounded-xl font-bold shadow-xl hover:bg-yellow-300 transition"
-        >
-          Admin Login
-        </button>
-      </div>
+        <StudentDashboard
+          user={studentUser}
+          onLogout={() => setStudentUser(null)}
+        />
 
-      {/* ---> PUBLIC: ADMIN LOGIN POPUP MODAL <--- */}
-      <div id="adminLoginPanel" className="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-        <div className="bg-white p-8 rounded-3xl shadow-2xl w-[90%] max-w-md relative">
-          <button
-            onClick={() => document.getElementById('adminLoginPanel')?.classList.add('hidden')}
-            className="absolute top-4 right-4 text-xl font-bold text-gray-500 hover:text-black transition"
-          >
-            ✕
-          </button>
-          <h2 className="text-3xl font-bold text-center mb-6">Admin Login</h2>
-          <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full border p-3 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full border p-3 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          <button
-            onClick={() => {
-              handleLogin();
-              if (username === adminUser && password === adminPass) {
-                document.getElementById('adminLoginPanel')?.classList.add('hidden');
-              }
-            }}
-            className="w-full bg-indigo-700 hover:bg-indigo-600 transition text-white py-3 rounded-xl font-bold"
-          >
-            Login
-          </button>
-        </div>
-      </div>
+      ) : (
+        <div className="min-h-screen bg-gray-100 text-gray-800 font-sans">
 
-      {/* ---> PUBLIC: HERO SECTION (Premium Digital Library text) <--- */}
-      <section className="max-w-6xl mx-auto px-6 py-12">
-        <div className="bg-white rounded-3xl shadow-xl p-8 text-center">
-          <h2 className="text-4xl font-bold mb-4 text-gray-900">Premium Digital Library</h2>
-          <p className="text-gray-700 text-lg leading-relaxed">
-            Smart seat tracking, peaceful study environment, WiFi, CCTV security and modern digital monitoring.
-          </p>
-        </div>
-      </section>
 
-      <section className="max-w-7xl mx-auto px-6 pb-14">
-        <div className="flex items-center justify-between flex-wrap gap-4 mb-8">
-          <div>
-            <h2 className="text-4xl font-black">LIVE SMART SEAT AVAILABILITY</h2>
-            <p className="text-gray-500 mt-2">Total 100 Premium Smart Seats Available</p>
-          </div>
 
-          {/* ---> PUBLIC: TOTAL SEATS BUTTON (Click karne pe quick view map khulega) <--- */}
-          <div
-            onClick={() => setShowQuickView(true)}
-            className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-black px-8 py-5 rounded-3xl shadow-2xl border-4 border-black min-w-[180px] text-center cursor-pointer hover:scale-105 transition-all"
-          >
-            <p className="text-xs uppercase tracking-[3px] font-black">Total Seats</p>
-            <h2 className="text-5xl font-black leading-none mt-1">100</h2>
-            <div className="mt-2 bg-black text-yellow-400 text-[10px] font-bold py-1 px-3 rounded-full uppercase tracking-wider animate-pulse inline-block shadow-lg">
-              CLICK TO VIEW MAP
+          {/* ---> PUBLIC: MAIN HEADER <--- */}
+          <Header />
+          
+          
+          {/* {showRegistration && (
+            <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm overflow-y-auto p-4">
+
+              <div className="relative min-h-full flex items-center justify-center">
+
+                <button
+                  onClick={() => setShowRegistration(false)}
+                  className="fixed top-5 right-5 z-[110] bg-white text-black w-10 h-10 rounded-full font-bold text-xl shadow-lg"
+                >
+                  ✕
+                </button>
+
+                <StudentRegistration
+                  onRegistrationComplete={() => {
+                    setShowRegistration(false);
+                    setShowStudentLogin(true);
+                  }}
+                />
+
+              </div>
+
             </div>
-          </div>
-        </div>
+          )}
+          {showStudentLogin && (
+            <StudentLogin
+              onClose={() => setShowStudentLogin(false)}
+              onLoginSuccess={(user) => {
+                setStudentUser(user);
+                setShowStudentLogin(false);
+              }}
+            />
+          )} */}
+          {/* ---> PUBLIC: ADMIN LOGIN BUTTON (Top Right) <--- */}
+          <Buttons
+            onSignUp={() => setShowRegistration(true)}
+            onSignIn={() => setShowStudentLogin(true)}
+            onAdminLoginClick={() =>
+              document
+                .getElementById("adminLoginPanel")
+                ?.classList.remove("hidden")
+            }
+          />
+          {/* Nav bar for all info about library, facilities, timings, contact, etc. (Top Right) */}
+          {/* <nav className=" text-grey-100 py-3 px-6 flex justify-between items-center">
+            <a href="#" className="text-lg font-bold">Resources</a>
+            <a href="#" className="text-lg font-bold">Contact</a>
+            <a href="#" className="text-lg font-bold">Plans</a>
+            <a href="#" className="text-lg font-bold">Reviews</a>
+            <a href="#" className="text-lg font-bold">About Us</a>
 
-        {/* ---> PUBLIC: QUICK VIEW 100 SEATS MODAL (POPUP MAP GRID) <--- */}
-        {showQuickView && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[60] p-4">
-            <div className="bg-[#0f172a] p-6 sm:p-8 rounded-3xl shadow-2xl w-full max-w-2xl relative border border-gray-700 max-h-[90vh] overflow-y-auto">
+          </nav> */}
+
+          {/* ---> PUBLIC: ADMIN LOGIN POPUP MODAL <--- */}
+          <div id="adminLoginPanel" className="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white p-8 rounded-3xl shadow-2xl w-[90%] max-w-md relative">
               <button
-                onClick={() => setShowQuickView(false)}
-                className="absolute top-4 right-5 text-2xl font-bold text-gray-500 hover:text-white transition"
+                onClick={() => document.getElementById('adminLoginPanel')?.classList.add('hidden')}
+                className="absolute top-4 right-4 text-xl font-bold text-gray-500 hover:text-black transition"
               >
                 ✕
               </button>
-
-              <div className="mb-6">
-                <h4 className="text-2xl font-black text-yellow-400">Live Quick View Map</h4>
-                <p className="text-sm text-gray-400 mt-1">Check availability of all 100 seats at a single glance.</p>
-              </div>
-
-              <div className="flex flex-wrap gap-4 text-xs font-bold text-gray-300 bg-black/40 p-3 rounded-xl border border-gray-800 mb-6 w-fit">
-                <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 bg-green-500 rounded-sm shadow-[0_0_8px_rgba(34,197,94,0.5)]"></div> Available / Partial</div>
-                <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 bg-red-500 rounded-sm shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div> Fully Booked</div>
-              </div>
-
-              <div className="grid grid-cols-10 gap-2 sm:gap-3">
-                {seats.map(seat => {
-                  const isFullyBooked = seat.status === '24 Hours' || (seat.status !== 'Available' && seat.morningStudent && seat.afternoonStudent && seat.nightStudent);
-                  const bgClass = isFullyBooked ? 'bg-red-500 hover:bg-red-400 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.4)]' : 'bg-green-500 hover:bg-green-400 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.3)]';
-
-                  return (
-                    <div
-                      key={`quick-${seat.id}`}
-                      className={`aspect-square flex items-center justify-center rounded-md sm:rounded-lg text-xs sm:text-sm font-black text-white cursor-pointer transition-all border border-black/20 ${bgClass}`}
-                      title={`Seat ${seat.id} - ${seat.status}`}
-                      onClick={() => {
-                        setShowQuickView(false); // Map band karke particular seat list me scroll karne ke liye
-                      }}
-                    >
-                      {seat.id}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ---> PUBLIC: DETAILED SEAT MAP (Niche wala bada grid with student details) <--- */}
-        <div className="bg-gradient-to-br from-[#0f172a] via-black to-[#111827] p-8 rounded-[40px] border border-yellow-500/20 shadow-[0_20px_80px_rgba(0,0,0,0.7)] relative overflow-hidden">
-          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_gold,_transparent_30%)]"></div>
-          <div className="flex items-center justify-between flex-wrap gap-4 mb-8 relative z-10">
-            <div>
-              <h3 className="text-3xl font-black text-yellow-400 tracking-[3px]">SMART SEAT MAP</h3>
-              <p className="text-gray-400 mt-2 text-sm">Real-time AI powered seat monitoring dashboard</p>
-            </div>
-            <div className="flex flex-wrap gap-3 text-xs font-bold">
-              <div className="bg-green-500/20 border border-green-400 text-green-300 px-4 py-2 rounded-full">AVAILABLE</div>
-              <div className="bg-yellow-500/20 border border-yellow-400 text-yellow-300 px-4 py-2 rounded-full">HALF DAY</div>
-              <div className="bg-red-500/20 border border-red-400 text-red-300 px-4 py-2 rounded-full">FULL DAY</div>
-              <div className="bg-blue-500/20 border border-blue-400 text-blue-300 px-4 py-2 rounded-full">24 HOURS</div>
+              <h2 className="text-3xl font-bold text-center mb-6">Admin Login</h2>
+              <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full border p-3 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full border p-3 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <button
+                onClick={() => {
+                  handleLogin();
+                  if (username === adminUser && password === adminPass) {
+                    document.getElementById('adminLoginPanel')?.classList.add('hidden');
+                  }
+                }}
+                className="w-full bg-indigo-700 hover:bg-indigo-600 transition text-white py-3 rounded-xl font-bold"
+              >
+                Login
+              </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 relative z-10">
-            {currentSeats.map((seat) => (
-              <div key={seat.id} className={`${getSeatColor(seat.status)} rounded-[32px] p-6 min-h-[180px] shadow-[0_10px_30px_rgba(0,0,0,0.5)] text-white border border-white/10 transition-all duration-300 hover:scale-105 hover:-translate-y-2 cursor-pointer relative overflow-hidden group`}>
-                <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition"></div>
-                <div className="relative z-10">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <p className="text-[11px] uppercase tracking-[2px] opacity-70">Seat</p>
-                      <h4 className="text-4xl font-black leading-none">{seat.id}</h4>
-                    </div>
-                    <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center text-lg backdrop-blur-md border border-white/20">
-                      {seat.status === 'Available' ? '✓' : '📘'}
-                    </div>
+          {/* ---> PUBLIC: HERO SECTION (Premium Digital Library text) <--- */}
+          <section className="max-w-6xl mx-auto px-6 py-12">
+            <div className="bg-white rounded-3xl shadow-xl p-8 text-center">
+              <h2 className="text-4xl font-bold mb-4 text-gray-900">Premium Digital Library</h2>
+              <p className="text-gray-700 text-lg leading-relaxed">
+                Smart seat tracking, peaceful study environment, WiFi, CCTV security and modern digital monitoring.
+              </p>
+              <div className="border-t border-gray-800 mt-10 pt-8">
+
+                <h2 className="text-xl font-bold text-black-300 mb-5 text-center">
+                  ⭐ Library Facilities
+                </h2>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+
+                  <div>🔒 Personal Locker</div>
+                  <div>📶 Free WiFi</div>
+                  <div>❄️ Air Conditioned</div>
+                  <div>💧 RO Water</div>
+                  <div>🎥 CCTV Security</div>
+                  <div>🔋 Power Backup</div>
+                  <div>🤫 Silent Study Zone</div>
+                  <div>🪑 Comfortable Seating</div>
+
+                </div>
+
+              </div>
+            </div>
+          </section>
+
+          {/* ---> PUBLIC: LIVE SEAT AVAILABILITY SECTION <--- */}
+
+          <section className="max-w-7xl mx-auto px-6 pb-14">
+            <div className="flex items-center justify-between flex-wrap gap-4 mb-8">
+              <div>
+                <h2 className="text-4xl font-black">LIVE SMART SEAT AVAILABILITY</h2>
+                <p className="text-gray-500 mt-2">Total 100 Premium Smart Seats Available</p>
+              </div>
+
+              {/* ---> PUBLIC: SEAT BOOKING CTA <--- */}
+              <div className="flex justify-center mb-10">
+
+                <button
+                  onClick={() => setShowBookingPopup(true)}
+                  className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-700 via-purple-700 to-indigo-900 px-8 py-4 text-white shadow-xl shadow-indigo-500/30 transition-all duration-300 hover:-translate-y-1 hover:scale-105 hover:shadow-2xl"
+                >
+
+                  {/* Shining Animation */}
+                  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full"></span>
+
+                  <span className="relative flex items-center gap-3">
+
+                    <span className="text-2xl animate-bounce">
+                      🚀
+                    </span>
+
+                    <span className="text-left">
+                      <span className="block text-xs font-bold uppercase tracking-widest text-yellow-300">
+                        Hurry Up!
+                      </span>
+
+                      <span className="block text-lg font-black">
+                        Book Your Seat Now
+                      </span>
+                    </span>
+
+                    <span className="text-xl transition-transform duration-300 group-hover:translate-x-1">
+                      →
+                    </span>
+
+                  </span>
+
+                </button>
+
+              </div>
+
+              {/* ---> PUBLIC: TOTAL SEATS BUTTON (Click karne pe quick view map khulega) <--- */}
+              <div
+                onClick={() => setShowQuickView(true)}
+                className="bg-gradient-to-r from-yellow-200 to-yellow-500 text-black px-8 py-5 rounded-3xl shadow-2xl border-4 border-black min-w-[180px] text-center cursor-pointer hover:scale-105 transition-all"
+              >
+                <h3 className=" font-black">Total Seats</h3>
+                <div className="mt-2 bg-black text-yellow-500 text-[10px] font-bold py-1 px-3 rounded-full uppercase tracking-wider animate-pulse inline-block shadow-lg">
+                  CLICK TO VIEW  SEAT MAP
+                </div>
+              </div>
+            </div>
+
+            {/* ---> PUBLIC: QUICK VIEW 100 SEATS MODAL (POPUP MAP GRID) <--- */}
+            {showQuickView && (
+              <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[60] p-4">
+                <div className="bg-[#0f172a] p-6 sm:p-8 rounded-3xl shadow-2xl w-full max-w-2xl relative border border-gray-700 max-h-[90vh] overflow-y-auto">
+                  <button
+                    onClick={() => setShowQuickView(false)}
+                    className="absolute top-4 right-5 text-2xl font-bold text-gray-500 hover:text-white transition"
+                  >
+                    ✕
+                  </button>
+
+                  <div className="mb-6">
+                    <h4 className="text-2xl font-black text-yellow-400">Live Quick View Map</h4>
+                    <p className="text-sm text-gray-400 mt-1">Check availability of all 100 seats at a single glance.</p>
                   </div>
 
-                  <div className="mt-5 bg-black/20 backdrop-blur-md rounded-2xl p-3 border border-white/10">
-                    <div className="flex justify-between items-end mb-2">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-[1px] opacity-70 mb-1">Current Status</p>
-                        <p className="font-bold text-lg leading-tight">{seat.status}</p>
-                      </div>
-                      <p className="text-xs opacity-90 text-right max-w-[50%]">{seat.timing}</p>
-                    </div>
+                  <div className="flex flex-wrap gap-4 text-xs font-bold text-gray-300 bg-black/40 p-3 rounded-xl border border-gray-800 mb-6 w-fit">
+                    <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 bg-green-500 rounded-sm shadow-[0_0_8px_rgba(34,197,94,0.5)]"></div> Available / Partial</div>
+                    <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 bg-red-500 rounded-sm shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div> Fully Booked</div>
+                  </div>
 
-                    {seat.status !== 'Available' && (
-                      <div className="mt-3 pt-3 border-t border-white/10 space-y-1.5 text-[11px]">
-                        {seat.status === '24 Hours' ? (
-                          <div className="bg-black/30 p-2 rounded-lg">
-                            <div className="flex justify-between items-center">
-                              <span className="opacity-80">🔒 24 Hours:</span>
-                              <span className="font-bold text-white truncate ml-2" title={seat.nightStudent || "Booked"}>
-                                {seat.nightStudent || "Booked"}
-                              </span>
-                            </div>
-                            {seat.nightStudent && (
-                              <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
-                                🗓 {seat.fromDate} To {seat.toDate}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <>
-                            <div className="bg-black/30 p-2 rounded-lg">
-                              <div className="flex justify-between items-center">
-                                <span className="opacity-80 whitespace-nowrap">🌅 8 AM - 2 PM:</span>
-                                <span className={seat.morningStudent ? "font-bold text-white truncate ml-2" : "text-green-400 font-bold ml-2"}>
-                                  {seat.morningStudent || "Available"}
-                                </span>
-                              </div>
-                              {seat.morningStudent && (
-                                <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
-                                  🗓 {seat.morningFrom} To {seat.morningTo}
-                                </div>
-                              )}
-                            </div>
-                            <div className="bg-black/30 p-2 rounded-lg">
-                              <div className="flex justify-between items-center">
-                                <span className="opacity-80 whitespace-nowrap">☀️ 2 PM - 8 PM:</span>
-                                <span className={seat.afternoonStudent ? "font-bold text-white truncate ml-2" : "text-green-400 font-bold ml-2"}>
-                                  {seat.afternoonStudent || "Available"}
-                                </span>
-                              </div>
-                              {seat.afternoonStudent && (
-                                <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
-                                  🗓 {seat.afternoonFrom} To {seat.afternoonTo}
-                                </div>
-                              )}
-                            </div>
-                            <div className="bg-black/30 p-2 rounded-lg">
-                              <div className="flex justify-between items-center">
-                                <span className="opacity-80 whitespace-nowrap">🌙 8 PM - 8 AM:</span>
-                                <span className={seat.nightStudent ? "font-bold text-white truncate ml-2" : "text-green-400 font-bold ml-2"}>
-                                  {seat.nightStudent || "Available"}
-                                </span>
-                              </div>
-                              {seat.nightStudent && (
-                                <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
-                                  🗓 {seat.nightFrom} To {seat.nightTo}
-                                </div>
-                              )}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )}
+                  <div className="grid grid-cols-10 gap-2 sm:gap-3">
+                    {seats.map(seat => {
+                      const isFullyBooked = seat.status === '24 Hours' || (seat.status !== 'Available' && seat.morningStudent && seat.afternoonStudent && seat.nightStudent);
+                      const bgClass = isFullyBooked ? 'bg-red-500 hover:bg-red-400 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.4)]' : 'bg-green-500 hover:bg-green-400 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.3)]';
+
+                      return (
+                        <div
+                          key={`quick-${seat.id}`}
+                          className={`aspect-square flex items-center justify-center rounded-md sm:rounded-lg text-xs sm:text-sm font-black text-white cursor-pointer transition-all border border-black/20 ${bgClass}`}
+                          title={`Seat ${seat.id} - ${seat.status}`}
+                          onClick={() => {
+                            setShowQuickView(false); // Map band karke particular seat list me scroll karne ke liye
+                          }}
+                        >
+                          {seat.id}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+            )}
 
-          {/* ---> PUBLIC: BOTTOM PAGINATION (Page badalne ke buttons) <--- */}
-          <div className="sticky bottom-6 z-40 flex flex-wrap justify-center gap-4 mt-10 bg-black/40 backdrop-blur-xl p-4 rounded-[30px] border border-yellow-400/20 shadow-[0_10px_40px_rgba(0,0,0,0.6)] max-w-fit mx-auto">
-            {Array.from({ length: totalPages }, (_, i) => (
-              <button key={i + 1} onClick={() => setCurrentPage(i + 1)} className={`${currentPage === i + 1 ? 'bg-yellow-400 text-black scale-105' : 'bg-gray-800 text-white'} min-w-[190px] px-7 py-5 rounded-3xl font-black shadow-2xl transition-all duration-300 hover:scale-105 border border-yellow-400/30`}>
-                <p className="text-sm uppercase tracking-[2px] opacity-80 mb-1">Explore Seats</p>
-                <h3 className="text-2xl">{i * seatsPerPage + 1} - {Math.min((i + 1) * seatsPerPage, seats.length)}</h3>
-              </button>
-            ))}
-          </div>
+            {/* ---> PUBLIC: DETAILED SEAT MAP (Niche wala bada grid with student details) <--- */}
+            <div className="bg-gradient-to-br from-[#0f172a] via-black to-[#111827] p-8 rounded-[40px] border border-yellow-500/20 shadow-[0_20px_80px_rgba(0,0,0,0.7)] relative overflow-hidden">
+              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_gold,_transparent_30%)]"></div>
+              <div className="flex items-center justify-between flex-wrap gap-4 mb-8 relative z-10">
+                <div>
+                  <h3 className="text-3xl font-black text-yellow-400 tracking-[3px]">SMART SEAT MAP</h3>
+                  <p className="text-gray-400 mt-2 text-sm">Real-time AI powered seat monitoring dashboard</p>
+                </div>
+                <div className="flex flex-wrap gap-3 text-xs font-bold">
+                  <div className="bg-green-500/20 border border-green-400 text-green-300 px-4 py-2 rounded-full">AVAILABLE</div>
+                  <div className="bg-yellow-500/20 border border-yellow-400 text-yellow-300 px-4 py-2 rounded-full">HALF DAY</div>
+                  <div className="bg-red-500/20 border border-red-400 text-red-300 px-4 py-2 rounded-full">FULL DAY</div>
+                  <div className="bg-blue-500/20 border border-blue-400 text-blue-300 px-4 py-2 rounded-full">24 HOURS</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 relative z-10">
+                {currentSeats.map((seat) => (
+                  <div key={seat.id} className={`${getSeatColor(seat.status)} rounded-[32px] p-6 min-h-[180px] shadow-[0_10px_30px_rgba(0,0,0,0.5)] text-white border border-white/10 transition-all duration-300 hover:scale-105 hover:-translate-y-2 cursor-pointer relative overflow-hidden group`}>
+                    <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition"></div>
+                    <div className="relative z-10">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <p className="text-[11px] uppercase tracking-[2px] opacity-70">Seat</p>
+                          <h4 className="text-4xl font-black leading-none">{seat.id}</h4>
+                        </div>
+                        <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center text-lg backdrop-blur-md border border-white/20">
+                          {seat.status === 'Available' ? '✓' : '📘'}
+                        </div>
+                      </div>
+
+                      <div className="mt-5 bg-black/20 backdrop-blur-md rounded-2xl p-3 border border-white/10">
+                        <div className="flex justify-between items-end mb-2">
+                          <div>
+                            <p className="text-[10px] uppercase tracking-[1px] opacity-70 mb-1">Current Status</p>
+                            <p className="font-bold text-lg leading-tight">{seat.status}</p>
+                          </div>
+                          <p className="text-xs opacity-90 text-right max-w-[50%]">{seat.timing}</p>
+                        </div>
+
+                        {seat.status !== 'Available' && (
+                          <div className="mt-3 pt-3 border-t border-white/10 space-y-1.5 text-[11px]">
+                            {seat.status === '24 Hours' ? (
+                              <div className="bg-black/30 p-2 rounded-lg">
+                                <div className="flex justify-between items-center">
+                                  <span className="opacity-80">🔒 24 Hours:</span>
+                                  <span className="font-bold text-white truncate ml-2" title={seat.nightStudent || "Booked"}>
+                                    {seat.nightStudent || "Booked"}
+                                  </span>
+                                </div>
+                                {seat.nightStudent && (
+                                  <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
+                                    🗓 {seat.fromDate} To {seat.toDate}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <>
+                                <div className="bg-black/30 p-2 rounded-lg">
+                                  <div className="flex justify-between items-center">
+                                    <span className="opacity-80 whitespace-nowrap">🌅 8 AM - 2 PM:</span>
+                                    <span className={seat.morningStudent ? "font-bold text-white truncate ml-2" : "text-green-400 font-bold ml-2"}>
+                                      {seat.morningStudent || "Available"}
+                                    </span>
+                                  </div>
+                                  {seat.morningStudent && (
+                                    <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
+                                      🗓 {seat.morningFrom} To {seat.morningTo}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="bg-black/30 p-2 rounded-lg">
+                                  <div className="flex justify-between items-center">
+                                    <span className="opacity-80 whitespace-nowrap">☀️ 2 PM - 8 PM:</span>
+                                    <span className={seat.afternoonStudent ? "font-bold text-white truncate ml-2" : "text-green-400 font-bold ml-2"}>
+                                      {seat.afternoonStudent || "Available"}
+                                    </span>
+                                  </div>
+                                  {seat.afternoonStudent && (
+                                    <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
+                                      🗓 {seat.afternoonFrom} To {seat.afternoonTo}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="bg-black/30 p-2 rounded-lg">
+                                  <div className="flex justify-between items-center">
+                                    <span className="opacity-80 whitespace-nowrap">🌙 8 PM - 8 AM:</span>
+                                    <span className={seat.nightStudent ? "font-bold text-white truncate ml-2" : "text-green-400 font-bold ml-2"}>
+                                      {seat.nightStudent || "Available"}
+                                    </span>
+                                  </div>
+                                  {seat.nightStudent && (
+                                    <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
+                                      🗓 {seat.nightFrom} To {seat.nightTo}
+                                    </div>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+
+
+              {/* ---> PUBLIC: BOTTOM PAGINATION (Page badalne ke buttons) <--- */}
+              <div className="sticky bottom-6 z-40 flex flex-wrap justify-center gap-4 mt-10 bg-black/40 backdrop-blur-xl p-4 rounded-[30px] border border-yellow-400/20 shadow-[0_10px_40px_rgba(0,0,0,0.6)] max-w-fit mx-auto">
+                {Array.from({ length: totalPages }, (_, i) => (
+                  <button key={i + 1} onClick={() => setCurrentPage(i + 1)} className={`${currentPage === i + 1 ? 'bg-yellow-400 text-black scale-105' : 'bg-gray-800 text-white'} min-w-[190px] px-7 py-5 rounded-3xl font-black shadow-2xl transition-all duration-300 hover:scale-105 border border-yellow-400/30`}>
+                    <p className="text-sm uppercase tracking-[2px] opacity-80 mb-1">Explore Seats</p>
+                    <h3 className="text-2xl">{i * seatsPerPage + 1} - {Math.min((i + 1) * seatsPerPage, seats.length)}</h3>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <Plans /> 
+
+{showBookingPopup && (
+  <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+
+    <div className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
+
+      {/* CLOSE BUTTON */}
+      <button
+        onClick={() => {
+          setShowBookingPopup(false);
+          setSelectedPlan("");
+          setSelectedTiming("");
+          setLockerOption("");
+          setTotalAmount(0);
+        }}
+        className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-xl font-black text-gray-600 hover:bg-red-100 hover:text-red-600"
+      >
+        ✕
+      </button>
+
+      {/* HEADER */}
+      <div className="mb-7 pr-10">
+        <p className="text-sm font-black uppercase tracking-widest text-indigo-600">
+          Any Time Library
+        </p>
+
+        <h2 className="mt-2 text-3xl font-black text-gray-900">
+          Book Your Seat 🪑
+        </h2>
+
+        <p className="mt-2 text-sm text-gray-500">
+          Select your plan, seat and timing.
+        </p>
+      </div>
+
+      {/* STUDENT DETAILS */}
+      <div className="grid gap-4 sm:grid-cols-2">
+
+        <div>
+          <label className="mb-2 block text-sm font-bold text-gray-700">
+            Your Name
+          </label>
+
+          <input
+            type="text"
+            id="bookingName"
+            placeholder="Enter your name"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:border-indigo-500"
+          />
         </div>
-      </section>
 
-      {/* ---> PUBLIC: FOOTER <--- */}
-      <footer className="bg-gradient-to-r from-black to-gray-900 text-white py-5 text-center text-sm mt-10 border-t border-yellow-500">
-        © 2026 ANY TIME LIBRARY. All Rights Reserved.
-      </footer>
+        <div>
+          <label className="mb-2 block text-sm font-bold text-gray-700">
+            WhatsApp Number
+          </label>
+
+          <input
+            type="tel"
+            id="bookingPhone"
+            placeholder="Enter WhatsApp number"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:border-indigo-500"
+          />
+        </div>
+
+      </div>
+
+
+      {/* PLAN SELECTION */}
+      <div className="mt-6">
+
+        <label className="mb-3 block text-sm font-black text-gray-700">
+          Select Your Plan
+        </label>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+
+          {/* HALF DAY */}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedPlan("Half Day");
+              setSelectedTiming("");
+              setLockerOption("");
+              setTotalAmount(0);
+            }}
+            className={`rounded-2xl border p-4 text-left transition ${
+              selectedPlan === "Half Day"
+                ? "border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500"
+                : "border-gray-200 bg-gray-50 hover:border-indigo-400"
+            }`}
+          >
+            <p className="font-black text-gray-900">
+              Half Day
+            </p>
+
+            <p className="mt-1 text-sm text-gray-500">
+              ₹500 Without Locker
+            </p>
+
+            <p className="mt-1 text-sm font-bold text-indigo-600">
+              ₹600 With Locker
+            </p>
+          </button>
+
+
+          {/* FULL DAY */}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedPlan("Full Day");
+              setSelectedTiming("");
+              setLockerOption("");
+              setTotalAmount(0);
+            }}
+            className={`rounded-2xl border p-4 text-left transition ${
+              selectedPlan === "Full Day"
+                ? "border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500"
+                : "border-gray-200 bg-gray-50 hover:border-indigo-400"
+            }`}
+          >
+            <p className="font-black text-gray-900">
+              Full Day
+            </p>
+
+            <p className="mt-1 text-sm text-gray-500">
+              ₹700 Without Locker
+            </p>
+
+            <p className="mt-1 text-sm font-bold text-indigo-600">
+              ₹800 With Locker
+            </p>
+          </button>
+
+
+          {/* NIGHT */}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedPlan("Night");
+              setSelectedTiming("");
+              setLockerOption("");
+              setTotalAmount(0);
+            }}
+            className={`rounded-2xl border p-4 text-left transition ${
+              selectedPlan === "Night"
+                ? "border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500"
+                : "border-gray-200 bg-gray-50 hover:border-indigo-400"
+            }`}
+          >
+            <p className="font-black text-gray-900">
+              Night
+            </p>
+
+            <p className="mt-1 text-sm text-gray-500">
+              ₹500 Without Locker
+            </p>
+
+            <p className="mt-1 text-sm font-bold text-indigo-600">
+              ₹600 With Locker
+            </p>
+          </button>
+
+
+          {/* 24 HOURS */}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedPlan("24 Hours");
+              setSelectedTiming("24 Hours");
+              setLockerOption("Free Locker Included");
+              setTotalAmount(1000);
+            }}
+            className={`rounded-2xl border p-4 text-left transition ${
+              selectedPlan === "24 Hours"
+                ? "border-green-600 bg-green-50 ring-2 ring-green-500"
+                : "border-gray-200 bg-gray-50 hover:border-green-400"
+            }`}
+          >
+            <p className="font-black text-gray-900">
+              24 Hours
+            </p>
+
+            <p className="mt-1 text-lg font-black text-green-600">
+              ₹1000
+            </p>
+
+            <p className="mt-1 text-sm font-bold text-green-600">
+              🎁 Free Locker Included
+            </p>
+          </button>
+
+        </div>
+
+      </div>
+
+
+      {/* LOCKER OPTION */}
+      {selectedPlan && selectedPlan !== "24 Hours" && (
+
+        <div className="mt-5">
+
+          <label className="mb-2 block text-sm font-bold text-gray-700">
+            Locker Option
+          </label>
+
+          <select
+            value={lockerOption}
+            onChange={(e) => {
+
+              const value = e.target.value;
+
+              setLockerOption(value);
+
+              if (selectedPlan === "Half Day") {
+                setTotalAmount(value === "With Locker" ? 600 : 500);
+              }
+
+              if (selectedPlan === "Full Day") {
+                setTotalAmount(value === "With Locker" ? 800 : 700);
+              }
+
+              if (selectedPlan === "Night") {
+                setTotalAmount(value === "With Locker" ? 600 : 500);
+              }
+
+            }}
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 font-bold outline-none focus:border-indigo-500"
+          >
+
+            <option value="">
+              Select Locker Option
+            </option>
+
+            <option value="Without Locker">
+              Without Locker
+            </option>
+
+            <option value="With Locker">
+              With Locker (+₹100)
+            </option>
+
+          </select>
+
+        </div>
+
+      )}
+
+
+      {/* TIMING */}
+      {selectedPlan && selectedPlan !== "24 Hours" && (
+
+        <div className="mt-5">
+
+          <label className="mb-2 block text-sm font-bold text-gray-700">
+            Select Timing
+          </label>
+
+          <select
+            value={selectedTiming}
+            onChange={(e) => setSelectedTiming(e.target.value)}
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 font-bold outline-none focus:border-indigo-500"
+          >
+
+            <option value="">
+              Select Timing
+            </option>
+
+            {selectedPlan === "Half Day" && (
+              <>
+                <option value="Morning (8 AM - 2 PM)">
+                  Morning — 8 AM - 2 PM
+                </option>
+
+                <option value="Afternoon (2 PM - 7 PM)">
+                  Afternoon — 2 PM - 7 PM
+                </option>
+              </>
+            )}
+
+            {selectedPlan === "Full Day" && (
+              <option value="Full Day (8 AM - 7 PM)">
+                Full Day — 8 AM - 7 PM
+              </option>
+            )}
+
+            {selectedPlan === "Night" && (
+              <option value="Night (9 PM - 6 AM)">
+                Night — 9 PM - 6 AM
+              </option>
+            )}
+
+          </select>
+
+        </div>
+
+      )}
+
+
+      {/* 24 HOURS TIMING DISPLAY */}
+      {selectedPlan === "24 Hours" && (
+
+        <div className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-4">
+
+          <p className="font-bold text-green-800">
+            ⏰ Timing: 24 Hours
+          </p>
+
+          <p className="mt-1 text-sm text-green-700">
+            🎁 Free Locker Included
+          </p>
+
+        </div>
+
+      )}
+
+
+      {/* SEAT NUMBER */}
+      <div className="mt-5">
+
+        <label className="mb-2 block text-sm font-bold text-gray-700">
+          Seat Number
+        </label>
+
+        <input
+          type="number"
+          min="1"
+          max="100"
+          id="bookingSeat"
+          placeholder="Enter seat number"
+          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:border-indigo-500"
+        />
+
+      </div>
+
+
+      {/* TOTAL */}
+      {totalAmount > 0 && (
+
+        <div className="mt-5 rounded-2xl bg-indigo-50 p-5 text-center">
+
+          <p className="text-sm font-bold text-gray-500">
+            Total Payable Amount
+          </p>
+
+          <p className="mt-1 text-4xl font-black text-indigo-700">
+            ₹{totalAmount}
+          </p>
+
+          <p className="mt-2 text-sm font-bold text-gray-600">
+            {selectedPlan} • {lockerOption}
+          </p>
+
+        </div>
+
+      )}
+
+
+      {/* PAYMENT */}
+      <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5">
+
+        <h3 className="text-lg font-black text-green-800">
+          💳 Payment Details
+        </h3>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+
+          <div className="rounded-xl bg-white p-4">
+
+            <p className="text-xs font-bold text-gray-500">
+              Payment Number
+            </p>
+
+            <p className="mt-1 text-lg font-black text-gray-900">
+              9219384600
+            </p>
+
+          </div>
+
+          <div className="rounded-xl bg-white p-4">
+
+            <p className="text-xs font-bold text-gray-500">
+              UPI ID
+            </p>
+
+            <p className="mt-1 break-all font-black text-indigo-700">
+              YOUR_UPI_ID_HERE
+            </p>
+
+          </div>
+
+        </div>
+
+        <p className="mt-4 text-sm leading-6 text-gray-600">
+          Payment karne ke baad WhatsApp par booking details bhejein aur
+          payment ka screenshot bhi attach karein.
+        </p>
+
+      </div>
+
+
+      {/* WHATSAPP BUTTON */}
+      <button
+        onClick={() => {
+
+          const name = document.getElementById("bookingName").value;
+          const phone = document.getElementById("bookingPhone").value;
+          const seat = document.getElementById("bookingSeat").value;
+
+          if (
+            !name ||
+            !phone ||
+            !seat ||
+            !selectedPlan ||
+            !selectedTiming ||
+            !lockerOption ||
+            !totalAmount
+          ) {
+            alert("Please fill all booking details first.");
+            return;
+          }
+
+          const message = `
+*🔥 ANY TIME LIBRARY - SEAT BOOKING REQUEST 🔥*
+
+👤 *Name:* ${name}
+📱 *WhatsApp Number:* ${phone}
+
+💺 *Seat Number:* ${seat}
+
+📋 *Plan:* ${selectedPlan}
+⏰ *Timing:* ${selectedTiming}
+🔐 *Locker:* ${lockerOption}
+
+💰 *Total Amount:* ₹${totalAmount}
+
+💳 *Payment Number:* 9219384600
+🆔 *UPI ID:* YOUR_UPI_ID_HERE
+
+📸 *Payment Screenshot:*
+I will attach the payment screenshot here.
+
+Please check and confirm my seat booking.
+          `;
+
+          const whatsappUrl =
+            `https://wa.me/919219384600?text=${encodeURIComponent(message)}`;
+
+          window.open(whatsappUrl, "_blank");
+
+        }}
+        className="mt-6 w-full rounded-2xl bg-green-600 py-4 text-lg font-black text-white shadow-lg transition hover:-translate-y-1 hover:bg-green-700"
+      >
+        💬 Send Booking Request on WhatsApp
+      </button>
+
+      <p className="mt-3 text-center text-xs text-gray-500">
+        WhatsApp open hone ke baad payment screenshot attach karke send karein.
+      </p>
+
     </div>
+
+  </div>
+)}
+          
+
+
+          {/* ================= FEATURES SECTION ================= */}
+          <section id="features" className="relative bg-[#0f172a] px-6 py-24 text-white">
+
+  <div className="mx-auto max-w-6xl">
+
+    {/* HEADER */}
+    <div className="mb-14">
+
+      <h2 className="inline-flex items-center gap-3 border-b-4 border-yellow-400 pb-2 text-3xl font-black sm:text-4xl">
+
+        <span className="flex h-10 w-10 items-center justify-center rounded-full border-4 border-yellow-400 text-xl text-yellow-400">
+          ◇
+        </span>
+
+        Resource Hub & Updates
+
+      </h2>
+
+    </div>
+
+
+    {/* CARDS */}
+    <div className="grid gap-7 md:grid-cols-2 lg:grid-cols-3">
+
+
+      {/* UPSC CURRENT AFFAIRS */}
+      <a
+        href="https://visionias.in/current-affairs/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="rounded-xl border-l-4 border-blue-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
+      >
+
+        <div className="mb-5 text-5xl text-blue-400">
+          📰
+        </div>
+
+        <h3 className="text-xl font-black">
+          UPSC Current Affairs
+        </h3>
+
+        <p className="mt-4 text-base text-slate-400">
+          Daily news and analysis from Vision IAS.
+        </p>
+
+      </a>
+
+
+      {/* EMPLOYMENT NEWS */}
+      <a
+        href="https://employmentnews.gov.in/NewEmp/Home.aspx"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="rounded-xl border-l-4 border-purple-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
+      >
+
+        <div className="mb-5 text-5xl text-purple-400">
+          📰
+        </div>
+
+        <h3 className="text-xl font-black">
+          Employment News
+        </h3>
+
+        <p className="mt-4 text-base text-slate-400">
+          Official government source for job listings.
+        </p>
+
+      </a>
+
+
+      {/* LATEST JOB UPDATES */}
+      <a
+        href="https://sarkariresult.com.cm/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="rounded-xl border-l-4 border-pink-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
+      >
+
+        <div className="mb-5 text-5xl text-pink-400">
+          💼
+        </div>
+
+        <h3 className="text-xl font-black">
+          Latest Job Updates
+        </h3>
+
+        <p className="mt-4 text-base text-slate-400">
+          Latest government job updates from Sarkari Result.
+        </p>
+
+      </a>
+
+
+      {/* UPSC PDF MATERIALS */}
+      <a
+        href="https://www.pdfnotes.co/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="rounded-xl border-l-4 border-green-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
+      >
+
+        <div className="mb-5 text-5xl text-green-400">
+          📄
+        </div>
+
+        <h3 className="text-xl font-black">
+          UPSC PDF Materials
+        </h3>
+
+        <p className="mt-4 text-base text-slate-400">
+          Downloadable PDFs and study resources.
+        </p>
+
+      </a>
+
+
+      {/* UPSC FORMS & DOWNLOADS */}
+      <a
+        href="https://www.upsc.gov.in/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="rounded-xl border-l-4 border-yellow-400 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
+      >
+
+        <div className="mb-5 text-5xl text-yellow-400">
+          📋
+        </div>
+
+        <h3 className="text-xl font-black">
+          UPSC Forms & Downloads
+        </h3>
+
+        <p className="mt-4 text-base text-slate-400">
+          Official forms from the UPSC website.
+        </p>
+
+      </a>
+
+
+      {/* INTERNET ARCHIVE */}
+      <a
+        href="https://archive.org/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="rounded-xl border-l-4 border-indigo-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
+      >
+
+        <div className="mb-5 text-5xl text-indigo-400">
+          🗃️
+        </div>
+
+        <h3 className="text-xl font-black">
+          Internet Archive
+        </h3>
+
+        <p className="mt-4 text-base text-slate-400">
+          A digital library of free books, movies, and more.
+        </p>
+
+      </a>
+
+
+    </div>
+
+  </div>
+
+</section>
+
+          {/* ---> PUBLIC: FOOTER <--- */}
+
+          <Footer />
+          {/* FLOATING WHATSAPP INQUIRY BUTTON */}
+{/* FLOATING WHATSAPP INQUIRY BUTTON */}
+<a
+  href="https://wa.me/919219384600?text=Hello%20Any%20Time%20Library%2C%20I%20want%20to%20make%20an%20inquiry."
+  target="_blank"
+  rel="noopener noreferrer"
+  className="fixed bottom-4 right-4 z-[100] transition duration-300 hover:scale-110 sm:bottom-6 sm:right-6"
+  aria-label="WhatsApp Inquiry"
+>
+  <img
+    src="https:/cdn-icons-png.flaticon.com/128/1384/1384055.png"
+    alt="WhatsApp Inquiry"
+    className="h-10 w-10 object-contain sm:h-14 sm:w-14"
+  />
+</a>
+
+        </div>
+        
+      )}
+
+    </>
   );
 }
