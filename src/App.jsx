@@ -197,8 +197,8 @@ const [totalAmount, setTotalAmount] = useState(0);
   // ============================================================================
   // 📍 5. ADMIN LOGIN CREDENTIALS (Yaha se aap Apna Admin Username/Password badal sakte hain)
   // ============================================================================
-  const adminUser = 'Anytime';
-  const adminPass = 'Library1234';
+  const adminUser = 'Anant Singh';
+  const adminPass = 'Kamlesh@123';
 
   const handleLogin = () => {
     if (username === adminUser && password === adminPass) {
