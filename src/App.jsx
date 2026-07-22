@@ -2103,7 +2103,7 @@ Please check and confirm my seat booking.
 >
   <img
     src="https:/cdn-icons-png.flaticon.com/128/1384/1384055.png"
-    alt="WhatsApp Inquiry"
+    alt="✆"
     className="h-10 w-10 object-contain sm:h-14 sm:w-14"
   />
 </a>
