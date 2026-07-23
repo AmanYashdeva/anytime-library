@@ -2094,7 +2094,7 @@ Please check and confirm my seat booking.
           <Footer />
           {/* FLOATING WHATSAPP INQUIRY BUTTON */}
 {/* FLOATING WHATSAPP INQUIRY BUTTON */}
-<a
+{/* <a
   href="https://wa.me/919219384600?text=Hello%20Any%20Time%20Library%2C%20I%20want%20to%20make%20an%20inquiry."
   target="_blank"
   rel="noopener noreferrer"
@@ -2106,6 +2106,16 @@ Please check and confirm my seat booking.
     alt="✆"
     className="h-10 w-10 object-contain sm:h-14 sm:w-14"
   />
+</a> */}
+{/* FLOATING WHATSAPP INQUIRY BUTTON */}
+<a
+  href="https://wa.me/919219384600?text=Hello%20Any%20Time%20Library%2C%20I%20want%20to%20make%20an%20inquiry."
+  target="_blank"
+  rel="noopener noreferrer"
+  className="fixed bottom-6 right-6 z-[100] flex h-16 w-16 items-center justify-center rounded-full bg-[#25D366] text-3xl shadow-2xl transition duration-300 hover:scale-110 hover:shadow-green-500/40"
+  aria-label="WhatsApp Inquiry"
+>
+  <span>📱</span>
 </a>
 
         </div>
