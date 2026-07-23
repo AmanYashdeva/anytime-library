@@ -68,10 +68,10 @@ export default function App() {
     morningPayment: i % 2 === 0 ? 'Submitted' : 'Pending',
     afternoonPayment: i % 3 === 0 ? 'Pending' : 'Submitted',
     nightPayment: i % 4 === 0 ? 'Pending' : 'Submitted',
-    morningFrom: '2026-05-11', morningTo: '2026-06-11',
-    afternoonFrom: '2026-05-12', afternoonTo: '2026-06-12',
-    nightFrom: '2026-05-13', nightTo: '2026-06-13',
-    fromDate: '2026-05-11', toDate: '2026-06-11', // Added default general dates
+    morningFrom: '0-0-0', morningTo: '0-0-0',
+    afternoonFrom: '0-0-0', afternoonTo: '0-0-0',
+    nightFrom: '0-0-0', nightTo: '0-0-0',
+    fromDate: '0-0-0', toDate: '0-0-0', // Added default general dates
     phone: '+91', email: '@gmail.com', // Added mock details based on image
     morningStudent: i % 4 === 1 ? `Morning ${i + 1}` : i % 4 === 0 ? `Day ${i + 1}` : '',
     afternoonStudent: i % 4 === 1 ? `Afternoon ${i + 1}` : '',
