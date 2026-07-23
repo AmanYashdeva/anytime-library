@@ -38,7 +38,7 @@ const Footer = () => {
 
             <ul className="space-y-2">
               <li className="hover:text-pink-500 cursor-pointer">
-                📸 Instagram
+                <a href="https://www.instagram.com/anytime_library?igsh=ejBmaHFneGhmZWJo">📸 Instagram</a>
               </li>
 
               <li className="hover:text-green-500 cursor-pointer">
