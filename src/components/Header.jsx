@@ -1,3 +1,4 @@
+import logo from "../assets/lib logo copy.png";
 const Header = () => {
   return (
     <header
@@ -8,7 +9,7 @@ const Header = () => {
 
         {/* Logo - Left Side */}
         <img
-          src="/src/assets/lib logo copy.png"
+          src={logo}
           alt="Library Logo"
           className="
         absolute
