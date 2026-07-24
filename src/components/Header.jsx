@@ -1,4 +1,4 @@
-import logo from "../assets/lib logo copy.png";
+import logo from "../assets/lib-logo-copy.png";
 const Header = () => {
   return (
     <header
