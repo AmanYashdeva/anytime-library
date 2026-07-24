@@ -31,7 +31,7 @@ const Footer = () => {
           </div>
 
           {/* Social */}
-          <div className="text-right md:text-center">
+          <div className="text-center md:text-center">
             <h2 className="text-xl font-bold text-white mb-4">
               🌐 Follow Us
             </h2>
