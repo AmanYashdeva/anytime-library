@@ -1529,9 +1529,9 @@ export default function App() {
                         {/* ===============================
                 WASHROOM
                 =============================== */}
-                        <div className="relative z-10 mb-4 flex justify-center">
+                        <div className="flex justify-between sm:mb-6">
 
-                          <div className="rounded-xl border border-blue-400/20 bg-blue-500/5 px-8 py-2 text-center shadow-lg">
+                          <div className="relative left-17 rounded-xl border border-blue-400/20 bg-blue-500/5 px-10 py-4 text-center shadow-lg">
 
                             <div className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-300">
                               Washroom
@@ -1539,6 +1539,17 @@ export default function App() {
 
                             <div className="mt-1 text-lg">
                               🚻
+                            </div>
+
+                          </div>
+
+                          <div className="rounded-2xl border border-blue-400/20 bg-blue-500/5 px-25 py-6 text-center shadow-lg">
+                            <div className="text-[12px] font-black uppercase tracking-[0.3em] text-blue-300 mt-1">
+                              Discussion Hall 💬
+                            </div>
+
+                            <div className="text-[12px] font-black uppercase tracking-[0.3em] text-blue-300 mt-1">
+                              Lunch Area 🍽️
                             </div>
 
                           </div>
