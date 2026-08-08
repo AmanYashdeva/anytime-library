@@ -60,6 +60,12 @@ const FormSelect = ({ label, value, onChange, onFocus, options }) => (
   </div>
 );
 
+const lockerSeats = [
+  1, 2, 3, 4, 5, 6, 7, 8,
+  33, 34, 35, 36, 37, 38, 39, 40,
+  41, 42, 43, 44, 45, 46, 47, 48
+];
+
 const HallSeat = ({ seat, setShowQuickView, vertical = false }) => {
 
   let isFullyBooked = false;
@@ -148,9 +154,22 @@ const HallSeat = ({ seat, setShowQuickView, vertical = false }) => {
       <span className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/10 to-transparent"></span>
 
       {/* seat number */}
-      <span className="relative z-10 drop-shadow-md">
-        {seat.id}
-      </span>
+      <div className="relative z-10 flex items-center gap-0.5">
+
+        <span className="drop-shadow-md">
+          {seat.id}
+        </span>
+
+        {lockerSeats.includes(seat.id) && (
+          <span
+            className="text-[7px] sm:text-[8px]"
+            title="Locker Available"
+          >
+            🔒
+          </span>
+        )}
+
+      </div>
 
       {/* tiny status indicator */}
       <span
