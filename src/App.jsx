@@ -18,6 +18,8 @@ import StudentRegistration from "./components/StudentRegistration";
 import StudentLogin from "./components/StudentLogin";
 import StudentDashboard from "./components/StudentDashboard";
 import Plans from "./components/Plans";
+import qr from "../assets/QR.jpeg";
+import logo from "../assets/lib-logo-copy.png";
 
 
 // --- Icons (SVG) ---
@@ -2381,7 +2383,7 @@ export default function App() {
                         9161310909
                       </p>
 
-                      <img className="mt-2" src="/src/assets/lib-logo-copy.png" alt="Library Logo" />
+                      <img className="mt-2" src={logo} alt="Library Logo" />
 
                     </div>
 
@@ -2394,7 +2396,7 @@ export default function App() {
                       {/* <p className="mt-1 break-all font-black text-indigo-700">
               YOUR_UPI_ID_HERE
             </p> */}
-                      <img src="/src/assets/QR.jpeg" alt="UPI QR Code" className="mt-2 rounded-2xl" />
+                      <img src={qr} alt="UPI QR Code" className="mt-2 rounded-2xl" />
 
                     </div>
 
