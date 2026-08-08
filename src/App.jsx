@@ -58,11 +58,117 @@ const FormSelect = ({ label, value, onChange, onFocus, options }) => (
   </div>
 );
 
+const HallSeat = ({ seat, setShowQuickView, vertical = false }) => {
+
+  let isFullyBooked = false;
+  let onlyNightAvailable = false;
+
+  // ==============================
+  // 24 HOURS
+  // ==============================
+  if (seat.status === '24 Hours') {
+    isFullyBooked = !!seat.nightStudent;
+  }
+
+  // ==============================
+  // FULL DAY
+  // ONLY DAY + NIGHT
+  // ==============================
+  else if (seat.status === 'Full Day') {
+
+    const dayFull = !!seat.fullDayStudent;
+    const nightFull = !!seat.nightStudent;
+
+    isFullyBooked = dayFull && nightFull;
+
+    if (dayFull && !nightFull) {
+      onlyNightAvailable = true;
+    }
+  }
+
+  // ==============================
+  // HALF DAY
+  // MORNING + AFTERNOON + NIGHT
+  // ==============================
+  else if (seat.status === 'Half Day') {
+
+    const morningFull = !!seat.morningStudent;
+    const afternoonFull = !!seat.afternoonStudent;
+    const nightFull = !!seat.nightStudent;
+
+    isFullyBooked =
+      morningFull &&
+      afternoonFull &&
+      nightFull;
+
+    if (
+      morningFull &&
+      afternoonFull &&
+      !nightFull
+    ) {
+      onlyNightAvailable = true;
+    }
+  }
+
+  // ==============================
+  // COLORS
+  // ==============================
+  const bgClass = isFullyBooked
+    ? 'bg-red-500 border-red-500/50 shadow-[0_0_14px_rgba(239,68,68,0.25)]'
+    : onlyNightAvailable
+      ? 'bg-gradient-to-br from-green-400 via-green-600 to-[#07130c] border-green-300/40 shadow-[0_0_14px_rgba(34,197,94,0.22)]'
+      : 'bg-gradient-to-br from-green-400 via-green-600 to-green-700 border-green-300/40 shadow-[0_0_12px_rgba(34,197,94,0.18)]';
+
+
+  return (
+    <div
+      title={`Seat ${seat.id} • ${seat.status}`}
+      onClick={() => setShowQuickView(false)}
+      className={`
+        group relative
+        flex items-center justify-center
+        ${vertical ? 'min-h-[42px]' : 'aspect-[1.35/1]'}
+        cursor-pointer
+        overflow-hidden
+        rounded-md sm:rounded-lg
+        border
+        ${bgClass}
+        text-[10px] font-black text-white
+        transition-all duration-200
+        hover:-translate-y-0.5
+        hover:scale-[1.04]
+        hover:brightness-110
+        active:scale-95
+      `}
+    >
+
+      {/* top shine */}
+      <span className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/10 to-transparent"></span>
+
+      {/* seat number */}
+      <span className="relative z-10 drop-shadow-md">
+        {seat.id}
+      </span>
+
+      {/* tiny status indicator */}
+      <span
+        className={`
+          absolute bottom-1 right-1
+          h-1 w-1 rounded-full
+          ${isFullyBooked ? 'bg-red-200' : 'bg-green-100'}
+          opacity-80
+        `}
+      ></span>
+
+    </div>
+  );
+};
+
 export default function App() {
   // ============================================================================
   // 📍 1. INITIAL DATA (Yaha se aapki 100 seats ka default dummy data ban raha hai)
   // ============================================================================
-  const initialSeats = Array.from({ length: 100 }, (_, i) => ({
+  const initialSeats = Array.from({ length: 66 }, (_, i) => ({
     id: i + 1,
     status: i % 4 === 0 ? 'Full Day' : i % 4 === 1 ? 'Half Day' : i % 4 === 2 ? '24 Hours' : 'Available',
     morningPayment: i % 2 === 0 ? 'Submitted' : 'Pending',
@@ -96,9 +202,9 @@ export default function App() {
   const [showStudentLogin, setShowStudentLogin] = useState(false);
   const [studentUser, setStudentUser] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState("");
-const [selectedTiming, setSelectedTiming] = useState("");
-const [lockerOption, setLockerOption] = useState("");
-const [totalAmount, setTotalAmount] = useState(0);
+  const [selectedTiming, setSelectedTiming] = useState("");
+  const [lockerOption, setLockerOption] = useState("");
+  const [totalAmount, setTotalAmount] = useState(0);
 
 
   const uploadSeatsToFirebase = async () => {
@@ -172,26 +278,65 @@ const [totalAmount, setTotalAmount] = useState(0);
   const totalPages = Math.ceil(filteredSeats.length / seatsPerPage);
 
   // ============================================================================
-  // 📍 4. AUTO TIME UPDATER (Public view mein time ke hisaab se shift auto-change)
+  // 📍 4. AUTO TIME UPDATER
   // ============================================================================
+
   useEffect(() => {
     const updateSeatTimingAutomatically = () => {
+
       const hour = new Date().getHours();
+
       setSeats((prevSeats) =>
         prevSeats.map((seat) => {
-          if (seat.status === 'Available') return seat;
-          let newTiming = '';
-          if (hour >= 8 && hour < 14) newTiming = '8 AM - 2 PM';
-          else if (hour >= 14 && hour < 20) newTiming = '2 PM - 8 PM';
-          else newTiming = '8 PM - 8 AM';
 
-          return { ...seat, timing: seat.status === '24 Hours' ? '24 Hours' : newTiming };
+          if (seat.status === 'Available') {
+            return seat;
+          }
+
+          // 24 HOURS
+          if (seat.status === '24 Hours') {
+            return {
+              ...seat,
+              timing: '24 Hours'
+            };
+          }
+
+          // FULL DAY
+          if (seat.status === 'Full Day') {
+            return {
+              ...seat,
+              timing: '8 AM - 8 PM'
+            };
+          }
+
+          // HALF DAY
+          let newTiming = '';
+
+          if (hour >= 8 && hour < 14) {
+            newTiming = '8 AM - 2 PM';
+          } else if (hour >= 14 && hour < 20) {
+            newTiming = '2 PM - 8 PM';
+          } else {
+            newTiming = '8 PM - 8 AM';
+          }
+
+          return {
+            ...seat,
+            timing: newTiming
+          };
         })
       );
     };
+
     updateSeatTimingAutomatically();
-    const interval = setInterval(updateSeatTimingAutomatically, 60000);
+
+    const interval = setInterval(
+      updateSeatTimingAutomatically,
+      60000
+    );
+
     return () => clearInterval(interval);
+
   }, []);
 
   // ============================================================================
@@ -332,7 +477,7 @@ const [totalAmount, setTotalAmount] = useState(0);
     switch (status) {
       case 'Full Day': return 'bg-red-500';
       case 'Half Day': return 'bg-yellow-400 text-black';
-      case '24 Hours': return 'bg-blue-500';
+      case '24 Hours': return 'bg-red-500';
       default: return 'bg-green-500';
     }
   };
@@ -1120,8 +1265,8 @@ const [totalAmount, setTotalAmount] = useState(0);
 
           {/* ---> PUBLIC: MAIN HEADER <--- */}
           <Header />
-          
-          
+
+
           {/* {showRegistration && (
             <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm overflow-y-auto p-4">
 
@@ -1287,48 +1432,392 @@ const [totalAmount, setTotalAmount] = useState(0);
                 </div>
               </div>
             </div>
-
-            {/* ---> PUBLIC: QUICK VIEW 100 SEATS MODAL (POPUP MAP GRID) <--- */}
+            {/* =========================================================
+                          PUBLIC: PROFESSIONAL HALL SEAT MAP
+                ========================================================= */}
             {showQuickView && (
-              <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[60] p-4">
-                <div className="bg-[#0f172a] p-6 sm:p-8 rounded-3xl shadow-2xl w-full max-w-2xl relative border border-gray-700 max-h-[90vh] overflow-y-auto">
-                  <button
-                    onClick={() => setShowQuickView(false)}
-                    className="absolute top-4 right-5 text-2xl font-bold text-gray-500 hover:text-white transition"
-                  >
-                    ✕
-                  </button>
+              <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-md p-2 sm:p-4">
 
-                  <div className="mb-6">
-                    <h4 className="text-2xl font-black text-yellow-400">Live Quick View Map</h4>
-                    <p className="text-sm text-gray-400 mt-1">Check availability of all 100 seats at a single glance.</p>
-                  </div>
+                <div className="relative flex max-h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-yellow-500/20 bg-[#080d18] shadow-[0_25px_100px_rgba(0,0,0,0.8)]">
 
-                  <div className="flex flex-wrap gap-4 text-xs font-bold text-gray-300 bg-black/40 p-3 rounded-xl border border-gray-800 mb-6 w-fit">
-                    <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 bg-green-500 rounded-sm shadow-[0_0_8px_rgba(34,197,94,0.5)]"></div> Available / Partial</div>
-                    <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 bg-red-500 rounded-sm shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div> Fully Booked</div>
-                  </div>
+                  {/* TOP HEADER */}
+                  <div className="shrink-0 border-b border-white/10 bg-gradient-to-r from-[#0b1220] via-[#111827] to-[#0b1220] px-4 py-4 sm:px-7 sm:py-5">
 
-                  <div className="grid grid-cols-10 gap-2 sm:gap-3">
-                    {seats.map(seat => {
-                      const isFullyBooked = seat.status === '24 Hours' || (seat.status !== 'Available' && seat.morningStudent && seat.afternoonStudent && seat.nightStudent);
-                      const bgClass = isFullyBooked ? 'bg-red-500 hover:bg-red-400 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.4)]' : 'bg-green-500 hover:bg-green-400 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.3)]';
+                    <div className="flex items-start justify-between gap-4">
 
-                      return (
-                        <div
-                          key={`quick-${seat.id}`}
-                          className={`aspect-square flex items-center justify-center rounded-md sm:rounded-lg text-xs sm:text-sm font-black text-white cursor-pointer transition-all border border-black/20 ${bgClass}`}
-                          title={`Seat ${seat.id} - ${seat.status}`}
-                          onClick={() => {
-                            setShowQuickView(false); // Map band karke particular seat list me scroll karne ke liye
-                          }}
-                        >
-                          {seat.id}
+                      <div>
+                        <div className="flex items-center gap-2">
+
+                          <div>
+                            <h4 className="text-xl font-black tracking-tight text-yellow-400 sm:text-2xl">
+                              Live Quick Hall Seat View Map
+                            </h4>
+                          </div>
                         </div>
-                      );
-                    })}
+                      </div>
+
+                      <button
+                        onClick={() => setShowQuickView(false)}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xl font-bold text-gray-400 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
+                      >
+                        ✕
+                      </button>
+
+                    </div>
+
+
+                    {/* LEGEND */}
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+
+                      <div className="flex items-center gap-2 rounded-full border border-green-500/20 bg-green-500/5 px-3 py-1.5 text-[10px] font-bold text-gray-300">
+                        <span className="h-2.5 w-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></span>
+                        Available
+                      </div>
+
+                      <div className="flex items-center gap-2 rounded-full border border-green-500/20 bg-green-500/5 px-3 py-1.5 text-[10px] font-bold text-gray-300">
+                        <span className="h-2.5 w-2.5 rounded-full bg-gradient-to-r from-green-500 to-black"></span>
+                        Night Available
+                      </div>
+
+                      <div className="flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/5 px-3 py-1.5 text-[10px] font-bold text-gray-300">
+                        <span className="h-2.5 w-2.5 rounded-full bg-red-500"></span>
+                        Fully Booked
+                      </div>
+
+                    </div>
+
                   </div>
+
+
+                  {/* =====================================================
+          HALL AREA
+          ===================================================== */}
+                  <div className="min-h-0 flex-1 overflow-auto bg-[#050914] p-3 sm:p-5">
+
+                    <div className="mx-auto min-w-[650px] max-w-5xl">
+
+                      {/* HALL OUTER BORDER */}
+                      <div className="relative overflow-hidden rounded-[24px] border-2 border-gray-700 bg-gradient-to-br from-[#151d2b] via-[#0c1422] to-[#080d17] p-4 shadow-[inset_0_0_60px_rgba(0,0,0,0.55)] sm:p-6">
+
+
+                        {/* WALL GLOW */}
+                        <div className="pointer-events-none absolute inset-2 rounded-[20px] border border-yellow-500/5"></div>
+
+
+                        {/* ===============================
+                WASHROOM
+                =============================== */}
+                        <div className="relative z-10 mb-4 flex justify-center">
+
+                          <div className="rounded-xl border border-blue-400/20 bg-blue-500/5 px-8 py-2 text-center shadow-lg">
+
+                            <div className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-300">
+                              Washroom
+                            </div>
+
+                            <div className="mt-1 text-lg">
+                              🚻
+                            </div>
+
+                          </div>
+
+                        </div>
+
+
+                        {/* ===============================
+                MAIN HALL MAP
+                =============================== */}
+                        <div className="relative aspect-[1.08/1] w-full">
+
+
+                          {/* WALKING AISLE */}
+                          <div className="pointer-events-none absolute left-[46%] top-[10%] h-[75%] w-[8%] rounded-full bg-gradient-to-b from-white/[0.02] via-yellow-500/[0.025] to-transparent"></div>
+
+
+                          {/* CENTER AISLE LABEL */}
+                          <div className="pointer-events-none absolute left-[45.5%] top-[48%] -rotate-90 text-[7px] font-black uppercase tracking-[0.4em] text-gray-700 sm:text-[8px]">
+                            WALKWAY
+                          </div>
+
+
+                          {/* =================================================
+                  LEFT SIDE — SEAT BLOCKS
+                  ================================================= */}
+
+                          {/* 37 - 40 */}
+                          <div className="absolute left-[3%] top-[5%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                            {[40, 39, 38, 37].map(id => {
+                              const seat = seats.find(s => s.id === id);
+                              if (!seat) return null;
+
+                              return (
+                                <HallSeat
+                                  key={id}
+                                  seat={seat}
+                                  setShowQuickView={setShowQuickView}
+                                />
+                              );
+                            })}
+                          </div>
+
+
+                          {/* 33 - 36 / 29 - 32 */}
+                          <div className="absolute left-[3%] top-[17%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                            {[36, 35, 34, 33, 32, 31, 30, 29].map(id => {
+                              const seat = seats.find(s => s.id === id);
+                              if (!seat) return null;
+
+                              return (
+                                <HallSeat
+                                  key={id}
+                                  seat={seat}
+                                  setShowQuickView={setShowQuickView}
+                                />
+                              );
+                            })}
+                          </div>
+
+
+                          {/* 25 - 28 / 21 - 24 */}
+                          <div className="absolute left-[3%] top-[36%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                            {[28, 27, 26, 25, 24, 23, 22, 21].map(id => {
+                              const seat = seats.find(s => s.id === id);
+                              if (!seat) return null;
+
+                              return (
+                                <HallSeat
+                                  key={id}
+                                  seat={seat}
+                                  setShowQuickView={setShowQuickView}
+                                />
+                              );
+                            })}
+                          </div>
+
+
+                          {/* 20 - 17 / 13 - 16 */}
+                          <div className="absolute left-[3%] top-[55%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                            {[20, 19, 18, 17, 16, 15, 14, 13].map(id => {
+                              const seat = seats.find(s => s.id === id);
+                              if (!seat) return null;
+
+                              return (
+                                <HallSeat
+                                  key={id}
+                                  seat={seat}
+                                  setShowQuickView={setShowQuickView}
+                                />
+                              );
+                            })}
+                          </div>
+
+
+                          {/* 12 - 9 / 8 - 5 */}
+                          <div className="absolute left-[3%] top-[74%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                            {[12, 11, 10, 9, 8, 7, 6, 5].map(id => {
+                              const seat = seats.find(s => s.id === id);
+                              if (!seat) return null;
+
+                              return (
+                                <HallSeat
+                                  key={id}
+                                  seat={seat}
+                                  setShowQuickView={setShowQuickView}
+                                />
+                              );
+                            })}
+                          </div>
+
+
+                          {/* 1 - 4 */}
+                          <div className="absolute bottom-[0%] left-[3%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                            {[4, 3, 2, 1].map(id => {
+                              const seat = seats.find(s => s.id === id);
+                              if (!seat) return null;
+
+                              return (
+                                <HallSeat
+                                  key={id}
+                                  seat={seat}
+                                  setShowQuickView={setShowQuickView}
+                                />
+                              );
+                            })}
+                          </div>
+
+
+                          {/* =================================================
+                  RIGHT SIDE — SEAT BLOCKS
+                  ================================================= */}
+
+                          {/* 65 / 66 */}
+                          <div className="absolute right-[32%] top-[14%] flex w-[10%] flex-col gap-1.5 sm:gap-2">
+
+                            {[66, 65].map(id => {
+                              const seat = seats.find(s => s.id === id);
+                              if (!seat) return null;
+
+                              return (
+                                <HallSeat
+                                  key={id}
+                                  seat={seat}
+                                  setShowQuickView={setShowQuickView}
+                                  vertical
+                                />
+                              );
+                            })}
+
+                          </div>
+
+
+                          {/* 64 - 61 */}
+                          <div className="absolute right-[3%] top-[39%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                            {[61, 62, 63, 64].map(id => {
+                              const seat = seats.find(s => s.id === id);
+                              if (!seat) return null;
+
+                              return (
+                                <HallSeat
+                                  key={id}
+                                  seat={seat}
+                                  setShowQuickView={setShowQuickView}
+                                />
+                              );
+                            })}
+                          </div>
+
+
+                          {/* 57 - 60 / 56 - 53 */}
+                          <div className="absolute right-[3%] top-[52%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                            {[57, 58, 59, 60, 53, 54, 55, 56].map(id => {
+                              const seat = seats.find(s => s.id === id);
+                              if (!seat) return null;
+
+                              return (
+                                <HallSeat
+                                  key={id}
+                                  seat={seat}
+                                  setShowQuickView={setShowQuickView}
+                                />
+                              );
+                            })}
+                          </div>
+
+
+                          {/* 49 - 52 / 48 - 45 */}
+                          <div className="absolute right-[3%] top-[72%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                            {[49, 50, 51, 52, 45, 46, 47, 48].map(id => {
+                              const seat = seats.find(s => s.id === id);
+                              if (!seat) return null;
+
+                              return (
+                                <HallSeat
+                                  key={id}
+                                  seat={seat}
+                                  setShowQuickView={setShowQuickView}
+                                />
+                              );
+                            })}
+                          </div>
+
+
+                          {/* 41 - 44 */}
+                          <div className="absolute bottom-[0%] right-[3%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                            {[41, 42, 43, 44].map(id => {
+                              const seat = seats.find(s => s.id === id);
+                              if (!seat) return null;
+
+                              return (
+                                <HallSeat
+                                  key={id}
+                                  seat={seat}
+                                  setShowQuickView={setShowQuickView}
+                                />
+                              );
+                            })}
+                          </div>
+
+
+                          {/* ===============================
+                  ENTRY
+                  =============================== */}
+                          <div className="absolute bottom-[2%] left-1/2 z-20 -translate-x-1/2 translate-y-1/2">
+
+                            <div className="flex flex-col items-center">
+
+                              <div className="mb-1 h-8 w-16 rounded-t-xl border-x-2 border-t-2 border-yellow-500/40 bg-yellow-500/10"></div>
+
+                              <div className="rounded-full border border-yellow-500/30 bg-[#0b1220] px-5 py-1.5 text-[8px] font-black uppercase tracking-[0.3em] text-yellow-400 shadow-lg">
+                                ↑ Entry
+                              </div>
+
+                            </div>
+
+                          </div>
+
+
+                          {/* ===============================
+                  BOOK AREA
+                  =============================== */}
+                          <div className="absolute right-[4%] top-[6%] hidden rounded-xl border border-purple-500/10 bg-purple-500/5 px-20 py-20 text-center lg:block">
+
+                            {/* <div className="text-xl">❌</div> */}
+
+                            <div className="mt-1 text-[7px] font-black uppercase tracking-widest text-purple-300">
+                              Stairs
+                            </div>
+
+                          </div>
+
+
+                        </div>
+
+
+                        {/* ===============================
+                FUTURE EXPANSION
+                =============================== */}
+                        {seats.some(seat => seat.id > 66) && (
+                          <div className="mt-8 rounded-2xl border border-dashed border-yellow-500/20 bg-yellow-500/[0.03] p-4">
+
+                            <div className="mb-3 flex items-center gap-2">
+                              <span className="text-lg">＋</span>
+
+                              <div>
+                                <p className="text-xs font-black uppercase tracking-widest text-yellow-400">
+                                  New Seating Area
+                                </p>
+
+                                <p className="text-[10px] text-gray-500">
+                                  Future added seats
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+
+                              {seats
+                                .filter(seat => seat.id > 66)
+                                .map(seat => (
+                                  <HallSeat
+                                    key={seat.id}
+                                    seat={seat}
+                                    setShowQuickView={setShowQuickView}
+                                  />
+                                ))}
+
+                            </div>
+
+                          </div>
+                        )}
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
                 </div>
+
               </div>
             )}
 
@@ -1374,55 +1863,120 @@ const [totalAmount, setTotalAmount] = useState(0);
 
                         {seat.status !== 'Available' && (
                           <div className="mt-3 pt-3 border-t border-white/10 space-y-1.5 text-[11px]">
+
+                            {/* 24 HOURS */}
                             {seat.status === '24 Hours' ? (
+
                               <div className="bg-black/30 p-2 rounded-lg">
                                 <div className="flex justify-between items-center">
-                                  <span className="opacity-80">🔒 24 Hours:</span>
-                                  <span className="font-bold text-white truncate ml-2" title={seat.nightStudent || "Booked"}>
+                                  <span className="opacity-80 whitespace-nowrap">
+                                    🔒 24 Hours:
+                                  </span>
+
+                                  <span className="font-bold text-white truncate ml-2">
                                     {seat.nightStudent || "Booked"}
                                   </span>
                                 </div>
+
                                 {seat.nightStudent && (
                                   <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
                                     🗓 {seat.fromDate} To {seat.toDate}
                                   </div>
                                 )}
                               </div>
-                            ) : (
+
+                            ) : seat.status === 'Full Day' ? (
+
+                              /* FULL DAY — ONLY DAY + NIGHT */
                               <>
                                 <div className="bg-black/30 p-2 rounded-lg">
                                   <div className="flex justify-between items-center">
-                                    <span className="opacity-80 whitespace-nowrap">🌅 8 AM - 2 PM:</span>
+                                    <span className="opacity-80 whitespace-nowrap">
+                                      🌅 Day 8 AM - 8 PM:
+                                    </span>
+
+                                    <span className="font-bold text-white truncate ml-2">
+                                      {seat.fullDayStudent || "Available"}
+                                    </span>
+                                  </div>
+
+                                  {seat.fullDayStudent && (
+                                    <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
+                                      🗓 {seat.fullDayFrom} To {seat.fullDayTo}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="bg-black/30 p-2 rounded-lg">
+                                  <div className="flex justify-between items-center">
+                                    <span className="opacity-80 whitespace-nowrap">
+                                      🌙 Night 8 PM - 8 AM:
+                                    </span>
+
+                                    <span className="font-bold text-white truncate ml-2">
+                                      {seat.nightStudent || "Available"}
+                                    </span>
+                                  </div>
+
+                                  {seat.nightStudent && (
+                                    <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
+                                      🗓 {seat.nightFrom} To {seat.nightTo}
+                                    </div>
+                                  )}
+                                </div>
+                              </>
+
+                            ) : (
+
+                              /* HALF DAY — 3 SHIFTS */
+                              <>
+                                <div className="bg-black/30 p-2 rounded-lg">
+                                  <div className="flex justify-between items-center">
+                                    <span className="opacity-80 whitespace-nowrap">
+                                      🌅 8 AM - 2 PM:
+                                    </span>
+
                                     <span className={seat.morningStudent ? "font-bold text-white truncate ml-2" : "text-green-400 font-bold ml-2"}>
                                       {seat.morningStudent || "Available"}
                                     </span>
                                   </div>
+
                                   {seat.morningStudent && (
                                     <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
                                       🗓 {seat.morningFrom} To {seat.morningTo}
                                     </div>
                                   )}
                                 </div>
+
                                 <div className="bg-black/30 p-2 rounded-lg">
                                   <div className="flex justify-between items-center">
-                                    <span className="opacity-80 whitespace-nowrap">☀️ 2 PM - 8 PM:</span>
+                                    <span className="opacity-80 whitespace-nowrap">
+                                      ☀️ 2 PM - 8 PM:
+                                    </span>
+
                                     <span className={seat.afternoonStudent ? "font-bold text-white truncate ml-2" : "text-green-400 font-bold ml-2"}>
                                       {seat.afternoonStudent || "Available"}
                                     </span>
                                   </div>
+
                                   {seat.afternoonStudent && (
                                     <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
                                       🗓 {seat.afternoonFrom} To {seat.afternoonTo}
                                     </div>
                                   )}
                                 </div>
+
                                 <div className="bg-black/30 p-2 rounded-lg">
                                   <div className="flex justify-between items-center">
-                                    <span className="opacity-80 whitespace-nowrap">🌙 8 PM - 8 AM:</span>
+                                    <span className="opacity-80 whitespace-nowrap">
+                                      🌙 8 PM - 8 AM:
+                                    </span>
+
                                     <span className={seat.nightStudent ? "font-bold text-white truncate ml-2" : "text-green-400 font-bold ml-2"}>
                                       {seat.nightStudent || "Available"}
                                     </span>
                                   </div>
+
                                   {seat.nightStudent && (
                                     <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
                                       🗓 {seat.nightFrom} To {seat.nightTo}
@@ -1431,6 +1985,7 @@ const [totalAmount, setTotalAmount] = useState(0);
                                 </div>
                               </>
                             )}
+
                           </div>
                         )}
                       </div>
@@ -1453,429 +2008,428 @@ const [totalAmount, setTotalAmount] = useState(0);
             </div>
           </section>
 
-          <Plans /> 
-
-{showBookingPopup && (
-  <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-
-    <div className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
-
-      {/* CLOSE BUTTON */}
-      <button
-        onClick={() => {
-          setShowBookingPopup(false);
-          setSelectedPlan("");
-          setSelectedTiming("");
-          setLockerOption("");
-          setTotalAmount(0);
-        }}
-        className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-xl font-black text-gray-600 hover:bg-red-100 hover:text-red-600"
-      >
-        ✕
-      </button>
-
-      {/* HEADER */}
-      <div className="mb-7 pr-10">
-        <p className="text-sm font-black uppercase tracking-widest text-indigo-600">
-          Any Time Library
-        </p>
-
-        <h2 className="mt-2 text-3xl font-black text-gray-900">
-          Book Your Seat 🪑
-        </h2>
-
-        <p className="mt-2 text-sm text-gray-500">
-          Select your plan, seat and timing.
-        </p>
-      </div>
-
-      {/* STUDENT DETAILS */}
-      <div className="grid gap-4 sm:grid-cols-2">
-
-        <div>
-          <label className="mb-2 block text-sm font-bold text-gray-700">
-            Your Name
-          </label>
-
-          <input
-            type="text"
-            id="bookingName"
-            placeholder="Enter your name"
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:border-indigo-500"
-          />
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-bold text-gray-700">
-            WhatsApp Number
-          </label>
-
-          <input
-            type="tel"
-            id="bookingPhone"
-            placeholder="Enter WhatsApp number"
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:border-indigo-500"
-          />
-        </div>
-
-      </div>
-
-
-      {/* PLAN SELECTION */}
-      <div className="mt-6">
-
-        <label className="mb-3 block text-sm font-black text-gray-700">
-          Select Your Plan
-        </label>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-
-          {/* HALF DAY */}
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedPlan("Half Day");
-              setSelectedTiming("");
-              setLockerOption("");
-              setTotalAmount(0);
-            }}
-            className={`rounded-2xl border p-4 text-left transition ${
-              selectedPlan === "Half Day"
-                ? "border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500"
-                : "border-gray-200 bg-gray-50 hover:border-indigo-400"
-            }`}
-          >
-            <p className="font-black text-gray-900">
-              Half Day
-            </p>
-
-            <p className="mt-1 text-sm text-gray-500">
-              ₹500 Without Locker
-            </p>
-
-            <p className="mt-1 text-sm font-bold text-indigo-600">
-              ₹600 With Locker
-            </p>
-          </button>
-
-
-          {/* FULL DAY */}
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedPlan("Full Day");
-              setSelectedTiming("");
-              setLockerOption("");
-              setTotalAmount(0);
-            }}
-            className={`rounded-2xl border p-4 text-left transition ${
-              selectedPlan === "Full Day"
-                ? "border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500"
-                : "border-gray-200 bg-gray-50 hover:border-indigo-400"
-            }`}
-          >
-            <p className="font-black text-gray-900">
-              Full Day
-            </p>
-
-            <p className="mt-1 text-sm text-gray-500">
-              ₹700 Without Locker
-            </p>
-
-            <p className="mt-1 text-sm font-bold text-indigo-600">
-              ₹800 With Locker
-            </p>
-          </button>
-
-
-          {/* NIGHT */}
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedPlan("Night");
-              setSelectedTiming("");
-              setLockerOption("");
-              setTotalAmount(0);
-            }}
-            className={`rounded-2xl border p-4 text-left transition ${
-              selectedPlan === "Night"
-                ? "border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500"
-                : "border-gray-200 bg-gray-50 hover:border-indigo-400"
-            }`}
-          >
-            <p className="font-black text-gray-900">
-              Night
-            </p>
-
-            <p className="mt-1 text-sm text-gray-500">
-              ₹500 Without Locker
-            </p>
-
-            <p className="mt-1 text-sm font-bold text-indigo-600">
-              ₹600 With Locker
-            </p>
-          </button>
-
-
-          {/* 24 HOURS */}
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedPlan("24 Hours");
-              setSelectedTiming("24 Hours");
-              setLockerOption("Free Locker Included");
-              setTotalAmount(1000);
-            }}
-            className={`rounded-2xl border p-4 text-left transition ${
-              selectedPlan === "24 Hours"
-                ? "border-green-600 bg-green-50 ring-2 ring-green-500"
-                : "border-gray-200 bg-gray-50 hover:border-green-400"
-            }`}
-          >
-            <p className="font-black text-gray-900">
-              24 Hours
-            </p>
-
-            <p className="mt-1 text-lg font-black text-green-600">
-              ₹1000
-            </p>
-
-            <p className="mt-1 text-sm font-bold text-green-600">
-              🎁 Free Locker Included
-            </p>
-          </button>
-
-        </div>
-
-      </div>
-
-
-      {/* LOCKER OPTION */}
-      {selectedPlan && selectedPlan !== "24 Hours" && (
-
-        <div className="mt-5">
-
-          <label className="mb-2 block text-sm font-bold text-gray-700">
-            Locker Option
-          </label>
-
-          <select
-            value={lockerOption}
-            onChange={(e) => {
-
-              const value = e.target.value;
-
-              setLockerOption(value);
-
-              if (selectedPlan === "Half Day") {
-                setTotalAmount(value === "With Locker" ? 600 : 500);
-              }
-
-              if (selectedPlan === "Full Day") {
-                setTotalAmount(value === "With Locker" ? 800 : 700);
-              }
-
-              if (selectedPlan === "Night") {
-                setTotalAmount(value === "With Locker" ? 600 : 500);
-              }
-
-            }}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 font-bold outline-none focus:border-indigo-500"
-          >
-
-            <option value="">
-              Select Locker Option
-            </option>
-
-            <option value="Without Locker">
-              Without Locker
-            </option>
-
-            <option value="With Locker">
-              With Locker (+₹100)
-            </option>
-
-          </select>
-
-        </div>
-
-      )}
-
-
-      {/* TIMING */}
-      {selectedPlan && selectedPlan !== "24 Hours" && (
-
-        <div className="mt-5">
-
-          <label className="mb-2 block text-sm font-bold text-gray-700">
-            Select Timing
-          </label>
+          <Plans />
+
+          {showBookingPopup && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+
+              <div className="relative max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
+
+                {/* CLOSE BUTTON */}
+                <button
+                  onClick={() => {
+                    setShowBookingPopup(false);
+                    setSelectedPlan("");
+                    setSelectedTiming("");
+                    setLockerOption("");
+                    setTotalAmount(0);
+                  }}
+                  className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-xl font-black text-gray-600 hover:bg-red-100 hover:text-red-600"
+                >
+                  ✕
+                </button>
+
+                {/* HEADER */}
+                <div className="mb-7 pr-10">
+                  <p className="text-sm font-black uppercase tracking-widest text-indigo-600">
+                    Any Time Library
+                  </p>
+
+                  <h2 className="mt-2 text-3xl font-black text-gray-900">
+                    Book Your Seat 🪑
+                  </h2>
+
+                  <p className="mt-2 text-sm text-gray-500">
+                    Select your plan, seat and timing.
+                  </p>
+                </div>
+
+                {/* STUDENT DETAILS */}
+                <div className="grid gap-4 sm:grid-cols-2">
+
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-gray-700">
+                      Your Name
+                    </label>
+
+                    <input
+                      type="text"
+                      id="bookingName"
+                      placeholder="Enter your name"
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-gray-700">
+                      WhatsApp Number
+                    </label>
+
+                    <input
+                      type="tel"
+                      id="bookingPhone"
+                      placeholder="Enter WhatsApp number"
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                </div>
+
+
+                {/* PLAN SELECTION */}
+                <div className="mt-6">
+
+                  <label className="mb-3 block text-sm font-black text-gray-700">
+                    Select Your Plan
+                  </label>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+
+                    {/* HALF DAY */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedPlan("Half Day");
+                        setSelectedTiming("");
+                        setLockerOption("");
+                        setTotalAmount(0);
+                      }}
+                      className={`rounded-2xl border p-4 text-left transition ${selectedPlan === "Half Day"
+                        ? "border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500"
+                        : "border-gray-200 bg-gray-50 hover:border-indigo-400"
+                        }`}
+                    >
+                      <p className="font-black text-gray-900">
+                        Half Day
+                      </p>
+
+                      <p className="mt-1 text-sm text-gray-500">
+                        ₹500 Without Locker
+                      </p>
+
+                      <p className="mt-1 text-sm font-bold text-indigo-600">
+                        ₹600 With Locker
+                      </p>
+                    </button>
+
+
+                    {/* FULL DAY */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedPlan("Full Day");
+                        setSelectedTiming("");
+                        setLockerOption("");
+                        setTotalAmount(0);
+                      }}
+                      className={`rounded-2xl border p-4 text-left transition ${selectedPlan === "Full Day"
+                        ? "border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500"
+                        : "border-gray-200 bg-gray-50 hover:border-indigo-400"
+                        }`}
+                    >
+                      <p className="font-black text-gray-900">
+                        Full Day
+                      </p>
+
+                      <p className="mt-1 text-sm text-gray-500">
+                        ₹700 Without Locker
+                      </p>
+
+                      <p className="mt-1 text-sm font-bold text-indigo-600">
+                        ₹800 With Locker
+                      </p>
+                    </button>
+
+
+                    {/* NIGHT */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedPlan("Night");
+                        setSelectedTiming("");
+                        setLockerOption("");
+                        setTotalAmount(0);
+                      }}
+                      className={`rounded-2xl border p-4 text-left transition ${selectedPlan === "Night"
+                        ? "border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500"
+                        : "border-gray-200 bg-gray-50 hover:border-indigo-400"
+                        }`}
+                    >
+                      <p className="font-black text-gray-900">
+                        Night
+                      </p>
+
+                      <p className="mt-1 text-sm text-gray-500">
+                        ₹500 Without Locker
+                      </p>
+
+                      <p className="mt-1 text-sm font-bold text-indigo-600">
+                        ₹600 With Locker
+                      </p>
+                    </button>
+
+
+                    {/* 24 HOURS */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedPlan("24 Hours");
+                        setSelectedTiming("24 Hours");
+                        setLockerOption("Free Locker Included");
+                        setTotalAmount(1000);
+                      }}
+                      className={`rounded-2xl border p-4 text-left transition ${selectedPlan === "24 Hours"
+                        ? "border-green-600 bg-green-50 ring-2 ring-green-500"
+                        : "border-gray-200 bg-gray-50 hover:border-green-400"
+                        }`}
+                    >
+                      <p className="font-black text-gray-900">
+                        24 Hours
+                      </p>
+
+                      <p className="mt-1 text-lg font-black text-green-600">
+                        ₹1000
+                      </p>
+
+                      <p className="mt-1 text-sm font-bold text-green-600">
+                        🎁 Free Locker Included
+                      </p>
+                    </button>
+
+                  </div>
+
+                </div>
+
+
+                {/* LOCKER OPTION */}
+                {selectedPlan && selectedPlan !== "24 Hours" && (
+
+                  <div className="mt-5">
+
+                    <label className="mb-2 block text-sm font-bold text-gray-700">
+                      Locker Option
+                    </label>
+
+                    <select
+                      value={lockerOption}
+                      onChange={(e) => {
+
+                        const value = e.target.value;
+
+                        setLockerOption(value);
+
+                        if (selectedPlan === "Half Day") {
+                          setTotalAmount(value === "With Locker" ? 600 : 500);
+                        }
+
+                        if (selectedPlan === "Full Day") {
+                          setTotalAmount(value === "With Locker" ? 800 : 700);
+                        }
+
+                        if (selectedPlan === "Night") {
+                          setTotalAmount(value === "With Locker" ? 600 : 500);
+                        }
+
+                      }}
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 font-bold outline-none focus:border-indigo-500"
+                    >
+
+                      <option value="">
+                        Select Locker Option
+                      </option>
+
+                      <option value="Without Locker">
+                        Without Locker
+                      </option>
+
+                      <option value="With Locker">
+                        With Locker (+₹100)
+                      </option>
 
-          <select
-            value={selectedTiming}
-            onChange={(e) => setSelectedTiming(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 font-bold outline-none focus:border-indigo-500"
-          >
+                    </select>
 
-            <option value="">
-              Select Timing
-            </option>
+                  </div>
 
-            {selectedPlan === "Half Day" && (
-              <>
-                <option value="Morning (8 AM - 2 PM)">
-                  Morning — 8 AM - 2 PM
-                </option>
+                )}
 
-                <option value="Afternoon (2 PM - 7 PM)">
-                  Afternoon — 2 PM - 7 PM
-                </option>
-              </>
-            )}
 
-            {selectedPlan === "Full Day" && (
-              <option value="Full Day (8 AM - 7 PM)">
-                Full Day — 8 AM - 7 PM
-              </option>
-            )}
+                {/* TIMING */}
+                {selectedPlan && selectedPlan !== "24 Hours" && (
 
-            {selectedPlan === "Night" && (
-              <option value="Night (9 PM - 6 AM)">
-                Night — 9 PM - 6 AM
-              </option>
-            )}
+                  <div className="mt-5">
 
-          </select>
+                    <label className="mb-2 block text-sm font-bold text-gray-700">
+                      Select Timing
+                    </label>
 
-        </div>
+                    <select
+                      value={selectedTiming}
+                      onChange={(e) => setSelectedTiming(e.target.value)}
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 font-bold outline-none focus:border-indigo-500"
+                    >
 
-      )}
+                      <option value="">
+                        Select Timing
+                      </option>
 
+                      {selectedPlan === "Half Day" && (
+                        <>
+                          <option value="Morning (8 AM - 2 PM)">
+                            Morning — 8 AM - 2 PM
+                          </option>
 
-      {/* 24 HOURS TIMING DISPLAY */}
-      {selectedPlan === "24 Hours" && (
+                          <option value="Afternoon (2 PM - 7 PM)">
+                            Afternoon — 2 PM - 7 PM
+                          </option>
+                        </>
+                      )}
 
-        <div className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-4">
+                      {selectedPlan === "Full Day" && (
+                        <option value="Full Day (8 AM - 7 PM)">
+                          Full Day — 8 AM - 7 PM
+                        </option>
+                      )}
 
-          <p className="font-bold text-green-800">
-            ⏰ Timing: 24 Hours
-          </p>
+                      {selectedPlan === "Night" && (
+                        <option value="Night (9 PM - 6 AM)">
+                          Night — 9 PM - 6 AM
+                        </option>
+                      )}
 
-          <p className="mt-1 text-sm text-green-700">
-            🎁 Free Locker Included
-          </p>
+                    </select>
 
-        </div>
+                  </div>
 
-      )}
+                )}
 
 
-      {/* SEAT NUMBER */}
-      <div className="mt-5">
+                {/* 24 HOURS TIMING DISPLAY */}
+                {selectedPlan === "24 Hours" && (
 
-        <label className="mb-2 block text-sm font-bold text-gray-700">
-          Seat Number
-        </label>
+                  <div className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-4">
 
-        <input
-          type="number"
-          min="1"
-          max="100"
-          id="bookingSeat"
-          placeholder="Enter seat number"
-          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:border-indigo-500"
-        />
+                    <p className="font-bold text-green-800">
+                      ⏰ Timing: 24 Hours
+                    </p>
 
-      </div>
+                    <p className="mt-1 text-sm text-green-700">
+                      🎁 Free Locker Included
+                    </p>
 
+                  </div>
 
-      {/* TOTAL */}
-      {totalAmount > 0 && (
+                )}
 
-        <div className="mt-5 rounded-2xl bg-indigo-50 p-5 text-center">
 
-          <p className="text-sm font-bold text-gray-500">
-            Total Payable Amount
-          </p>
+                {/* SEAT NUMBER */}
+                <div className="mt-5">
 
-          <p className="mt-1 text-4xl font-black text-indigo-700">
-            ₹{totalAmount}
-          </p>
+                  <label className="mb-2 block text-sm font-bold text-gray-700">
+                    Seat Number
+                  </label>
 
-          <p className="mt-2 text-sm font-bold text-gray-600">
-            {selectedPlan} • {lockerOption}
-          </p>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    id="bookingSeat"
+                    placeholder="Enter seat number"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:border-indigo-500"
+                  />
 
-        </div>
+                </div>
 
-      )}
 
+                {/* TOTAL */}
+                {totalAmount > 0 && (
 
-      {/* PAYMENT */}
-      <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5">
+                  <div className="mt-5 rounded-2xl bg-indigo-50 p-5 text-center">
 
-        <h3 className="text-lg font-black text-green-800">
-          💳 Payment Details
-        </h3>
+                    <p className="text-sm font-bold text-gray-500">
+                      Total Payable Amount
+                    </p>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <p className="mt-1 text-4xl font-black text-indigo-700">
+                      ₹{totalAmount}
+                    </p>
 
-          <div className="rounded-xl bg-white p-4">
+                    <p className="mt-2 text-sm font-bold text-gray-600">
+                      {selectedPlan} • {lockerOption}
+                    </p>
 
-            <p className="text-xs font-bold text-gray-500">
-              Payment Number
-            </p>
+                  </div>
 
-            <p className="mt-1 text-lg font-black text-gray-900">
-              9219384600
-            </p>
+                )}
 
-          </div>
 
-          <div className="rounded-xl bg-white p-4">
+                {/* PAYMENT */}
+                <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5">
 
-            <p className="text-xs font-bold text-gray-500">
-              UPI ID
-            </p>
+                  <h3 className="text-lg font-black text-green-800">
+                    💳 Payment Details
+                  </h3>
 
-            <p className="mt-1 break-all font-black text-indigo-700">
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+
+                    <div className="rounded-xl p-4">
+
+                      <p className="text-xs font-bold text-gray-500 text-center">
+                        Payment Number
+                      </p>
+
+                      <p className="mt-1 text-lg font-black text-gray-900 text-center">
+                        9161310909
+                      </p>
+
+                      <img className="mt-2" src="/src/assets/lib-logo-copy.png" alt="Library Logo" />
+
+                    </div>
+
+                    <div className="rounded-xl  p-4">
+
+                      <p className="text-xs font-bold text-gray-500 text-center">
+                        Scan QR Code to Pay
+                      </p>
+
+                      {/* <p className="mt-1 break-all font-black text-indigo-700">
               YOUR_UPI_ID_HERE
-            </p>
+            </p> */}
+                      <img src="/src/assets/QR.jpeg" alt="UPI QR Code" className="mt-2 rounded-2xl" />
 
-          </div>
+                    </div>
 
-        </div>
+                  </div>
 
-        <p className="mt-4 text-sm leading-6 text-gray-600">
-          Payment karne ke baad WhatsApp par booking details bhejein aur
-          payment ka screenshot bhi attach karein.
-        </p>
+                  <p className="mt-4 text-sm leading-6 text-gray-600">
+                    Payment karne ke baad WhatsApp par booking details bhejein aur
+                    payment ka screenshot bhi attach karein.
+                  </p>
 
-      </div>
+                </div>
 
 
-      {/* WHATSAPP BUTTON */}
-      <button
-        onClick={() => {
+                {/* WHATSAPP BUTTON */}
+                <button
+                  onClick={() => {
 
-          const name = document.getElementById("bookingName").value;
-          const phone = document.getElementById("bookingPhone").value;
-          const seat = document.getElementById("bookingSeat").value;
+                    const name = document.getElementById("bookingName").value;
+                    const phone = document.getElementById("bookingPhone").value;
+                    const seat = document.getElementById("bookingSeat").value;
 
-          if (
-            !name ||
-            !phone ||
-            !seat ||
-            !selectedPlan ||
-            !selectedTiming ||
-            !lockerOption ||
-            !totalAmount
-          ) {
-            alert("Please fill all booking details first.");
-            return;
-          }
+                    if (
+                      !name ||
+                      !phone ||
+                      !seat ||
+                      !selectedPlan ||
+                      !selectedTiming ||
+                      !lockerOption ||
+                      !totalAmount
+                    ) {
+                      alert("Please fill all booking details first.");
+                      return;
+                    }
 
-          const message = `
+                    const message = `
 *🔥 ANY TIME LIBRARY - SEAT BOOKING REQUEST 🔥*
 
 👤 *Name:* ${name}
@@ -1889,8 +2443,8 @@ const [totalAmount, setTotalAmount] = useState(0);
 
 💰 *Total Amount:* ₹${totalAmount}
 
-💳 *Payment Number:* 9219384600
-🆔 *UPI ID:* YOUR_UPI_ID_HERE
+💳 *Payment Number:* 9161310909
+🆔 *UPI ID:* gurpratap2611-@okhdfcbank
 
 📸 *Payment Screenshot:*
 I will attach the payment screenshot here.
@@ -1898,204 +2452,200 @@ I will attach the payment screenshot here.
 Please check and confirm my seat booking.
           `;
 
-          const whatsappUrl =
-            `https://wa.me/919219384600?text=${encodeURIComponent(message)}`;
+                    const whatsappUrl =
+                      `https://wa.me/9161310909?text=${encodeURIComponent(message)}`;
 
-          window.open(whatsappUrl, "_blank");
+                    window.open(whatsappUrl, "_blank");
 
-        }}
-        className="mt-6 w-full rounded-2xl bg-green-600 py-4 text-lg font-black text-white shadow-lg transition hover:-translate-y-1 hover:bg-green-700"
-      >
-        💬 Send Booking Request on WhatsApp
-      </button>
+                  }}
+                  className="mt-6 w-full rounded-2xl bg-green-600 py-4 text-lg font-black text-white shadow-lg transition hover:-translate-y-1 hover:bg-green-700"
+                >
+                  💬 Send Booking Request on WhatsApp
+                </button>
 
-      <p className="mt-3 text-center text-xs text-gray-500">
-        WhatsApp open hone ke baad payment screenshot attach karke send karein.
-      </p>
+              </div>
 
-    </div>
+            </div>
+          )}
 
-  </div>
-)}
-          
 
 
           {/* ================= FEATURES SECTION ================= */}
           <section id="features" className="relative bg-[#0f172a] px-6 py-24 text-white">
 
-  <div className="mx-auto max-w-6xl">
+            <div className="mx-auto max-w-5xl">
 
-    {/* HEADER */}
-    <div className="mb-14">
+              {/* HEADER */}
+              <div className="mb-14">
 
-      <h2 className="inline-flex items-center gap-3 border-b-4 border-yellow-400 pb-2 text-3xl font-black sm:text-4xl">
+                <h2 className="inline-flex items-center gap-3 border-b-4 border-yellow-400 pb-2 text-3xl font-black sm:text-4xl">
 
-        <span className="flex h-10 w-10 items-center justify-center rounded-full border-4 border-yellow-400 text-xl text-yellow-400">
-          ◇
-        </span>
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full border-4 border-yellow-400 text-xl text-yellow-400">
+                    ◇
+                  </span>
 
-        Resource Hub & Updates
+                  Resource Hub & Updates
 
-      </h2>
+                </h2>
 
-    </div>
-
-
-    {/* CARDS */}
-    <div className="grid gap-7 md:grid-cols-2 lg:grid-cols-3">
+              </div>
 
 
-      {/* UPSC CURRENT AFFAIRS */}
-      <a
-        href="https://visionias.in/current-affairs/"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="rounded-xl border-l-4 border-blue-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
-      >
-
-        <div className="mb-5 text-5xl text-blue-400">
-          📰
-        </div>
-
-        <h3 className="text-xl font-black">
-          UPSC Current Affairs
-        </h3>
-
-        <p className="mt-4 text-base text-slate-400">
-          Daily news and analysis from Vision IAS.
-        </p>
-
-      </a>
+              {/* CARDS */}
+              <div className="grid gap-7 md:grid-cols-2 lg:grid-cols-3">
 
 
-      {/* EMPLOYMENT NEWS */}
-      <a
-        href="https://employmentnews.gov.in/NewEmp/Home.aspx"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="rounded-xl border-l-4 border-purple-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
-      >
+                {/* UPSC CURRENT AFFAIRS */}
+                <a
+                  href="https://visionias.in/current-affairs/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-xl border-l-4 border-blue-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
+                >
 
-        <div className="mb-5 text-5xl text-purple-400">
-          📰
-        </div>
+                  <div className="mb-5 text-5xl text-blue-400">
+                    📰
+                  </div>
 
-        <h3 className="text-xl font-black">
-          Employment News
-        </h3>
+                  <h3 className="text-xl font-black">
+                    UPSC Current Affairs
+                  </h3>
 
-        <p className="mt-4 text-base text-slate-400">
-          Official government source for job listings.
-        </p>
+                  <p className="mt-4 text-base text-slate-400">
+                    Daily news and analysis from Vision IAS.
+                  </p>
 
-      </a>
-
-
-      {/* LATEST JOB UPDATES */}
-      <a
-        href="https://sarkariresult.com.cm/"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="rounded-xl border-l-4 border-pink-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
-      >
-
-        <div className="mb-5 text-5xl text-pink-400">
-          💼
-        </div>
-
-        <h3 className="text-xl font-black">
-          Latest Job Updates
-        </h3>
-
-        <p className="mt-4 text-base text-slate-400">
-          Latest government job updates from Sarkari Result.
-        </p>
-
-      </a>
+                </a>
 
 
-      {/* UPSC PDF MATERIALS */}
-      <a
-        href="https://www.pdfnotes.co/"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="rounded-xl border-l-4 border-green-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
-      >
+                {/* EMPLOYMENT NEWS */}
+                <a
+                  href="https://employmentnews.gov.in/NewEmp/Home.aspx"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-xl border-l-4 border-purple-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
+                >
 
-        <div className="mb-5 text-5xl text-green-400">
-          📄
-        </div>
+                  <div className="mb-5 text-5xl text-purple-400">
+                    📰
+                  </div>
 
-        <h3 className="text-xl font-black">
-          UPSC PDF Materials
-        </h3>
+                  <h3 className="text-xl font-black">
+                    Employment News
+                  </h3>
 
-        <p className="mt-4 text-base text-slate-400">
-          Downloadable PDFs and study resources.
-        </p>
+                  <p className="mt-4 text-base text-slate-400">
+                    Official government source for job listings.
+                  </p>
 
-      </a>
-
-
-      {/* UPSC FORMS & DOWNLOADS */}
-      <a
-        href="https://www.upsc.gov.in/"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="rounded-xl border-l-4 border-yellow-400 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
-      >
-
-        <div className="mb-5 text-5xl text-yellow-400">
-          📋
-        </div>
-
-        <h3 className="text-xl font-black">
-          UPSC Forms & Downloads
-        </h3>
-
-        <p className="mt-4 text-base text-slate-400">
-          Official forms from the UPSC website.
-        </p>
-
-      </a>
+                </a>
 
 
-      {/* INTERNET ARCHIVE */}
-      <a
-        href="https://archive.org/"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="rounded-xl border-l-4 border-indigo-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
-      >
+                {/* LATEST JOB UPDATES */}
+                <a
+                  href="https://sarkariresult.com.cm/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-xl border-l-4 border-pink-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
+                >
 
-        <div className="mb-5 text-5xl text-indigo-400">
-          🗃️
-        </div>
+                  <div className="mb-5 text-5xl text-pink-400">
+                    💼
+                  </div>
 
-        <h3 className="text-xl font-black">
-          Internet Archive
-        </h3>
+                  <h3 className="text-xl font-black">
+                    Latest Job Updates
+                  </h3>
 
-        <p className="mt-4 text-base text-slate-400">
-          A digital library of free books, movies, and more.
-        </p>
+                  <p className="mt-4 text-base text-slate-400">
+                    Latest government job updates from Sarkari Result.
+                  </p>
 
-      </a>
+                </a>
 
 
-    </div>
+                {/* UPSC PDF MATERIALS */}
+                <a
+                  href="https://www.pdfnotes.co/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-xl border-l-4 border-green-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
+                >
 
-  </div>
+                  <div className="mb-5 text-5xl text-green-400">
+                    📄
+                  </div>
 
-</section>
+                  <h3 className="text-xl font-black">
+                    UPSC PDF Materials
+                  </h3>
+
+                  <p className="mt-4 text-base text-slate-400">
+                    Downloadable PDFs and study resources.
+                  </p>
+
+                </a>
+
+
+                {/* UPSC FORMS & DOWNLOADS */}
+                <a
+                  href="https://www.upsc.gov.in/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-xl border-l-4 border-yellow-400 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
+                >
+
+                  <div className="mb-5 text-5xl text-yellow-400">
+                    📋
+                  </div>
+
+                  <h3 className="text-xl font-black">
+                    UPSC Forms & Downloads
+                  </h3>
+
+                  <p className="mt-4 text-base text-slate-400">
+                    Official forms from the UPSC website.
+                  </p>
+
+                </a>
+
+
+                {/* INTERNET ARCHIVE */}
+                <a
+                  href="https://archive.org/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-xl border-l-4 border-indigo-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
+                >
+
+                  <div className="mb-5 text-5xl text-indigo-400">
+                    🗃️
+                  </div>
+
+                  <h3 className="text-xl font-black">
+                    Internet Archive
+                  </h3>
+
+                  <p className="mt-4 text-base text-slate-400">
+                    A digital library of free books, movies, and more.
+                  </p>
+
+                </a>
+
+
+              </div>
+
+            </div>
+
+          </section>
 
           {/* ---> PUBLIC: FOOTER <--- */}
 
           <Footer />
           {/* FLOATING WHATSAPP INQUIRY BUTTON */}
-{/* FLOATING WHATSAPP INQUIRY BUTTON */}
-{/* <a
-  href="https://wa.me/919219384600?text=Hello%20Any%20Time%20Library%2C%20I%20want%20to%20make%20an%20inquiry."
+          {/* FLOATING WHATSAPP INQUIRY BUTTON */}
+          {/* <a
+  href="https://wa.me/9161310909?text=Hello%20Any%20Time%20Library%2C%20I%20want%20to%20make%20an%20inquiry."
   target="_blank"
   rel="noopener noreferrer"
   className="fixed bottom-4 right-4 z-[100] transition duration-300 hover:scale-110 sm:bottom-6 sm:right-6"
@@ -2107,19 +2657,19 @@ Please check and confirm my seat booking.
     className="h-10 w-10 object-contain sm:h-14 sm:w-14"
   />
 </a> */}
-{/* FLOATING WHATSAPP INQUIRY BUTTON */}
-<a
-  href="https://wa.me/919219384600?text=Hello%20Any%20Time%20Library%2C%20I%20want%20to%20make%20an%20inquiry."
-  target="_blank"
-  rel="noopener noreferrer"
-  className="fixed bottom-6 right-6 z-[100] flex h-16 w-16 items-center justify-center rounded-full bg-[#25D366] text-3xl shadow-2xl transition duration-300 hover:scale-110 hover:shadow-green-500/40"
-  aria-label="WhatsApp Inquiry"
->
-  <span>📱</span>
-</a>
+          {/* FLOATING WHATSAPP INQUIRY BUTTON */}
+          <a
+            href="https://wa.me/9161310909?text=Hello%20Any%20Time%20Library%2C%20I%20want%20to%20make%20an%20inquiry."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="fixed bottom-6 right-6 z-[100] flex h-16 w-16 items-center justify-center rounded-full bg-[#25D366] text-3xl shadow-2xl transition duration-300 hover:scale-110 hover:shadow-green-500/40"
+            aria-label="WhatsApp Inquiry"
+          >
+            <span>📱</span>
+          </a>
 
         </div>
-        
+
       )}
 
     </>

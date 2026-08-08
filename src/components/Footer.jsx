@@ -24,8 +24,7 @@ const Footer = () => {
             </h2>
 
             <p className="mb-2 hover:text-yellow-500 cursor-pointer">📍 Rajamau Road, Above Anant Sherwani's & Dulha Ghar, Bachhrawan, Raebareli-229301 </p>
-            <p className="mb-2 hover:text-yellow-500 cursor-pointer">📞 +919219384600</p>
-            <p className="mb-2 hover:text-yellow-500 cursor-pointer">📞 +916392165271</p>
+            <a href="tel:+919161310909" className="text-green-300 hover:text-amber-400 font-extrabold">📞 +91-9161310909</a>
             <p className="mb-2 hover:text-yellow-500 cursor-pointer">📧 anytimelibrary@gmail.com</p>
             {/* <p>🕒 10:00 AM - 10:00 PM</p> */}
           </div>
