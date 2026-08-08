@@ -18,8 +18,8 @@ import StudentRegistration from "./components/StudentRegistration";
 import StudentLogin from "./components/StudentLogin";
 import StudentDashboard from "./components/StudentDashboard";
 import Plans from "./components/Plans";
-import qr from "../assets/QR.jpeg";
-import logo from "../assets/lib-logo-copy.png";
+import qr from "./assets/QR.jpeg";
+import logo from "./assets/lib-logo-copy.png";
 
 
 // --- Icons (SVG) ---
