@@ -34,6 +34,8 @@ const MenuIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" widt
 const BellIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>;
 const LogOutIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" x2="9" y1="12" y2="12"></line></svg>;
 const InfoIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"></circle><line x1="12" x2="12" y1="16" y2="12"></line><line x1="12" x2="12.01" y1="8" y2="8"></line></svg>;
+const CurrencyRupeeIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 3h12"></path><path d="M6 8h12"></path><path d="M6 13h12"></path><path d="M6 18h12"></path></svg>;
+
 
 // --- Helper Components for Forms ---
 const FormInput = ({ icon, label, type = "text", value, onChange, onFocus, placeholder }) => (
@@ -125,7 +127,7 @@ const HallSeat = ({ seat, setShowQuickView, vertical = false }) => {
   const bgClass = isFullyBooked
     ? 'bg-red-500 border-red-500/50 shadow-[0_0_14px_rgba(239,68,68,0.25)]'
     : onlyNightAvailable
-      ? 'bg-gradient-to-br from-green-400 via-green-600 to-[#07130c] border-green-300/40 shadow-[0_0_14px_rgba(34,197,94,0.22)]'
+      ? 'bg-gradient-to-br from-green-400 via-red-600 to-[#07130c] border-green-300/40 shadow-[0_0_14px_rgba(34,197,94,0.22)]'
       : 'bg-gradient-to-br from-green-400 via-green-600 to-green-700 border-green-300/40 shadow-[0_0_12px_rgba(34,197,94,0.18)]';
 
 
@@ -383,24 +385,125 @@ export default function App() {
     if (!selectedSeat) return;
 
     if (field === 'status') {
+
+      // ==========================================
+      // AVAILABLE → PURANA DATA COMPLETELY CLEAR
+      // ==========================================
+      if (value === 'Available') {
+
+        const clearedSeat = {
+          status: 'Available',
+          timing: 'Available',
+
+          // Students
+          morningStudent: '',
+          afternoonStudent: '',
+          nightStudent: '',
+          fullDayStudent: '',
+
+          // Payments
+          morningPayment: '',
+          afternoonPayment: '',
+          nightPayment: '',
+          fullDayPayment: '',
+
+          // Dates
+          morningFrom: '',
+          morningTo: '',
+          afternoonFrom: '',
+          afternoonTo: '',
+          nightFrom: '',
+          nightTo: '',
+          fromDate: '',
+          toDate: '',
+
+          // Contact details
+          phone: '',
+          email: '',
+        };
+
+        const updatedSeat = {
+          ...selectedSeat,
+          ...clearedSeat,
+        };
+
+        setSeats((prev) =>
+          prev.map((seat) =>
+            seat.id === selectedSeat.id
+              ? { ...seat, ...clearedSeat }
+              : seat
+          )
+        );
+
+        setSelectedSeat(updatedSeat);
+
+        // Firebase me bhi clear data save hoga
+        setTimeout(() => saveSeatToFirebase(updatedSeat), 100);
+
+        return;
+      }
+
+
+      // ==========================================
+      // BAAKI STATUS: Half Day / Full Day / 24 Hours
+      // ==========================================
+
       const is24Hr = value === '24 Hours';
       const isFullDay = value === 'Full Day';
 
       const newStatusUpdates = {
         status: value,
-        timing: is24Hr ? '24 Hours' : (isFullDay ? '8 AM - 8 PM' : selectedSeat.timing),
-        morningStudent: is24Hr ? '' : (selectedSeat.morningStudent || ''),
-        afternoonStudent: is24Hr ? '' : (selectedSeat.afternoonStudent || ''),
+
+        timing: is24Hr
+          ? '24 Hours'
+          : isFullDay
+            ? '8 AM - 8 PM'
+            : selectedSeat.timing,
+
+        morningStudent: is24Hr
+          ? ''
+          : (selectedSeat.morningStudent || ''),
+
+        afternoonStudent: is24Hr
+          ? ''
+          : (selectedSeat.afternoonStudent || ''),
+
         nightStudent: selectedSeat.nightStudent || '',
-        morningPayment: is24Hr ? 'Disabled' : (selectedSeat.morningPayment || 'Pending'),
-        afternoonPayment: is24Hr ? 'Disabled' : (selectedSeat.afternoonPayment || 'Pending'),
-        nightPayment: is24Hr ? 'Disabled' : (selectedSeat.nightPayment || 'Pending')
+
+        fullDayStudent: isFullDay
+          ? (selectedSeat.fullDayStudent || '')
+          : '',
+
+        morningPayment: is24Hr
+          ? 'Disabled'
+          : (selectedSeat.morningPayment || 'Pending'),
+
+        afternoonPayment: is24Hr
+          ? 'Disabled'
+          : (selectedSeat.afternoonPayment || 'Pending'),
+
+        nightPayment: selectedSeat.nightPayment || 'Pending',
+
+        fullDayPayment: isFullDay
+          ? (selectedSeat.fullDayPayment || 'Pending')
+          : '',
       };
 
-      setSeats((prev) => prev.map((seat) => seat.id === selectedSeat.id ? { ...seat, ...newStatusUpdates } : seat));
-      setSelectedSeat((prev) => ({ ...prev, ...newStatusUpdates }));
+      setSeats((prev) =>
+        prev.map((seat) =>
+          seat.id === selectedSeat.id
+            ? { ...seat, ...newStatusUpdates }
+            : seat
+        )
+      );
+
+      setSelectedSeat((prev) => ({
+        ...prev,
+        ...newStatusUpdates,
+      }));
+
       return;
-    };
+    }
     // yahan updateSeat ke baad
 
     const toggleSeatVisibility = async (seatId) => {
@@ -736,6 +839,15 @@ export default function App() {
                           value={selectedSeat.nightEmail || ""}
                           onChange={(e) => updateSeat("nightEmail", e.target.value)}
                         />
+                        <FormInput
+                          icon={<CurrencyRupeeIcon className="w-4 h-4" />}
+                          label="Actual Fees Received (₹)"
+                          type="number"
+                          value={selectedSeat.nightAmount || ""}
+                          onChange={(e) =>
+                            updateSeat("nightAmount", e.target.value)
+                          }
+                        />
 
                         <div className="grid grid-cols-2 gap-4">
                           <FormInput
@@ -761,6 +873,7 @@ export default function App() {
                           onChange={(e) => updateSeat("nightPayment", e.target.value)}
                           options={["Available", "Submitted", "Pending"]}
                         />
+
 
                         {selectedSeat.nightTo && (
                           <div className="text-sm font-semibold text-red-600">
@@ -843,6 +956,15 @@ export default function App() {
                                   onChange={(e) => updateSeat("morningEmail", e.target.value)}
                                 />
 
+                                  <FormInput
+                                    icon={<CurrencyRupeeIcon className="w-4 h-4" />}
+                                    label="Actual Fees Received (₹)"
+                                    type="number"
+                                    value={selectedSeat.morningAmount || ""}
+                                    onChange={(e) =>
+                                      updateSeat("morningAmount", e.target.value)
+                                    }
+                                  />
                               </div>
 
                             )}
@@ -910,6 +1032,14 @@ export default function App() {
                                     label="Email"
                                     value={selectedSeat.afternoonEmail || ""}
                                     onChange={(e) => updateSeat("afternoonEmail", e.target.value)}
+                                  />
+
+                                  <FormInput
+                                    icon={<CurrencyRupeeIcon className="w-4 h-4" />}
+                                    label="Actual Fees Received (₹)"
+                                    type="number"
+                                    value={selectedSeat.afternoonAmount || ""}
+                                    onChange={(e) => updateSeat("afternoonAmount", e.target.value)}
                                   />
 
                                 </div>
@@ -980,6 +1110,13 @@ export default function App() {
                                     label="Email"
                                     value={selectedSeat.nightEmail || ""}
                                     onChange={(e) => updateSeat("nightEmail", e.target.value)}
+                                  />
+                                  <FormInput
+                                    icon={<CurrencyRupeeIcon className="w-4 h-4" />}
+                                    label="Actual Fees Received (₹)"
+                                    type="number"
+                                    value={selectedSeat.nightAmount || ""}
+                                    onChange={(e) => updateSeat("nightAmount", e.target.value)}
                                   />
 
 
@@ -1054,6 +1191,13 @@ export default function App() {
                                   value={selectedSeat.fullDayTo || ""}
                                   onChange={(e) => updateSeat("fullDayTo", e.target.value)}
                                 />
+                                <FormInput
+                                  icon={<CurrencyRupeeIcon className="w-4 h-4" />}
+                                  label="Actual Fees Received (₹)"
+                                  type="number"
+                                  value={selectedSeat.fullDayAmount || ""}
+                                  onChange={(e) => updateSeat("fullDayAmount", e.target.value)}
+                                />
 
                               </div>
 
@@ -1118,6 +1262,13 @@ export default function App() {
                                   type="date"
                                   value={selectedSeat.nightTo || ""}
                                   onChange={(e) => updateSeat("nightTo", e.target.value)}
+                                />
+                                <FormInput
+                                  icon={<CurrencyRupeeIcon className="w-4 h-4" />}
+                                  label="Actual Fees Received (₹)"
+                                  type="number"
+                                  value={selectedSeat.nightAmount || ""}
+                                  onChange={(e) => updateSeat("nightAmount", e.target.value)}
                                 />
 
                               </div>
@@ -2675,30 +2826,35 @@ Please check and confirm my seat booking.
           {/* ---> PUBLIC: FOOTER <--- */}
 
           <Footer />
-          {/* FLOATING WHATSAPP INQUIRY BUTTON */}
-          {/* FLOATING WHATSAPP INQUIRY BUTTON */}
-          {/* <a
-  href="https://wa.me/9161310909?text=Hello%20Any%20Time%20Library%2C%20I%20want%20to%20make%20an%20inquiry."
-  target="_blank"
-  rel="noopener noreferrer"
-  className="fixed bottom-4 right-4 z-[100] transition duration-300 hover:scale-110 sm:bottom-6 sm:right-6"
-  aria-label="WhatsApp Inquiry"
->
-  <img
-    src="https:/cdn-icons-png.flaticon.com/128/1384/1384055.png"
-    alt="✆"
-    className="h-10 w-10 object-contain sm:h-14 sm:w-14"
-  />
-</a> */}
+
           {/* FLOATING WHATSAPP INQUIRY BUTTON */}
           <a
-            href="https://wa.me/9161310909?text=Hello%20Any%20Time%20Library%2C%20I%20want%20to%20make%20an%20inquiry."
+            href="https://wa.me/9161310909?text=Hi%20Anytime%20Library%2C%20I%20want%20to%20know%20more%20about%20the%20library."
             target="_blank"
             rel="noopener noreferrer"
-            className="fixed bottom-6 right-6 z-[100] flex h-16 w-16 items-center justify-center rounded-full bg-[#25D366] text-3xl shadow-2xl transition duration-300 hover:scale-110 hover:shadow-green-500/40"
-            aria-label="WhatsApp Inquiry"
+            className="fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-2xl border border-emerald-400/30 bg-[#111827] px-4 py-3 shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:border-emerald-400/60 sm:bottom-6 sm:right-6"
           >
-            <span>📱</span>
+            {/* WhatsApp Icon */}
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#25D366] shadow-lg">
+              <svg
+                viewBox="0 0 32 32"
+                className="h-7 w-7 fill-white"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path d="M16 3C8.83 3 3 8.83 3 16c0 2.3.6 4.55 1.74 6.53L3 29l6.67-1.7A12.94 12.94 0 0 0 16 29c7.17 0 13-5.83 13-13S23.17 3 16 3Zm0 23.64c-2.04 0-4.03-.55-5.77-1.59l-.41-.24-3.96 1.01 1.06-3.86-.27-.4A10.6 10.6 0 0 1 5.36 16C5.36 10.12 10.12 5.36 16 5.36S26.64 10.12 26.64 16 21.88 26.64 16 26.64Zm5.83-7.94c-.32-.16-1.89-.93-2.18-1.04-.29-.11-.5-.16-.71.16-.21.32-.82 1.04-1 1.25-.18.21-.37.24-.68.08-1.89-.94-3.13-1.68-4.38-3.81-.33-.57.33-.53.94-1.76.1-.21.05-.4-.03-.56-.08-.16-.71-1.71-.97-2.34-.26-.62-.52-.54-.71-.55h-.61c-.21 0-.55.08-.84.4-.29.32-1.1 1.08-1.1 2.63s1.13 3.05 1.29 3.26c.16.21 2.22 3.39 5.38 4.76.75.32 1.34.51 1.8.65.76.24 1.45.21 2 .13.61-.09 1.89-.77 2.15-1.52.27-.75.27-1.39.19-1.52-.08-.13-.29-.21-.61-.37Z" />
+              </svg>
+            </div>
+
+            {/* Text */}
+            <div className="hidden pr-1 sm:block">
+              <p className="text-[11px] font-medium text-slate-400">
+                Need Help?
+              </p>
+
+              <p className="text-sm font-semibold text-white">
+                Message on WhatsApp
+              </p>
+            </div>
           </a>
 
         </div>
