@@ -118,26 +118,21 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
       plan,
       payment,
       amount,
-      date
+      collectionDate,
+      fromDate,
+      toDate,
+      phone
     ) => {
 
       // Name nahi hai to skip
       if (!name) return;
 
-      // Sirf Submitted payment collection me aayega
+      // Sirf submitted payment collection me aayega
       if (payment !== "Submitted") return;
-
-
-      // =================================================
-      // ACTUAL AMOUNT
-      // Agar amount field available nahi hai to 0
-      // =================================================
 
       const actualAmount = Number(amount) || 0;
 
-
       allCollections.push({
-
         name: name,
 
         seat: seat.id,
@@ -146,10 +141,18 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
 
         amount: actualAmount,
 
-        date: date || "",
+        // Collection date
+        date: collectionDate || "",
 
+        // Student complete details
+        fromDate: fromDate || "",
+
+        toDate: toDate || "",
+
+        phone: phone || "",
+
+        payment: payment,
       });
-
     };
 
 
@@ -161,12 +164,13 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
       seat.morningStudent,
       "Morning",
       seat.morningPayment,
-
-      // Actual morning fees
       seat.morningAmount || seat.morningFee,
 
-      seat.morningCollectionDate ||
-      seat.morningFrom
+      seat.morningCollectionDate || "",
+
+      seat.morningFrom || "",
+      seat.morningTo || "",
+      seat.morningPhone || ""
     );
 
 
@@ -178,12 +182,13 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
       seat.afternoonStudent,
       "Afternoon",
       seat.afternoonPayment,
-
-      // Actual afternoon fees
       seat.afternoonAmount || seat.afternoonFee,
 
-      seat.afternoonCollectionDate ||
-      seat.afternoonFrom
+      seat.afternoonCollectionDate || "",
+
+      seat.afternoonFrom || "",
+      seat.afternoonTo || "",
+      seat.afternoonPhone || ""
     );
 
 
@@ -195,12 +200,13 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
       seat.nightStudent,
       "Night",
       seat.nightPayment,
-
-      // Actual night fees
       seat.nightAmount || seat.nightFee,
 
-      seat.nightCollectionDate ||
-      seat.nightFrom
+      seat.nightCollectionDate || "",
+
+      seat.nightFrom || "",
+      seat.nightTo || "",
+      seat.nightPhone || ""
     );
 
 
@@ -212,13 +218,13 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
       seat.fullDayStudent,
       "Full Day",
       seat.fullDayPayment,
-
-      // Actual full day fees
       seat.fullDayAmount || seat.fullDayFee,
 
-      seat.fullDayCollectionDate ||
-      seat.fullDayFrom ||
-      seat.fromDate
+      seat.fullDayCollectionDate || "",
+
+      seat.fullDayFrom || "",
+      seat.fullDayTo || "",
+      seat.fullDayPhone || ""
     );
 
   });
@@ -458,6 +464,432 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
   // =====================================================
   // DASHBOARD UI START
   // =====================================================
+
+  // =====================================================
+  // PRINT DETAILED MONTHLY REPORT
+  // =====================================================
+
+  const printMonthlyReport = () => {
+
+    // Current month ke students
+    const studentsToPrint = monthlyCollections;
+
+    // ===================================================
+    // TOTALS
+    // ===================================================
+
+    const totalStudents = studentsToPrint.length;
+
+    const submittedStudents = studentsToPrint.filter(
+      (student) => student.payment === "Submitted"
+    ).length;
+
+    const pendingStudentsCount = studentsToPrint.filter(
+      (student) => student.payment === "Pending"
+    ).length;
+
+    const totalCollection = studentsToPrint.reduce(
+      (total, student) => total + (Number(student.amount) || 0),
+      0
+    );
+
+    // ===================================================
+    // TABLE ROWS
+    // ===================================================
+
+    const tableRows = studentsToPrint.map(
+      (student, index) => {
+
+        return `
+        <tr>
+          <td>${index + 1}</td>
+
+          <td>
+            <strong>${student.name || "-"}</strong>
+          </td>
+
+          <td>${student.seat || "-"}</td>
+
+          <td>${student.plan || "-"}</td>
+
+          <td>${student.timing || "-"}</td>
+
+          <td>${student.phone || "-"}</td>
+
+          <td>${student.fromDate || "-"}</td>
+
+          <td>${student.toDate || "-"}</td>
+
+          <td>
+            ₹${(Number(student.amount) || 0).toLocaleString("en-IN")}
+          </td>
+
+          <td>
+            ${student.payment || "-"}
+          </td>
+        </tr>
+      `;
+
+      }
+    ).join("");
+
+
+    // ===================================================
+    // OPEN PRINT WINDOW
+    // ===================================================
+
+    const printWindow = window.open(
+      "",
+      "",
+      "width=1200,height=800"
+    );
+
+    if (!printWindow) {
+      alert("Please allow popups to print the report.");
+      return;
+    }
+
+
+    // ===================================================
+    // PRINT PAGE
+    // ===================================================
+
+    printWindow.document.write(`
+
+    <!DOCTYPE html>
+
+    <html>
+
+      <head>
+
+        <title>
+          ${currentMonthName} ${currentYear} - Monthly Report
+        </title>
+
+
+        <style>
+
+          * {
+            box-sizing: border-box;
+          }
+
+
+          body {
+            font-family: Arial, sans-serif;
+            padding: 35px;
+            color: #111;
+            background: white;
+          }
+
+
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #111;
+            padding-bottom: 20px;
+            margin-bottom: 25px;
+          }
+
+
+          h1 {
+            margin: 0;
+            font-size: 28px;
+          }
+
+
+          h2 {
+            margin: 8px 0 0;
+            font-size: 18px;
+            font-weight: normal;
+          }
+
+
+          .print-date {
+            text-align: right;
+            font-size: 13px;
+            color: #555;
+          }
+
+
+          .summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 25px;
+          }
+
+
+          .summary-box {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 15px;
+          }
+
+
+          .summary-title {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 6px;
+          }
+
+
+          .summary-value {
+            font-size: 20px;
+            font-weight: bold;
+          }
+
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 12px;
+          }
+
+
+          th {
+            background: #eee;
+            font-weight: bold;
+          }
+
+
+          th,
+          td {
+            border: 1px solid #999;
+            padding: 9px 7px;
+            text-align: left;
+          }
+
+
+          tr:nth-child(even) {
+            background: #f7f7f7;
+          }
+
+
+          .footer {
+            margin-top: 30px;
+            border-top: 1px solid #ccc;
+            padding-top: 12px;
+            font-size: 11px;
+            color: #666;
+            text-align: center;
+          }
+
+
+          @media print {
+
+            body {
+              padding: 15px;
+            }
+
+
+            @page {
+              size: A4 landscape;
+              margin: 10mm;
+            }
+
+          }
+
+        </style>
+
+      </head>
+
+
+      <body>
+
+
+        <!-- ========================================= -->
+        <!-- REPORT HEADER -->
+        <!-- ========================================= -->
+
+        <div class="header">
+
+          <div>
+
+            <h1>
+              ANYTIME LIBRARY
+            </h1>
+
+            <h2>
+              Monthly Student & Collection Report
+            </h2>
+
+            <h2>
+              ${currentMonthName} ${currentYear}
+            </h2>
+
+          </div>
+
+
+          <div class="print-date">
+
+            <strong>Report Generated:</strong>
+
+            <br />
+
+            ${new Date().toLocaleDateString(
+      "en-IN",
+      {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      }
+    )}
+
+          </div>
+
+        </div>
+
+
+
+        <!-- ========================================= -->
+        <!-- SUMMARY -->
+        <!-- ========================================= -->
+
+        <div class="summary">
+
+          <div class="summary-box">
+
+            <div class="summary-title">
+              Total Students
+            </div>
+
+            <div class="summary-value">
+              ${totalStudents}
+            </div>
+
+          </div>
+
+
+          <div class="summary-box">
+
+            <div class="summary-title">
+              Submitted Payments
+            </div>
+
+            <div class="summary-value">
+              ${submittedStudents}
+            </div>
+
+          </div>
+
+
+          <div class="summary-box">
+
+            <div class="summary-title">
+              Pending Payments
+            </div>
+
+            <div class="summary-value">
+              ${pendingStudentsCount}
+            </div>
+
+          </div>
+
+
+          <div class="summary-box">
+
+            <div class="summary-title">
+              Total Collection
+            </div>
+
+            <div class="summary-value">
+              ₹${totalCollection.toLocaleString("en-IN")}
+            </div>
+
+          </div>
+
+        </div>
+
+
+
+        <!-- ========================================= -->
+        <!-- STUDENT DETAILS TABLE -->
+        <!-- ========================================= -->
+
+        <table>
+
+          <thead>
+
+            <tr>
+
+              <th>#</th>
+
+              <th>Student Name</th>
+
+              <th>Seat</th>
+
+              <th>Plan / Shift</th>
+
+              <th>Timing</th>
+
+              <th>Phone Number</th>
+
+              <th>From Date</th>
+
+              <th>To Date</th>
+
+              <th>Fees</th>
+
+              <th>Status</th>
+
+            </tr>
+
+          </thead>
+
+
+          <tbody>
+
+            ${tableRows || `
+              <tr>
+                <td colspan="10" style="text-align:center;">
+                  No student records available.
+                </td>
+              </tr>
+            `}
+
+          </tbody>
+
+        </table>
+
+
+
+        <!-- ========================================= -->
+        <!-- FOOTER -->
+        <!-- ========================================= -->
+
+        <div class="footer">
+
+          This is a system generated report from Anytime Library Admin Dashboard.
+
+        </div>
+
+
+      </body>
+
+    </html>
+
+  `);
+
+
+    printWindow.document.close();
+
+
+    // ===================================================
+    // PRINT
+    // ===================================================
+
+    setTimeout(() => {
+
+      printWindow.focus();
+
+      printWindow.print();
+
+    }, 500);
+
+  };
+
 
   return (
 
@@ -803,10 +1235,10 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
             {/* PRINT MONTHLY REPORT */}
 
             <button
-              onClick={() => printSection("monthly-report")}
+              onClick={printMonthlyReport}
               className="mt-5 w-full rounded-xl border border-green-400/30 bg-green-400/10 py-3 text-sm font-bold text-green-400 transition hover:bg-green-400 hover:text-black"
             >
-              🖨 Print Monthly Report
+              🖨 Print Detailed Monthly Report
             </button>
 
           </div>
