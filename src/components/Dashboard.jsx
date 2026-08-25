@@ -512,8 +512,6 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
 
           <td>${student.plan || "-"}</td>
 
-          <td>${student.timing || "-"}</td>
-
           <td>${student.phone || "-"}</td>
 
           <td>${student.fromDate || "-"}</td>
@@ -614,7 +612,7 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
 
           .summary {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 12px;
             margin-bottom: 25px;
           }
@@ -821,8 +819,6 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
               <th>Seat</th>
 
               <th>Plan / Shift</th>
-
-              <th>Timing</th>
 
               <th>Phone Number</th>
 

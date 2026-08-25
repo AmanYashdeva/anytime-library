@@ -73,6 +73,7 @@ const HallSeat = ({ seat, setShowQuickView, vertical = false }) => {
 
   let isFullyBooked = false;
   let onlyNightAvailable = false;
+  let halfDayPartial = false;
 
   // ==============================
   // 24 HOURS
@@ -119,6 +120,12 @@ const HallSeat = ({ seat, setShowQuickView, vertical = false }) => {
     ) {
       onlyNightAvailable = true;
     }
+
+    if (
+      morningFull !== afternoonFull
+    ) {
+      halfDayPartial = true;
+    }
   }
 
   // ==============================
@@ -126,9 +133,12 @@ const HallSeat = ({ seat, setShowQuickView, vertical = false }) => {
   // ==============================
   const bgClass = isFullyBooked
     ? 'bg-red-500 border-red-500/50 shadow-[0_0_14px_rgba(239,68,68,0.25)]'
-    : onlyNightAvailable
-      ? 'bg-gradient-to-br from-green-400 via-red-600 to-[#07130c] border-green-300/40 shadow-[0_0_14px_rgba(34,197,94,0.22)]'
-      : 'bg-gradient-to-br from-green-400 via-green-600 to-green-700 border-green-300/40 shadow-[0_0_12px_rgba(34,197,94,0.18)]';
+    : halfDayPartial
+      ? 'bg-gradient-to-br from-green-500 via-yellow-400 to-red-500 border-yellow-500/50 shadow-[0_0_14px_rgba(250,204,21,0.25)]'
+
+      : onlyNightAvailable
+        ? 'bg-gradient-to-br from-green-400 via-red-600 to-[#07130c] border-green-300/40 shadow-[0_0_14px_rgba(34,197,94,0.22)]'
+        : 'bg-gradient-to-br from-green-400 via-green-600 to-green-700 border-green-300/40 shadow-[0_0_12px_rgba(34,197,94,0.18)]';
 
 
   return (
@@ -956,15 +966,15 @@ export default function App() {
                                   onChange={(e) => updateSeat("morningEmail", e.target.value)}
                                 />
 
-                                  <FormInput
-                                    icon={<CurrencyRupeeIcon className="w-4 h-4" />}
-                                    label="Actual Fees Received (₹)"
-                                    type="number"
-                                    value={selectedSeat.morningAmount || ""}
-                                    onChange={(e) =>
-                                      updateSeat("morningAmount", e.target.value)
-                                    }
-                                  />
+                                <FormInput
+                                  icon={<CurrencyRupeeIcon className="w-4 h-4" />}
+                                  label="Actual Fees Received (₹)"
+                                  type="number"
+                                  value={selectedSeat.morningAmount || ""}
+                                  onChange={(e) =>
+                                    updateSeat("morningAmount", e.target.value)
+                                  }
+                                />
                               </div>
 
                             )}
@@ -1646,11 +1656,20 @@ export default function App() {
                         <span className="h-2.5 w-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></span>
                         Available
                       </div>
+                      <div className="flex items-center gap-2 rounded-full border border-yellow-500/20 bg-yellow-500/5 px-3 py-1.5 text-[10px] font-bold text-gray-300">
+                        <span className="h-2.5 w-2.5 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.8)]"></span>
+                        Morning Available
+                      </div>
+                      <div className="flex items-center gap-2 rounded-full border border-yellow-500/20 bg-yellow-500/5 px-3 py-1.5 text-[10px] font-bold text-gray-300">
+                        <span className="h-2.5 w-2.5 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.8)]"></span>
+                        Afternoon Available
+                      </div>
 
                       <div className="flex items-center gap-2 rounded-full border border-green-500/20 bg-green-500/5 px-3 py-1.5 text-[10px] font-bold text-gray-300">
                         <span className="h-2.5 w-2.5 rounded-full bg-gradient-to-r from-green-500 to-black"></span>
                         Night Available
                       </div>
+
 
                       <div className="flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/5 px-3 py-1.5 text-[10px] font-bold text-gray-300">
                         <span className="h-2.5 w-2.5 rounded-full bg-red-500"></span>
@@ -2097,7 +2116,7 @@ export default function App() {
                                       🌙 Night 8 PM - 8 AM:
                                     </span>
 
-                                    <span className="font-bold text-white truncate ml-2">
+                                    <span className={seat.nightStudent ? "font-bold text-white truncate ml-2" : "text-green-400 font-bold ml-2"}>
                                       {seat.nightStudent || "Available"}
                                     </span>
                                   </div>
