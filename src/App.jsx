@@ -373,6 +373,77 @@ export default function App() {
 
   }, []);
 
+  useEffect(() => {
+
+    const checkExpiredPayments = async () => {
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const paymentFields = [
+        ["morningPayment", "morningTo"],
+        ["afternoonPayment", "afternoonTo"],
+        ["nightPayment", "nightTo"],
+        ["fullDayPayment", "toDate"],
+      ];
+
+      for (const seat of seats) {
+
+        let updatedSeat = { ...seat };
+        let changed = false;
+
+        paymentFields.forEach(([paymentField, dateField]) => {
+
+          if (
+            updatedSeat[paymentField] === "Submitted" &&
+            updatedSeat[dateField]
+          ) {
+
+            const endDate = new Date(updatedSeat[dateField]);
+            endDate.setHours(0, 0, 0, 0);
+
+            if (today > endDate) {
+              updatedSeat[paymentField] = "Pending";
+              changed = true;
+            }
+          }
+        });
+
+        if (!changed) continue;
+
+        // State update
+        setSeats((prevSeats) =>
+          prevSeats.map((s) =>
+            s.id === seat.id ? updatedSeat : s
+          )
+        );
+
+        // Firebase update
+        try {
+          await setDoc(
+            doc(db, "bookings", `seat-${seat.id}`),
+            updatedSeat
+          );
+        } catch (error) {
+          console.error(
+            "Auto payment expiry failed:",
+            error
+          );
+        }
+      }
+    };
+
+    checkExpiredPayments();
+
+    const interval = setInterval(
+      checkExpiredPayments,
+      60000
+    );
+
+    return () => clearInterval(interval);
+
+  }, [seats]);
+
   // ============================================================================
   // 📍 5. ADMIN LOGIN CREDENTIALS (Yaha se aap Apna Admin Username/Password badal sakte hain)
   // ============================================================================
@@ -1564,7 +1635,7 @@ export default function App() {
             <div className="flex items-center justify-between flex-wrap gap-4 mb-8">
               <div>
                 <h2 className="text-4xl font-black">LIVE SMART SEAT AVAILABILITY</h2>
-                <p className="text-gray-500 mt-2">Total 100 Premium Smart Seats Available</p>
+                <p className="text-gray-500 mt-2">Total Seats Premium Smart Seats Available</p>
               </div>
 
               {/* ---> PUBLIC: SEAT BOOKING CTA <--- */}

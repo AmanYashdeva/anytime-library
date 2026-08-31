@@ -612,7 +612,7 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
 
           .summary {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 12px;
             margin-bottom: 25px;
           }
@@ -768,19 +768,6 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
 
             <div class="summary-value">
               ${submittedStudents}
-            </div>
-
-          </div>
-
-
-          <div class="summary-box">
-
-            <div class="summary-title">
-              Pending Payments
-            </div>
-
-            <div class="summary-value">
-              ${pendingStudentsCount}
             </div>
 
           </div>
