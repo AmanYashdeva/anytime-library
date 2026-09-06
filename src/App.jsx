@@ -50,10 +50,16 @@ const FormInput = ({ icon, label, type = "text", value, onChange, onFocus, place
   </div>
 );
 
-const FormSelect = ({ label, value, onChange, onFocus, options }) => (
+const FormSelect = ({ label, value, onChange, onFocus, options, disabled = false }) => (
   <div className="flex flex-col border border-gray-200 rounded-xl px-4 py-2 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all bg-white shadow-sm relative">
     <label className="text-[10px] text-gray-500 font-semibold">{label}</label>
-    <select value={value} onChange={onChange} onFocus={onFocus} className="w-full text-sm font-medium text-gray-800 outline-none bg-transparent mt-0.5 appearance-none cursor-pointer">
+    <select
+      value={value}
+      onChange={onChange}
+      onFocus={onFocus}
+      disabled={disabled}
+      className={`w-full text-sm font-medium text-gray-800 outline-none bg-transparent mt-0.5 appearance-none cursor-pointer ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+    >
       {options.map(opt => <option key={opt}>{opt}</option>)}
     </select>
     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
@@ -400,9 +406,10 @@ export default function App() {
           ) {
 
             const endDate = new Date(updatedSeat[dateField]);
+            console.log(`Seat ${seat.id} - ${paymentField}: Date=${updatedSeat[dateField]}, Today=${today}, Expired=${today >= endDate}`);
             endDate.setHours(0, 0, 0, 0);
 
-            if (today > endDate) {
+            if (today >= endDate) {
               updatedSeat[paymentField] = "Pending";
               changed = true;
             }
@@ -662,6 +669,19 @@ export default function App() {
 
   // fees dues indicator ke liye color logic
 
+    // ✅ Check karo ki expiry date cross ho gayi hai ya nahi
+  const isDateExpired = (toDate) => {
+    if (!toDate) return false;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const end = new Date(toDate);
+    end.setHours(0, 0, 0, 0);
+
+    return today > end; // Agar aaj > endDate toh expired
+  };
+
   const getDueStatus = (toDate) => {
     if (!toDate) return "";
 
@@ -891,6 +911,7 @@ export default function App() {
                       value={selectedSeat.status}
                       onChange={(e) => updateSeat('status', e.target.value)}
                       options={['Available', 'Half Day', 'Full Day', '24 Hours']}
+                      
                     />
 
                     {/* Dynamic Student Fields based on Status */}
@@ -952,7 +973,8 @@ export default function App() {
                           label="Fees Status"
                           value={selectedSeat.nightPayment || "Available"}
                           onChange={(e) => updateSeat("nightPayment", e.target.value)}
-                          options={["Available", "Submitted", "Pending"]}
+                          options={isDateExpired(selectedSeat.nightTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
+                          disabled={isDateExpired(selectedSeat.nightTo)}
                         />
 
 
@@ -991,7 +1013,8 @@ export default function App() {
                               label="Fees Status"
                               value={selectedSeat.morningPayment || "Available"}
                               onChange={(e) => updateSeat("morningPayment", e.target.value)}
-                              options={["Available", "Submitted", "Pending"]}
+                              options={isDateExpired(selectedSeat.morningTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
+                              disabled={isDateExpired(selectedSeat.morningTo)}
                             />
 
                             {selectedSeat.morningPayment !== "Available" && (
@@ -1069,7 +1092,8 @@ export default function App() {
                                 label="Fees Status"
                                 value={selectedSeat.afternoonPayment || "Available"}
                                 onChange={(e) => updateSeat("afternoonPayment", e.target.value)}
-                                options={["Available", "Submitted", "Pending"]}
+                                options={isDateExpired(selectedSeat.afternoonTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
+                                disabled={isDateExpired(selectedSeat.afternoonTo)}
                               />
 
                               {selectedSeat.afternoonPayment !== "Available" && (
@@ -1148,7 +1172,8 @@ export default function App() {
                                 label="Fees Status"
                                 value={selectedSeat.nightPayment || "Available"}
                                 onChange={(e) => updateSeat("nightPayment", e.target.value)}
-                                options={["Available", "Submitted", "Pending"]}
+                                options={isDateExpired(selectedSeat.nightTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
+                                disabled={isDateExpired(selectedSeat.nightTo)}
                               />
 
                               {selectedSeat.nightPayment !== "Available" && (
@@ -1254,7 +1279,8 @@ export default function App() {
                                   label="Fees Status"
                                   value={selectedSeat.fullDayPayment || "Available"}
                                   onChange={(e) => updateSeat("fullDayPayment", e.target.value)}
-                                  options={["Available", "Submitted", "Pending"]}
+                                  options={isDateExpired(selectedSeat.fullDayTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
+                                  disabled={isDateExpired(selectedSeat.fullDayTo)}
                                 />
 
                                 <FormInput
@@ -1326,7 +1352,8 @@ export default function App() {
                                   label="Fees Status"
                                   value={selectedSeat.nightPayment || "Available"}
                                   onChange={(e) => updateSeat("nightPayment", e.target.value)}
-                                  options={["Available", "Submitted", "Pending"]}
+                                  options={isDateExpired(selectedSeat.nightTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
+                                  disabled={isDateExpired(selectedSeat.nightTo)}
                                 />
 
                                 <FormInput

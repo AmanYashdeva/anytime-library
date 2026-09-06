@@ -350,59 +350,59 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
 
   visibleSeats.forEach((seat) => {
 
-    if (
-      seat.morningStudent &&
-      seat.morningPayment === "Pending"
-    ) {
-
+    // =============================================
+    // MORNING SHIFT - Pending
+    // =============================================
+    if (seat.morningPayment === "Pending") {
       pendingStudents.push({
-        name: seat.morningStudent,
+        name: seat.morningStudent || `Seat ${seat.id} - Morning`,
         seat: seat.id,
         plan: "Morning",
       });
-
     }
 
-
-    if (
-      seat.afternoonStudent &&
-      seat.afternoonPayment === "Pending"
-    ) {
-
+    // =============================================
+    // AFTERNOON SHIFT - Pending
+    // =============================================
+    if (seat.afternoonPayment === "Pending") {
       pendingStudents.push({
-        name: seat.afternoonStudent,
+        name: seat.afternoonStudent || `Seat ${seat.id} - Afternoon`,
         seat: seat.id,
         plan: "Afternoon",
       });
-
     }
 
-
-    if (
-      seat.nightStudent &&
-      seat.nightPayment === "Pending"
-    ) {
-
+    // =============================================
+    // NIGHT SHIFT - Pending (Sirf Half Day / Full Day ke liye)
+    // =============================================
+    if (seat.nightPayment === "Pending" && seat.status !== "24 Hours") {
       pendingStudents.push({
-        name: seat.nightStudent,
+        name: seat.nightStudent || `Seat ${seat.id} - Night`,
         seat: seat.id,
         plan: "Night",
       });
-
     }
 
-
-    if (
-      seat.fullDayStudent &&
-      seat.fullDayPayment === "Pending"
-    ) {
-
+    // =============================================
+    // FULL DAY - Pending
+    // =============================================
+    if (seat.fullDayPayment === "Pending") {
       pendingStudents.push({
-        name: seat.fullDayStudent,
+        name: seat.fullDayStudent || `Seat ${seat.id} - Full Day`,
         seat: seat.id,
         plan: "Full Day",
       });
+    }
 
+    // =============================================
+    // 24 HOURS - Pending (Naya add kiya)
+    // =============================================
+    if (seat.nightPayment === "Pending" && seat.status === "24 Hours") {
+      pendingStudents.push({
+        name: seat.nightStudent || `Seat ${seat.id} - 24 Hours`,
+        seat: seat.id,
+        plan: "24 Hours",
+      });
     }
 
   });
