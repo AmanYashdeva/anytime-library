@@ -315,18 +315,25 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
           0
         );
 
+      const monthYear = `${month} ${currentYear}`;
 
       return {
-
-        month: month,
-
+        month: monthYear,  // 
         amount: monthTotal,
-
       };
 
     }
+
   ).filter(
     (item) => item.amount > 0
+  );
+
+
+
+
+  const totalYearlyCollection = yearlyCollections.reduce(
+    (total, item) => total + item.amount,
+    0
   );
 
 
@@ -1324,6 +1331,7 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
             <p className="mt-1 text-2xl font-black text-blue-400">
               ₹{yearlyTotal.toLocaleString("en-IN")}
             </p>
+            
 
 
             {/* ============================================= */}
