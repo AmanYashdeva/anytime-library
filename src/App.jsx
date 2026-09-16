@@ -1158,6 +1158,7 @@ export default function App() {
 
                             {/* Morning Shift */}
                             <div className="flex justify-between items-center">
+                              <h4 className="font-bold text-blue-600">🌤️ Morning Shift</h4>
                               <button
                                 type="button"
                                 onClick={() => renewSeatShift("morningFrom", "morningTo", "morningPayment")}
@@ -1241,6 +1242,7 @@ export default function App() {
                             <div className="bg-white border rounded-xl p-4 space-y-3">
 
                               <div className="flex justify-between items-center">
+                                <h4 className="font-bold text-blue-600">☀️ Afternoon Shift</h4>
                                 <button
                                   type="button"
                                   onClick={() => renewSeatShift("afternoonFrom", "afternoonTo", "afternoonPayment")}
@@ -1325,6 +1327,7 @@ export default function App() {
                             <div className="bg-white border rounded-xl p-4 space-y-3">
 
                               <div className="flex justify-between items-center">
+                                <h4 className="font-bold text-blue-600">🌙 Night Shift</h4>
                                 <button
                                   type="button"
                                   onClick={() => renewSeatShift("nightFrom", "nightTo", "nightPayment")}
@@ -1414,6 +1417,9 @@ export default function App() {
                             <div className="bg-white border rounded-xl p-4 space-y-3">
 
                               <div className="flex justify-between items-center">
+                                <h5 className="font-bold text-blue-600">
+                                  🌞 Full Day Shift
+                                </h5>
                                 <button
                                   type="button"
                                   onClick={() => renewSeatShift("fullDayFrom", "fullDayTo", "fullDayPayment")}
@@ -1493,6 +1499,13 @@ export default function App() {
                                 <h5 className="font-bold text-blue-600">
                                   🌙 Night Shift
                                 </h5>
+                                <button
+                                  type="button"
+                                  onClick={() => renewSeatShift("nightFrom", "nightTo", "nightPayment")}
+                                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm ml-auto mr-2"
+                                >
+                                  ⚡️ Renew (+30 Days)
+                                </button>
 
                                 {selectedSeat.nightPayment !== "Available" && (
                                   <span className="text-sm font-semibold text-red-500">
@@ -1500,6 +1513,7 @@ export default function App() {
                                   </span>
                                 )}
                               </div>
+
 
                               <div className="grid md:grid-cols-2 gap-4">
 
@@ -1964,6 +1978,7 @@ export default function App() {
           <section className="max-w-7xl mx-auto px-6 pb-14">
             <div className="flex items-center justify-between flex-wrap gap-4 mb-8">
               <div>
+                
                 <h2 className="text-4xl font-black">LIVE SMART SEAT AVAILABILITY</h2>
                 <p className="text-gray-500 mt-2">Total Seats Premium Smart Seats Available</p>
               </div>
