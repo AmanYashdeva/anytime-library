@@ -26,17 +26,29 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
   // ACTIVE STUDENTS
   // =====================================================
 
+  // =====================================================
+  // ACTIVE STUDENTS (Exact: Submitted + Pending Only)
+  // =====================================================
+
   const activeStudents = visibleSeats.reduce((total, seat) => {
 
-    const students = [
-      seat.morningStudent,
-      seat.afternoonStudent,
-      seat.nightStudent,
-      seat.fullDayStudent,
+    if (seat.status === "Available") return total;
+
+    const shifts = [
+      { name: seat.morningStudent, payment: seat.morningPayment },
+      { name: seat.afternoonStudent, payment: seat.afternoonPayment },
+      { name: seat.nightStudent, payment: seat.nightPayment },
+      { name: seat.fullDayStudent, payment: seat.fullDayPayment },
     ];
 
-    return total + students.filter(Boolean).length;
+    const validCount = shifts.filter(
+      (s) =>
+        s.name &&
+        s.name.trim() !== "" &&
+        (s.payment === "Submitted" || s.payment === "Pending")
+    ).length;
 
+    return total + validCount;
   }, 0);
 
 
@@ -1331,7 +1343,7 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
             <p className="mt-1 text-2xl font-black text-blue-400">
               ₹{yearlyTotal.toLocaleString("en-IN")}
             </p>
-            
+
 
 
             {/* ============================================= */}

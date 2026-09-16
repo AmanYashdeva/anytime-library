@@ -564,16 +564,16 @@ export default function App() {
 
         morningPayment: is24Hr
           ? 'Disabled'
-          : (selectedSeat.morningPayment || 'Pending'),
+          : (selectedSeat.morningPayment || 'Available'),
 
         afternoonPayment: is24Hr
           ? 'Disabled'
-          : (selectedSeat.afternoonPayment || 'Pending'),
+          : (selectedSeat.afternoonPayment || 'Available'),
 
-        nightPayment: selectedSeat.nightPayment || 'Pending',
+        nightPayment: selectedSeat.nightPayment || 'Available',
 
         fullDayPayment: isFullDay
-          ? (selectedSeat.fullDayPayment || 'Pending')
+          ? (selectedSeat.fullDayPayment || 'Available')
           : '',
       };
 
