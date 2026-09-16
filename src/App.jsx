@@ -390,7 +390,7 @@ export default function App() {
         ["morningPayment", "morningTo"],
         ["afternoonPayment", "afternoonTo"],
         ["nightPayment", "nightTo"],
-        ["fullDayPayment", "toDate"],
+        ["fullDayPayment", "fullDayTo"],
       ];
 
       for (const seat of seats) {
@@ -669,13 +669,13 @@ export default function App() {
 
   // fees dues indicator ke liye color logic
 
-    // ✅ Check karo ki expiry date cross ho gayi hai ya nahi
+  // ✅ Check karo ki expiry date cross ho gayi hai ya nahi
   const isDateExpired = (toDate) => {
     if (!toDate) return false;
-    
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const end = new Date(toDate);
     end.setHours(0, 0, 0, 0);
 
@@ -911,7 +911,7 @@ export default function App() {
                       value={selectedSeat.status}
                       onChange={(e) => updateSeat('status', e.target.value)}
                       options={['Available', 'Half Day', 'Full Day', '24 Hours']}
-                      
+
                     />
 
                     {/* Dynamic Student Fields based on Status */}
@@ -2709,17 +2709,20 @@ export default function App() {
                 </div>
 
 
+                
                 {/* WHATSAPP BUTTON */}
                 <button
                   onClick={() => {
+                    const name = document.getElementById("bookingName").value.trim();
+                    const phone = document.getElementById("bookingPhone").value.trim();
+                    const email = document.getElementById("bookingEmail").value.trim();
+                    const seat = document.getElementById("bookingSeat").value.trim();
 
-                    const name = document.getElementById("bookingName").value;
-                    const phone = document.getElementById("bookingPhone").value;
-                    const seat = document.getElementById("bookingSeat").value;
-
+                    // 1. Khali fields check
                     if (
                       !name ||
                       !phone ||
+                      !email ||
                       !seat ||
                       !selectedPlan ||
                       !selectedTiming ||
@@ -2730,11 +2733,27 @@ export default function App() {
                       return;
                     }
 
+                    // 2. Mobile Number Validation: Exactly 10 digits
+                    const phoneRegex = /^[0-9]{10}$/;
+                    if (!phoneRegex.test(phone)) {
+                      alert("Enter a valid 10-digit mobile number.");
+                      return;
+                    }
+
+                    // 3. Gmail Validation: Sahi format aur @gmail.com hona zaroori hai
+                    const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/i;
+                    if (!gmailRegex.test(email)) {
+                      alert("Enter a valid Gmail address (Ex: yourname@gmail.com).");
+                      return;
+                    }
+
+                    // WhatsApp Message me Gmail bhi add ho jayega
                     const message = `
 *🔥 ANY TIME LIBRARY - SEAT BOOKING REQUEST 🔥*
 
 👤 *Name:* ${name}
 📱 *WhatsApp Number:* ${phone}
+📧 *Email:* ${email}
 
 💺 *Seat Number:* ${seat}
 
@@ -2751,13 +2770,10 @@ export default function App() {
 I will attach the payment screenshot here.
 
 Please check and confirm my seat booking.
-          `;
+    `;
 
-                    const whatsappUrl =
-                      `https://wa.me/9161310909?text=${encodeURIComponent(message)}`;
-
+                    const whatsappUrl = `https://wa.me/9161310909?text=${encodeURIComponent(message)}`;
                     window.open(whatsappUrl, "_blank");
-
                   }}
                   className="mt-6 w-full rounded-2xl bg-green-600 py-4 text-lg font-black text-white shadow-lg transition hover:-translate-y-1 hover:bg-green-700"
                 >
