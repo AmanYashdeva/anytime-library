@@ -2374,6 +2374,19 @@ export default function App() {
                     />
                   </div>
 
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-gray-700">
+                      Email Address
+                    </label>
+
+                    <input
+                      type="email"
+                      id="bookingEmail"
+                      placeholder="Enter your email"
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
                 </div>
 
 
