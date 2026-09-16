@@ -365,66 +365,128 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
   // PENDING STUDENTS LIST
   // =====================================================
 
+  // =====================================================
+  // PENDING STUDENTS LIST (With Phone & Date for WhatsApp)
+  // =====================================================
+
   const pendingStudents = [];
 
   visibleSeats.forEach((seat) => {
 
-    // =============================================
-    // MORNING SHIFT - Pending
-    // =============================================
+    // MORNING SHIFT
     if (seat.morningPayment === "Pending") {
       pendingStudents.push({
         name: seat.morningStudent || `Seat ${seat.id} - Morning`,
         seat: seat.id,
         plan: "Morning",
+        phone: seat.morningPhone || seat.phone || "",
+        toDate: seat.morningTo || "",
+        amount: seat.morningAmount || "",
       });
     }
 
-    // =============================================
-    // AFTERNOON SHIFT - Pending
-    // =============================================
+    // AFTERNOON SHIFT
     if (seat.afternoonPayment === "Pending") {
       pendingStudents.push({
         name: seat.afternoonStudent || `Seat ${seat.id} - Afternoon`,
         seat: seat.id,
         plan: "Afternoon",
+        phone: seat.afternoonPhone || seat.phone || "",
+        toDate: seat.afternoonTo || "",
+        amount: seat.afternoonAmount || "",
       });
     }
 
-    // =============================================
-    // NIGHT SHIFT - Pending (Sirf Half Day / Full Day ke liye)
-    // =============================================
+    // NIGHT SHIFT (Half Day / Full Day)
     if (seat.nightPayment === "Pending" && seat.status !== "24 Hours") {
       pendingStudents.push({
         name: seat.nightStudent || `Seat ${seat.id} - Night`,
         seat: seat.id,
         plan: "Night",
+        phone: seat.nightPhone || seat.phone || "",
+        toDate: seat.nightTo || "",
+        amount: seat.nightAmount || "",
       });
     }
 
-    // =============================================
-    // FULL DAY - Pending
-    // =============================================
+    // FULL DAY
     if (seat.fullDayPayment === "Pending") {
       pendingStudents.push({
         name: seat.fullDayStudent || `Seat ${seat.id} - Full Day`,
         seat: seat.id,
         plan: "Full Day",
+        phone: seat.fullDayPhone || seat.phone || "",
+        toDate: seat.fullDayTo || seat.toDate || "",
+        amount: seat.fullDayAmount || "",
       });
     }
 
-    // =============================================
-    // 24 HOURS - Pending (Naya add kiya)
-    // =============================================
+    // 24 HOURS
     if (seat.nightPayment === "Pending" && seat.status === "24 Hours") {
       pendingStudents.push({
         name: seat.nightStudent || `Seat ${seat.id} - 24 Hours`,
         seat: seat.id,
         plan: "24 Hours",
+        phone: seat.nightPhone || seat.phone || "",
+        toDate: seat.nightTo || seat.toDate || "",
+        amount: seat.nightAmount || "",
       });
     }
 
   });
+
+
+
+
+
+  // =====================================================
+  // 📲 1-CLICK WHATSAPP FEE REMINDER FUNCTION
+  // =====================================================
+  const sendWhatsAppReminder = (student) => {
+    let cleanPhone = (student.phone || "").replace(/\D/g, "");
+
+    // Agar 10 digit ka number hai toh India code (91) aage lagayenge
+    if (cleanPhone.length === 10) {
+      cleanPhone = `91${cleanPhone}`;
+    }
+
+    if (!cleanPhone || cleanPhone.length < 10) {
+      alert(`Student (${student.name}) ka valid mobile number save nahi hai!`);
+      return;
+    }
+
+    const message = `*Dear ${student.name},*
+
+Greetings from *ANY TIME LIBRARY*! 📚
+
+This is a gentle reminder that your monthly library seat subscription is due for renewal.
+
+📌 *Membership Details:*
+• *Seat Number:* Seat ${student.seat}
+• *Shift / Plan:* ${student.plan}
+• *Due Date:* ${student.toDate || "Expired"}
+
+To ensure your seat reservation continues without interruption, kindly complete your fee renewal at your earliest convenience.
+
+💳 *Payment Options:*
+
+1️⃣ *Online Payment:*
+• *UPI ID:* gurpratap2611-@okhdfcbank
+• *GPay / PhonePe / Paytm:* 9219384600
+_(Kindly share the payment screenshot here once done)_
+
+2️⃣ *Cash Payment:*
+• You can also deposit the fee in cash directly at the library management staff.
+
+Thank you for choosing Any Time Library for your studies!
+
+Warm regards,  
+*Management Team*  
+*Any Time Library*`;
+
+    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, "_blank");
+  };
 
 
   // =====================================================
@@ -1431,15 +1493,27 @@ const Dashboard = ({ seats, onToggleSeatVisibility }) => {
                     </p>
 
                     <p className="mt-1 text-xs text-gray-500">
-                      Seat {student.seat} • {student.plan}
+                      Seat {student.seat} • {student.plan} {student.toDate ? `• Expiry: ${student.toDate}` : ""}
                     </p>
 
                   </div>
 
+                  {/* Actions Area */}
+                  <div className="flex items-center gap-2.5">
+                    <span className="rounded-full bg-yellow-400/10 px-3 py-1 text-xs font-bold text-yellow-400">
+                      Pending
+                    </span>
 
-                  <span className="rounded-full bg-yellow-400/10 px-3 py-1 text-xs font-bold text-yellow-400">
-                    Pending
-                  </span>
+                    {/* 1-Click WhatsApp Reminder Button */}
+                    <button
+                      type="button"
+                      onClick={() => sendWhatsAppReminder(student)}
+                      className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md shadow-green-600/20 transition-all hover:scale-105"
+                      title="Send WhatsApp Reminder"
+                    >
+                      <span>💬</span>Reminder
+                    </button>
+                  </div>
 
                 </div>
 

@@ -245,6 +245,10 @@ export default function App() {
   const [selectedTiming, setSelectedTiming] = useState("");
   const [lockerOption, setLockerOption] = useState("");
   const [totalAmount, setTotalAmount] = useState(0);
+  // --- SEAT TRANSFER STATES ---
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferShift, setTransferShift] = useState("");
+  const [targetSeatId, setTargetSeatId] = useState("");
 
 
   const uploadSeatsToFirebase = async () => {
@@ -306,11 +310,27 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const seatsPerPage = 34;
 
-  const filteredSeats = seats.filter(seat =>
-    searchQuery === '' ||
-    seat.id.toString().includes(searchQuery) ||
-    seat.status.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+ const filteredSeats = seats.filter((seat) => {
+    if (searchQuery.trim() === "") return true;
+
+    const query = searchQuery.toLowerCase().trim();
+
+    // 1. Seat Number match
+    const matchId = seat.id.toString().includes(query);
+
+    // 2. Status match (Full Day, Half Day, etc.)
+    const matchStatus = seat.status?.toLowerCase().includes(query);
+
+    // 3. Student Name match (Saari shifts check karega)
+    const matchStudent = [
+      seat.morningStudent,
+      seat.afternoonStudent,
+      seat.nightStudent,
+      seat.fullDayStudent,
+    ].some((name) => name && name.toLowerCase().includes(query));
+
+    return matchId || matchStatus || matchStudent;
+  });
 
   const indexOfLastSeat = currentPage * seatsPerPage;
   const indexOfFirstSeat = indexOfLastSeat - seatsPerPage;
@@ -653,6 +673,137 @@ export default function App() {
     }
   };
 
+  // =====================================================
+  // 🔄 ONE-CLICK SEAT TRANSFER FUNCTION
+  // =====================================================
+  const handleSeatTransfer = async (fromSeatId, toSeatId, shiftType) => {
+    if (!fromSeatId || !toSeatId || !shiftType) {
+      alert("Kripya transfer ke liye shift aur nayi seat dono select karein.");
+      return;
+    }
+
+    const fromSeat = seats.find((s) => s.id === Number(fromSeatId));
+    const toSeat = seats.find((s) => s.id === Number(toSeatId));
+
+    if (!fromSeat || !toSeat) return;
+
+    // Saari shifts ke field mapping
+    const fieldMap = {
+      Morning: ["morningStudent", "morningPhone", "morningEmail", "morningFrom", "morningTo", "morningPayment", "morningAmount"],
+      Afternoon: ["afternoonStudent", "afternoonPhone", "afternoonEmail", "afternoonFrom", "afternoonTo", "afternoonPayment", "afternoonAmount"],
+      Night: ["nightStudent", "nightPhone", "nightEmail", "nightFrom", "nightTo", "nightPayment", "nightAmount"],
+      "Full Day": ["fullDayStudent", "fullDayPhone", "fullDayEmail", "fullDayFrom", "fullDayTo", "fullDayPayment", "fullDayAmount"],
+      "24 Hours": ["nightStudent", "nightPhone", "nightEmail", "nightFrom", "nightTo", "nightPayment", "nightAmount"],
+    };
+
+    const fields = fieldMap[shiftType];
+    if (!fields) return;
+
+    const updatedToSeat = { ...toSeat };
+    const updatedFromSeat = { ...fromSeat };
+
+    // 1. Data nayi seat par shift karna
+    fields.forEach((field) => {
+      updatedToSeat[field] = fromSeat[field] || "";
+    });
+
+    // Agar nayi seat Available thi toh uska status set karna
+    if (updatedToSeat.status === "Available") {
+      updatedToSeat.status = fromSeat.status;
+      updatedToSeat.timing = fromSeat.timing;
+    }
+
+    // 2. Purani seat se student details clear karna
+    fields.forEach((field) => {
+      if (field.toLowerCase().includes("payment")) {
+        updatedFromSeat[field] = "Available";
+      } else {
+        updatedFromSeat[field] = "";
+      }
+    });
+
+    // Agar purani seat par koi dusra student nahi bacha toh use Available mark karna
+    const hasRemainingStudents = [
+      updatedFromSeat.morningStudent,
+      updatedFromSeat.afternoonStudent,
+      updatedFromSeat.nightStudent,
+      updatedFromSeat.fullDayStudent,
+    ].some(Boolean);
+
+    if (!hasRemainingStudents) {
+      updatedFromSeat.status = "Available";
+      updatedFromSeat.timing = "Available";
+    }
+
+    // 3. React State Update
+    setSeats((prev) =>
+      prev.map((s) => {
+        if (s.id === fromSeat.id) return updatedFromSeat;
+        if (s.id === toSeat.id) return updatedToSeat;
+        return s;
+      })
+    );
+
+    setSelectedSeat(updatedToSeat);
+
+    // 4. Firebase me dono seats update karna
+    try {
+      await setDoc(doc(db, "bookings", `seat-${fromSeat.id}`), updatedFromSeat);
+      await setDoc(doc(db, "bookings", `seat-${toSeat.id}`), updatedToSeat);
+      alert(`Student Seat ${fromSeat.id} se Seat ${toSeat.id} (${shiftType}) par successfully transfer ho gaya!`);
+    } catch (error) {
+      console.error("Transfer Error:", error);
+      alert("Firebase update me problem aayi.");
+    }
+  };
+
+  // =====================================================
+  // ⚡ 1-CLICK RENEW NEXT 30 DAYS FUNCTION
+  // =====================================================
+  const renewSeatShift = (fromField, toField, paymentField) => {
+    if (!selectedSeat) return;
+
+    const currentTo = selectedSeat[toField];
+    let baseDate = new Date();
+
+    // Agar purani toDate valid hai, toh wahi nayi fromDate banegi
+    if (currentTo) {
+      const parsed = new Date(currentTo);
+      if (!isNaN(parsed.getTime())) {
+        baseDate = parsed;
+      }
+    }
+
+    // Local timezone safe date formatter (YYYY-MM-DD)
+    const formatDate = (d) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    const newFrom = formatDate(baseDate);
+
+    // Agle 30 din add karna
+    const nextDate = new Date(baseDate);
+    nextDate.setDate(nextDate.getDate() + 30);
+    const newTo = formatDate(nextDate);
+
+    const updates = {
+      [fromField]: newFrom,
+      [toField]: newTo,
+      [paymentField]: "Submitted",
+    };
+
+    // React state update
+    setSeats((prev) =>
+      prev.map((s) => (s.id === selectedSeat.id ? { ...s, ...updates } : s))
+    );
+    setSelectedSeat((prev) => ({ ...prev, ...updates }));
+
+    alert(`✅ Seat ${selectedSeat.id} Renewed (+30 Days)!\nFrom: ${newFrom}\nTo: ${newTo}\nStatus: Submitted\n\n(Save button dabakar data confirm karein)`);
+  };
+
   const saveSeatToFirebase = async () => {
     try {
       await setDoc(
@@ -803,7 +954,7 @@ export default function App() {
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search seat number..."
+                placeholder="Search Seat No. or Name"
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -918,7 +1069,16 @@ export default function App() {
                     {selectedSeat.status === "24 Hours" ? (
                       <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-4">
 
-                        <h4 className="font-bold text-lg">24 Hours Student</h4>
+                        <div className="flex justify-between items-center">
+                          <h4 className="font-bold text-lg">24 Hours Student</h4>
+                          <button
+                            type="button"
+                            onClick={() => renewSeatShift("nightFrom", "nightTo", "nightPayment")}
+                            className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm"
+                          >
+                            ⚡️ Renew (+30 Days)
+                          </button>
+                        </div>
 
                         <FormInput
                           icon={<UserIcon className="w-4 h-4" />}
@@ -998,9 +1158,13 @@ export default function App() {
 
                             {/* Morning Shift */}
                             <div className="flex justify-between items-center">
-                              <h5 className="font-bold text-green-600">
-                                🌅 Morning Shift
-                              </h5>
+                              <button
+                                type="button"
+                                onClick={() => renewSeatShift("morningFrom", "morningTo", "morningPayment")}
+                                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm ml-auto mr-2"
+                              >
+                                ⚡️ Renew (+30 Days)
+                              </button>
 
                               {selectedSeat.morningPayment !== "Available" && (
                                 <span className="text-sm font-semibold text-red-500">
@@ -1077,9 +1241,13 @@ export default function App() {
                             <div className="bg-white border rounded-xl p-4 space-y-3">
 
                               <div className="flex justify-between items-center">
-                                <h5 className="font-bold text-orange-600">
-                                  ☀️ Afternoon Shift
-                                </h5>
+                                <button
+                                  type="button"
+                                  onClick={() => renewSeatShift("afternoonFrom", "afternoonTo", "afternoonPayment")}
+                                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm ml-auto mr-2"
+                                >
+                                  ⚡️ Renew (+30 Days)
+                                </button>
 
                                 {selectedSeat.afternoonPayment !== "Available" && (
                                   <span className="text-sm font-semibold text-red-500">
@@ -1157,9 +1325,13 @@ export default function App() {
                             <div className="bg-white border rounded-xl p-4 space-y-3">
 
                               <div className="flex justify-between items-center">
-                                <h5 className="font-bold text-blue-600">
-                                  🌙 Night Shift
-                                </h5>
+                                <button
+                                  type="button"
+                                  onClick={() => renewSeatShift("nightFrom", "nightTo", "nightPayment")}
+                                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm ml-auto mr-2"
+                                >
+                                  ⚡️ Renew (+30 Days)
+                                </button>
 
                                 {selectedSeat.nightPayment !== "Available" && (
                                   <span className="text-sm font-semibold text-red-500">
@@ -1242,9 +1414,13 @@ export default function App() {
                             <div className="bg-white border rounded-xl p-4 space-y-3">
 
                               <div className="flex justify-between items-center">
-                                <h5 className="font-bold text-red-600">
-                                  ☀️ Full Day (8 AM - 8 PM)
-                                </h5>
+                                <button
+                                  type="button"
+                                  onClick={() => renewSeatShift("fullDayFrom", "fullDayTo", "fullDayPayment")}
+                                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm ml-auto mr-2"
+                                >
+                                  ⚡️ Renew (+30 Days)
+                                </button>
                                 {selectedSeat.fullDayPayment !== "Available" && (
                                   <span className="text-sm font-semibold text-red-500">
                                     {getDueStatus(selectedSeat.fullDayTo)}
@@ -1395,6 +1571,31 @@ export default function App() {
                       <CalendarIcon className="w-5 h-5" /> SAVE SEAT DETAILS
                     </button>
 
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetSeatId("");
+                        // Automatic pehli bhari hui shift select karega
+                        if (selectedSeat.status === "24 Hours") {
+                          setTransferShift("24 Hours");
+                        } else if (selectedSeat.status === "Full Day") {
+                          setTransferShift(selectedSeat.fullDayStudent ? "Full Day" : "Night");
+                        } else {
+                          setTransferShift(
+                            selectedSeat.morningStudent
+                              ? "Morning"
+                              : selectedSeat.afternoonStudent
+                                ? "Afternoon"
+                                : "Night"
+                          );
+                        }
+                        setShowTransferModal(true);
+                      }}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2 mt-3"
+                    >
+                      🔄 TRANSFER THIS SEAT / SHIFT
+                    </button>
+
                     {/* ---> ADMIN: NOTE / INSTRUCTIONS SECTION <--- */}
                     <div className="bg-blue-50 text-blue-800 p-4 rounded-xl flex gap-3 text-sm mt-4 border border-blue-100">
                       <InfoIcon className="w-5 h-5 shrink-0 text-blue-500 mt-0.5" />
@@ -1513,6 +1714,108 @@ export default function App() {
               <div className="flex items-center justify-center h-full text-gray-400 flex-col gap-4 bg-white rounded-3xl border border-gray-200">
                 <SearchIcon className="w-16 h-16 opacity-20" />
                 <p className="text-lg font-medium">Kripya sidebar se koi seat select karein.</p>
+              </div>
+            )}
+
+            {/* ---> SEAT TRANSFER MODAL POPUP <--- */}
+            {showTransferModal && selectedSeat && (
+              <div className="fixed inset-0 z-[250] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl relative border border-gray-100">
+
+                  <button
+                    type="button"
+                    onClick={() => setShowTransferModal(false)}
+                    className="absolute top-5 right-5 text-gray-400 hover:text-black text-xl font-bold"
+                  >
+                    ✕
+                  </button>
+
+                  <h3 className="text-xl font-black text-gray-900 mb-1">
+                    Transfer Seat {selectedSeat.id}
+                  </h3>
+                  <p className="text-xs text-gray-500 mb-5">
+                    Student ka sara data (Name, Phone, Dates, Fees status) nayi seat par move ho jayega.
+                  </p>
+
+                  {/* 1. Kaunsi Shift Move Karni Hai */}
+                  <div className="mb-4">
+                    <label className="text-xs font-bold text-gray-600 block mb-1">
+                      Select Shift to Move
+                    </label>
+                    <select
+                      value={transferShift}
+                      onChange={(e) => setTransferShift(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl p-3 text-sm bg-gray-50 outline-none focus:border-blue-500 font-semibold cursor-pointer"
+                    >
+                      {selectedSeat.status === "Half Day" && (
+                        <>
+                          {selectedSeat.morningStudent && (
+                            <option value="Morning">Morning — {selectedSeat.morningStudent}</option>
+                          )}
+                          {selectedSeat.afternoonStudent && (
+                            <option value="Afternoon">Afternoon — {selectedSeat.afternoonStudent}</option>
+                          )}
+                          {selectedSeat.nightStudent && (
+                            <option value="Night">Night — {selectedSeat.nightStudent}</option>
+                          )}
+                        </>
+                      )}
+
+                      {selectedSeat.status === "Full Day" && (
+                        <>
+                          {selectedSeat.fullDayStudent && (
+                            <option value="Full Day">Full Day — {selectedSeat.fullDayStudent}</option>
+                          )}
+                          {selectedSeat.nightStudent && (
+                            <option value="Night">Night — {selectedSeat.nightStudent}</option>
+                          )}
+                        </>
+                      )}
+
+                      {selectedSeat.status === "24 Hours" && (
+                        <option value="24 Hours">24 Hours — {selectedSeat.nightStudent}</option>
+                      )}
+                    </select>
+                  </div>
+
+                  {/* 2. Nayi Seat Select Karna */}
+                  <div className="mb-6">
+                    <label className="text-xs font-bold text-gray-600 block mb-1">
+                      Select Target Seat (Only Available Seats)
+                    </label>
+                    <select
+                      value={targetSeatId}
+                      onChange={(e) => setTargetSeatId(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl p-3 text-sm bg-gray-50 outline-none focus:border-blue-500 font-semibold cursor-pointer"
+                    >
+                      <option value="">-- Choose Target Seat --</option>
+                      {seats
+                        .filter((s) => s.id !== selectedSeat.id && s.status === "Available")
+                        .map((s) => (
+                          <option key={s.id} value={s.id}>
+                            Seat {s.id} (Available)
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  {/* 3. Confirm Button */}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!targetSeatId) {
+                        alert("Kripya nayi seat select karein.");
+                        return;
+                      }
+                      await handleSeatTransfer(selectedSeat.id, targetSeatId, transferShift);
+                      setShowTransferModal(false);
+                    }}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all"
+                  >
+                    Confirm & Transfer Instantly
+                  </button>
+
+                </div>
               </div>
             )}
 
@@ -2692,7 +2995,7 @@ export default function App() {
                       </p>
 
                       <p className="mt-1 text-lg font-black text-gray-900 text-center">
-                        9161310909
+                        9219384600
                       </p>
 
                       <img className="mt-2" src={logo} alt="Library Logo" />
@@ -2722,7 +3025,7 @@ export default function App() {
                 </div>
 
 
-                
+
                 {/* WHATSAPP BUTTON */}
                 <button
                   onClick={() => {
