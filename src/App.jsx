@@ -305,7 +305,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const seatsPerPage = 34;
 
- const filteredSeats = seats.filter((seat) => {
+  const filteredSeats = seats.filter((seat) => {
     if (searchQuery.trim() === "") return true;
 
     const query = searchQuery.toLowerCase().trim();
@@ -964,7 +964,10 @@ export default function App() {
             {currentSeats.map((seat) => (
               <div
                 key={seat.id}
-                onClick={() => setSelectedSeat(seat)}
+                onClick={() => {
+                  setSelectedSeat(seat);
+                  setActiveAdminSection("seats");
+                }}
                 className={`p-3.5 rounded-xl cursor-pointer border transition-all flex items-center justify-between ${selectedSeat?.id === seat.id ? 'bg-[#1e293b] border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)]' : 'bg-transparent border-transparent hover:bg-[#1e293b]/50'
                   }`}
               >
@@ -1973,7 +1976,7 @@ export default function App() {
           <section className="max-w-7xl mx-auto px-6 pb-14">
             <div className="flex items-center justify-between flex-wrap gap-4 mb-8">
               <div>
-                
+
                 <h2 className="text-4xl font-black">LIVE SMART SEAT AVAILABILITY</h2>
                 <p className="text-gray-500 mt-2">Total Seats Premium Smart Seats Available</p>
               </div>
