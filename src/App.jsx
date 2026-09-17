@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 
 import { db } from "./firebase";
-import { collection, addDoc, doc, setDoc, getDocs, updateDoc } from "firebase/firestore";
+import { collection, addDoc, doc, setDoc, getDocs, updateDoc, onSnapshot } from "firebase/firestore";
 
 
 import DatePicker from "react-datepicker";
@@ -264,41 +264,36 @@ export default function App() {
     }
   };
 
+  // =====================================================
+  // ⚡ LIVE REAL-TIME DATA SYNC (Laptop to Mobile Instant Sync)
+  // =====================================================
   useEffect(() => {
-    const fetchSeats = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "bookings"));
+    const bookingsRef = collection(db, "bookings");
 
-        const firebaseSeats = [];
-
-        querySnapshot.forEach((doc) => {
-          firebaseSeats.push({
-            ...doc.data(),
-            firebaseDocId: doc.id,
-          });
+    // Live listener - jaise hi Firebase me kuch change hoga, ye turant trigger hoga
+    const unsubscribe = onSnapshot(
+      bookingsRef,
+      (snapshot) => {
+        const firestoreData = {};
+        snapshot.forEach((docSnap) => {
+          firestoreData[docSnap.id] = docSnap.data();
         });
 
-        if (firebaseSeats.length > 0) {
-          setSeats((prevSeats) =>
-            prevSeats.map((seat) => {
-              const savedSeat = firebaseSeats.find(
-                (item) => item.id === seat.id
-              );
-
-              return savedSeat
-                ? { ...seat, ...savedSeat }
-                : seat;
-            })
-          );
-        }
-
-      } catch (error) {
-        console.log("Firebase Fetch Error:", error);
-        setLoading(false);
+        // Local seats state ko live Firebase data se update karna
+        setSeats((prevSeats) =>
+          prevSeats.map((seat) => {
+            const savedSeat = firestoreData[`seat-${seat.id}`];
+            return savedSeat ? { ...seat, ...savedSeat } : seat;
+          })
+        );
+      },
+      (error) => {
+        console.error("Real-time sync error:", error);
       }
-    };
+    );
 
-    fetchSeats();
+    // Component unmount hone par listener band karein (memory leak protection)
+    return () => unsubscribe();
   }, []);
 
   // Quick view map popup ke liye state
