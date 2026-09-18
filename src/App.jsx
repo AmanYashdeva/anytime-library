@@ -120,7 +120,7 @@ const HallSeat = ({ seat, setShowQuickView, vertical = false }) => {
   return (
     <div
       title={`Seat ${seat.id} • ${seat.status}`}
-      onClick={() => setShowQuickView(false)}
+      onClick={() => setShowQuickView && setShowQuickView(false)}
       className={`
         group relative
         flex items-center justify-center
@@ -449,9 +449,9 @@ export default function App() {
       const prefix = field.replace("Payment", "");
       const d = new Date();
       const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      
+
       autoUpdates[`${prefix}PaidDate`] = todayStr;
-      
+
       if (!selectedSeat[`${prefix}PaymentMode`]) {
         autoUpdates[`${prefix}PaymentMode`] = "Cash";
       }
@@ -846,10 +846,9 @@ Warm regards,
           const sName = seatToSave[`${p}Student`];
           const amt = Number(seatToSave[`${p}Amount`]) || 0;
           const pDate = seatToSave[`${p}PaidDate`] || seatToSave[`${p}From`] || new Date().toISOString().split("T")[0];
-          
-          // Unique key to prevent duplicates while permanently freezing the historical payment
+
           const historyDocId = `${seatToSave.id}-${p}-${pDate}-${sName.trim().replace(/\s+/g, '_')}`;
-          
+
           await setDoc(
             doc(db, "fee_history", historyDocId),
             {
@@ -904,10 +903,10 @@ Warm regards,
 
   const getSeatColor = (status) => {
     switch (status) {
-      case 'Full Day': return 'bg-red-500';
-      case 'Half Day': return 'bg-yellow-400 text-black';
-      case '24 Hours': return 'bg-red-500';
-      default: return 'bg-green-500';
+      case 'Full Day': return 'bg-rose-600/90 hover:bg-rose-500';
+      case 'Half Day': return 'bg-amber-500/95 text-slate-950 hover:bg-amber-400';
+      case '24 Hours': return 'bg-indigo-600/90 hover:bg-indigo-500';
+      default: return 'bg-emerald-600/90 hover:bg-emerald-500';
     }
   };
 
@@ -991,11 +990,10 @@ Warm regards,
             </button>
             <button
               onClick={() => setActiveAdminSection("accounts")}
-              className={`w-full text-left px-4 py-3 rounded-2xl font-bold text-sm tracking-wider transition-all duration-200 flex items-center gap-3 ${
-                activeAdminSection === "accounts"
+              className={`w-full text-left px-4 py-3 rounded-2xl font-bold text-sm tracking-wider transition-all duration-200 flex items-center gap-3 ${activeAdminSection === "accounts"
                   ? "bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 font-black shadow-[0_0_20px_rgba(251,191,36,0.25)]"
                   : "text-slate-400 hover:text-white hover:bg-slate-800/50"
-              }`}
+                }`}
             >
               <span className="text-sm">💰</span> Accounts & Expenses
             </button>
@@ -1178,7 +1176,6 @@ Warm regards,
                           onChange={(e) => updateSeat("nightEmail", e.target.value)}
                         />
 
-                        {/* STUDENT ADDRESS INPUT */}
                         <FormInput
                           icon={<CalendarIcon className="w-4 h-4" />}
                           label="Student Address / City"
@@ -1364,7 +1361,6 @@ Warm regards,
                                       onChange={(e) => updateSeat("morningEmail", e.target.value)}
                                     />
 
-                                    {/* STUDENT ADDRESS (MORNING) */}
                                     <FormInput
                                       icon={<CalendarIcon className="w-4 h-4" />}
                                       label="Student Address / City"
@@ -1384,7 +1380,6 @@ Warm regards,
                                     />
                                   </div>
 
-                                  {/* 🧾 RECEIPT & WHATSAPP BUTTONS (MORNING) */}
                                   <div className="flex flex-wrap gap-2 pt-2">
                                     <button
                                       type="button"
@@ -1503,7 +1498,6 @@ Warm regards,
                                       onChange={(e) => updateSeat("afternoonEmail", e.target.value)}
                                     />
 
-                                    {/* STUDENT ADDRESS (AFTERNOON) */}
                                     <FormInput
                                       icon={<CalendarIcon className="w-4 h-4" />}
                                       label="Student Address / City"
@@ -1521,7 +1515,6 @@ Warm regards,
                                     />
                                   </div>
 
-                                  {/* 🧾 RECEIPT & WHATSAPP BUTTONS (AFTERNOON) */}
                                   <div className="flex flex-wrap gap-2 pt-2">
                                     <button
                                       type="button"
@@ -1640,7 +1633,6 @@ Warm regards,
                                       onChange={(e) => updateSeat("nightEmail", e.target.value)}
                                     />
 
-                                    {/* STUDENT ADDRESS (NIGHT) */}
                                     <FormInput
                                       icon={<CalendarIcon className="w-4 h-4" />}
                                       label="Student Address / City"
@@ -1658,7 +1650,6 @@ Warm regards,
                                     />
                                   </div>
 
-                                  {/* 🧾 RECEIPT & WHATSAPP BUTTONS (NIGHT) */}
                                   <div className="flex flex-wrap gap-2 pt-2">
                                     <button
                                       type="button"
@@ -1748,7 +1739,6 @@ Warm regards,
                                   onChange={(e) => updateSeat("fullDayEmail", e.target.value)}
                                 />
 
-                                {/* STUDENT ADDRESS (FULL DAY) */}
                                 <FormInput
                                   icon={<CalendarIcon className="w-4 h-4" />}
                                   label="Student Address / City"
@@ -1797,7 +1787,6 @@ Warm regards,
                                 />
                               </div>
 
-                              {/* 🧾 RECEIPT & WHATSAPP BUTTONS (FULL DAY) */}
                               <div className="flex flex-wrap gap-2 pt-2">
                                 <button
                                   type="button"
@@ -1881,7 +1870,6 @@ Warm regards,
                                   onChange={(e) => updateSeat("nightEmail", e.target.value)}
                                 />
 
-                                {/* STUDENT ADDRESS (NIGHT UNDER FULL DAY) */}
                                 <FormInput
                                   icon={<CalendarIcon className="w-4 h-4" />}
                                   label="Student Address / City"
@@ -1930,7 +1918,6 @@ Warm regards,
                                 />
                               </div>
 
-                              {/* 🧾 RECEIPT & WHATSAPP BUTTONS (NIGHT) */}
                               <div className="flex flex-wrap gap-2 pt-2">
                                 <button
                                   type="button"
@@ -2008,7 +1995,6 @@ Warm regards,
                       🔄 TRANSFER THIS SEAT / SHIFT
                     </button>
 
-                    {/* ---> ADMIN: NOTE / INSTRUCTIONS SECTION <--- */}
                     <div className="bg-blue-50 text-blue-800 p-4 rounded-xl flex gap-3 text-sm mt-4 border border-blue-100">
                       <InfoIcon className="w-5 h-5 shrink-0 text-blue-500 mt-0.5" />
                       <div>
@@ -2038,7 +2024,6 @@ Warm regards,
                     </div>
                   </div>
                   <div className="space-y-4">
-                    {/* Seat Number Box */}
                     <div className="bg-[#1e293b] rounded-xl p-4 border border-gray-800">
                       <p className="text-[10px] text-gray-400 tracking-wider uppercase mb-1">Seat Number</p>
                       <h4 className="text-3xl font-black">{selectedSeat.id}</h4>
@@ -2062,7 +2047,6 @@ Warm regards,
                       </div>
                     </div>
 
-                    {/* Student Record Card */}
                     <div className="border border-gray-800 rounded-xl overflow-hidden mt-2">
                       <div className="px-4 py-3 bg-[#0f172a] border-b border-gray-800">
                         <p className="text-[10px] text-gray-400 tracking-wider uppercase">Student Records ({selectedSeat.status})</p>
@@ -2092,7 +2076,6 @@ Warm regards,
                         </div>
                       ) : selectedSeat.status !== 'Available' ? (
                         <div className="p-4 bg-[#1e293b]/50 space-y-4">
-                          {/* FULL DAY STUDENT */}
                           {selectedSeat.fullDayStudent && (
                             <div>
                               <p className="text-sm">
@@ -2161,7 +2144,6 @@ Warm regards,
                       )}
                     </div>
 
-                    {/* Contact Information */}
                     <div className="pt-2 text-xs text-gray-500">
                       <p>Developer- Aman Yashdeva</p>
                       <p>May 11, 2026</p>
@@ -2194,7 +2176,6 @@ Warm regards,
                     Transfer / Swap Seat {selectedSeat.id}
                   </h3>
 
-                  {/* 1. Kaunsi Shift Move Karni Hai */}
                   <div className="mb-4">
                     <label className="text-xs font-bold text-gray-700 block mb-1">
                       1. Student to Move (From Seat {selectedSeat.id})
@@ -2236,7 +2217,6 @@ Warm regards,
                     </select>
                   </div>
 
-                  {/* 2. Target Seat Select Karna */}
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     <div>
                       <label className="text-xs font-bold text-gray-700 block mb-1">
@@ -2258,7 +2238,6 @@ Warm regards,
                       </select>
                     </div>
 
-                    {/* 3. Target Shift Select Karna */}
                     <div>
                       <label className="text-xs font-bold text-gray-700 block mb-1">
                         3. Target Shift
@@ -2277,7 +2256,6 @@ Warm regards,
                     </div>
                   </div>
 
-                  {/* Live Status Indicator */}
                   {targetSeatId && targetShift && (() => {
                     const tSeat = seats.find((s) => s.id === Number(targetSeatId));
                     if (!tSeat) return null;
@@ -2295,7 +2273,6 @@ Warm regards,
                     );
                   })()}
 
-                  {/* Confirm Action Button */}
                   <button
                     type="button"
                     onClick={async () => {
@@ -2315,7 +2292,6 @@ Warm regards,
               </div>
             )}
 
-            {/* ---> ADMIN: FOOTER <--- */}
             <div className="mt-8 text-center text-xs text-gray-500 pb-4">
               © 2026 Any Time Library. All Rights Reserved.
             </div>
@@ -2326,7 +2302,7 @@ Warm regards,
   }
 
   // ============================================================================
-  // 🌍 9. PUBLIC USER VIEW
+  // 🌍 9. PUBLIC USER VIEW (LUXURY ANIMATED HOME PAGE)
   // ============================================================================
   return (
     <>
@@ -2336,782 +2312,907 @@ Warm regards,
           onLogout={() => setStudentUser(null)}
         />
       ) : (
-        <div className="min-h-screen bg-gray-100 text-gray-800 font-sans">
+        <div className="relative min-h-screen bg-[#050811] text-slate-100 font-sans selection:bg-amber-400 selection:text-black overflow-x-hidden">
 
-          {/* ---> PUBLIC: MAIN HEADER <--- */}
-          <Header />
+          {/* BACKGROUND AMBIENT GLOW EFFECTS */}
+          <div className="pointer-events-none fixed -top-40 -left-40 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[140px] z-0"></div>
+          <div className="pointer-events-none fixed top-1/3 -right-40 w-[500px] h-[500px] bg-amber-500/10 rounded-full blur-[140px] z-0"></div>
+          <div className="pointer-events-none fixed bottom-10 left-1/3 w-[450px] h-[450px] bg-emerald-500/10 rounded-full blur-[140px] z-0"></div>
 
-          {/* ---> PUBLIC: ADMIN LOGIN BUTTON <--- */}
-          <Buttons
-            onSignUp={() => setShowRegistration(true)}
-            onSignIn={() => setShowStudentLogin(true)}
-            onAdminLoginClick={() =>
-              document
-                .getElementById("adminLoginPanel")
-                ?.classList.remove("hidden")
-            }
-          />
+          <div className="relative z-10">
+            {/* ---> PUBLIC: MAIN HEADER <--- */}
+            <Header />
 
-          {/* ---> PUBLIC: ADMIN LOGIN POPUP MODAL <--- */}
-          <div id="adminLoginPanel" className="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-white p-8 rounded-3xl shadow-2xl w-[90%] max-w-md relative">
-              <button
-                onClick={() => document.getElementById('adminLoginPanel')?.classList.add('hidden')}
-                className="absolute top-4 right-4 text-xl font-bold text-gray-500 hover:text-black transition"
-              >
-                ✕
-              </button>
-              <h2 className="text-3xl font-bold text-center mb-6">Admin Login</h2>
-              <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full border p-3 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full border p-3 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              <button
-                onClick={() => {
-                  handleLogin();
-                  if (username === adminUser && password === adminPass) {
-                    document.getElementById('adminLoginPanel')?.classList.add('hidden');
-                  }
-                }}
-                className="w-full bg-indigo-700 hover:bg-indigo-600 transition text-white py-3 rounded-xl font-bold"
-              >
-                Login
-              </button>
-            </div>
-          </div>
+            {/* ---> PUBLIC: ADMIN LOGIN BUTTON <--- */}
+            <Buttons
+              onSignUp={() => setShowRegistration(true)}
+              onSignIn={() => setShowStudentLogin(true)}
+              onAdminLoginClick={() =>
+                document
+                  .getElementById("adminLoginPanel")
+                  ?.classList.remove("hidden")
+              }
+            />
 
-          {/* ---> PUBLIC: HERO SECTION <--- */}
-          <section className="max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-12">
-            <div className="bg-white rounded-3xl shadow-xl p-5 md:p-8 text-center">
-              <h2 className="text-2xl md:text-4xl font-bold mb-4 text-gray-900">Premium Digital Library</h2>
-              <p className="text-gray-700 text-sm md:text-lg leading-relaxed">
-                Smart seat tracking, peaceful study environment, WiFi, CCTV security and modern digital monitoring.
-              </p>
-              <div className="border-t border-gray-800 mt-8 md:mt-10 pt-6 md:pt-8">
-                <h2 className="text-lg md:text-xl font-bold text-black-300 mb-5 text-center">
-                  ⭐ Library Facilities
-                </h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 text-center text-xs sm:text-sm md:text-base">
-                  <div>🔒 Personal Locker</div>
-                  <div>📶 Free WiFi</div>
-                  <div>❄️ Air Conditioned</div>
-                  <div>💧 RO Water</div>
-                  <div>🎥 CCTV Security</div>
-                  <div>🔋 Power Backup</div>
-                  <div>🤫 Silent Study Zone</div>
-                  <div>🪑 Comfortable Seating</div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* ---> PUBLIC: LIVE SEAT AVAILABILITY SECTION <--- */}
-          <section className="max-w-7xl mx-auto px-6 pb-14">
-            <div className="flex items-center justify-between flex-wrap gap-4 mb-8">
-              <div>
-                <h2 className="text-4xl font-black">LIVE SMART SEAT AVAILABILITY</h2>
-                <p className="text-gray-500 mt-2">Total Seats Premium Smart Seats Available</p>
-              </div>
-
-              {/* ---> PUBLIC: SEAT BOOKING CTA <--- */}
-              <div className="flex justify-center mb-10">
+            {/* ---> PUBLIC: ADMIN LOGIN POPUP MODAL <--- */}
+            <div id="adminLoginPanel" className="hidden fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center z-[150] p-4">
+              <div className="bg-[#0b1220] border border-slate-700/80 p-8 rounded-3xl shadow-[0_20px_80px_rgba(0,0,0,0.9)] w-full max-w-md relative text-white">
                 <button
-                  onClick={() => setShowBookingPopup(true)}
-                  className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-700 via-purple-700 to-indigo-900 px-8 py-4 text-white shadow-xl shadow-indigo-500/30 transition-all duration-300 hover:-translate-y-1 hover:scale-105 hover:shadow-2xl"
-                >
-                  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full"></span>
-                  <span className="relative flex items-center gap-3">
-                    <span className="text-2xl animate-bounce">🚀</span>
-                    <span className="text-left">
-                      <span className="block text-xs font-bold uppercase tracking-widest text-yellow-300">Hurry Up!</span>
-                      <span className="block text-lg font-black">Book Your Seat Now</span>
-                    </span>
-                    <span className="text-xl transition-transform duration-300 group-hover:translate-x-1">→</span>
-                  </span>
-                </button>
-              </div>
-
-              {/* ---> PUBLIC: TOTAL SEATS BUTTON <--- */}
-              <div
-                onClick={() => setShowQuickView(true)}
-                className="bg-gradient-to-r from-yellow-200 to-yellow-500 text-black px-8 py-5 rounded-3xl shadow-2xl border-4 border-black min-w-[180px] text-center cursor-pointer hover:scale-105 transition-all"
-              >
-                <h3 className=" font-black">Total Seats</h3>
-                <div className="mt-2 bg-black text-yellow-500 text-[10px] font-bold py-1 px-3 rounded-full uppercase tracking-wider animate-pulse inline-block shadow-lg">
-                  CLICK TO VIEW  SEAT MAP
-                </div>
-              </div>
-            </div>
-
-            {/* =========================================================
-                          PUBLIC: PROFESSIONAL HALL SEAT MAP
-                ========================================================= */}
-            {showQuickView && (
-              <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-md p-2 sm:p-4">
-                <div className="relative flex max-h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-yellow-500/20 bg-[#080d18] shadow-[0_25px_100px_rgba(0,0,0,0.8)]">
-
-                  {/* TOP HEADER */}
-                  <div className="shrink-0 border-b border-white/10 bg-gradient-to-r from-[#0b1220] via-[#111827] to-[#0b1220] px-4 py-4 sm:px-7 sm:py-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <div>
-                            <h4 className="text-xl font-black tracking-tight text-yellow-400 sm:text-2xl">
-                              Live Quick Hall Seat View Map
-                            </h4>
-                          </div>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => setShowQuickView(false)}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xl font-bold text-gray-400 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
-                      >
-                        ✕
-                      </button>
-                    </div>
-
-                    {/* LEGEND */}
-                    <div className="mt-4 flex flex-wrap items-center gap-2">
-                      <div className="flex items-center gap-2 rounded-full border border-green-500/20 bg-green-500/5 px-3 py-1.5 text-[10px] font-bold text-gray-300">
-                        <span className="h-2.5 w-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></span>
-                        Available
-                      </div>
-                      <div className="flex items-center gap-2 rounded-full border border-yellow-500/20 bg-yellow-500/5 px-3 py-1.5 text-[10px] font-bold text-gray-300">
-                        <span className="h-2.5 w-2.5 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.8)]"></span>
-                        Morning Available
-                      </div>
-                      <div className="flex items-center gap-2 rounded-full border border-yellow-500/20 bg-yellow-500/5 px-3 py-1.5 text-[10px] font-bold text-gray-300">
-                        <span className="h-2.5 w-2.5 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.8)]"></span>
-                        Afternoon Available
-                      </div>
-                      <div className="flex items-center gap-2 rounded-full border border-green-500/20 bg-green-500/5 px-3 py-1.5 text-[10px] font-bold text-gray-300">
-                        <span className="h-2.5 w-2.5 rounded-full bg-gradient-to-r from-green-500 to-black"></span>
-                        Night Available
-                      </div>
-                      <div className="flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/5 px-3 py-1.5 text-[10px] font-bold text-gray-300">
-                        <span className="h-2.5 w-2.5 rounded-full bg-red-500"></span>
-                        Fully Booked
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* HALL AREA */}
-                  <div className="min-h-0 flex-1 overflow-auto bg-[#050914] p-3 sm:p-5">
-                    <div className="mx-auto min-w-[650px] max-w-5xl">
-                      <div className="relative overflow-hidden rounded-[24px] border-2 border-gray-700 bg-gradient-to-br from-[#151d2b] via-[#0c1422] to-[#080d17] p-4 shadow-[inset_0_0_60px_rgba(0,0,0,0.55)] sm:p-6">
-                        <div className="pointer-events-none absolute inset-2 rounded-[20px] border border-yellow-500/5"></div>
-
-                        {/* WASHROOM */}
-                        <div className="flex justify-between sm:mb-6">
-                          <div className="relative left-17 rounded-xl border border-blue-400/20 bg-blue-500/5 px-10 py-4 text-center shadow-lg">
-                            <div className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-300">Washroom</div>
-                            <div className="mt-1 text-lg">🚻</div>
-                          </div>
-
-                          <div className="rounded-2xl border border-blue-400/20 bg-blue-500/5 px-25 py-6 text-center shadow-lg">
-                            <div className="text-[12px] font-black uppercase tracking-[0.3em] text-blue-300 mt-1">Discussion Hall 💬</div>
-                            <div className="text-[12px] font-black uppercase tracking-[0.3em] text-blue-300 mt-1">Lunch Area 🍽️</div>
-                          </div>
-                        </div>
-
-                        {/* MAIN HALL MAP */}
-                        <div className="relative aspect-[1.08/1] w-full">
-                          <div className="pointer-events-none absolute left-[46%] top-[10%] h-[75%] w-[8%] rounded-full bg-gradient-to-b from-white/[0.02] via-yellow-500/[0.025] to-transparent"></div>
-                          <div className="pointer-events-none absolute left-[45.5%] top-[48%] -rotate-90 text-[7px] font-black uppercase tracking-[0.4em] text-gray-700 sm:text-[8px]">
-                            WALKWAY
-                          </div>
-
-                          {/* LEFT SIDE */}
-                          <div className="absolute left-[3%] top-[5%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
-                            {[40, 39, 38, 37].map(id => {
-                              const seat = seats.find(s => s.id === id);
-                              if (!seat) return null;
-                              return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
-                            })}
-                          </div>
-
-                          <div className="absolute left-[3%] top-[17%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
-                            {[36, 35, 34, 33, 32, 31, 30, 29].map(id => {
-                              const seat = seats.find(s => s.id === id);
-                              if (!seat) return null;
-                              return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
-                            })}
-                          </div>
-
-                          <div className="absolute left-[3%] top-[36%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
-                            {[28, 27, 26, 25, 24, 23, 22, 21].map(id => {
-                              const seat = seats.find(s => s.id === id);
-                              if (!seat) return null;
-                              return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
-                            })}
-                          </div>
-
-                          <div className="absolute left-[3%] top-[55%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
-                            {[20, 19, 18, 17, 16, 15, 14, 13].map(id => {
-                              const seat = seats.find(s => s.id === id);
-                              if (!seat) return null;
-                              return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
-                            })}
-                          </div>
-
-                          <div className="absolute left-[3%] top-[74%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
-                            {[12, 11, 10, 9, 8, 7, 6, 5].map(id => {
-                              const seat = seats.find(s => s.id === id);
-                              if (!seat) return null;
-                              return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
-                            })}
-                          </div>
-
-                          <div className="absolute bottom-[0%] left-[3%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
-                            {[4, 3, 2, 1].map(id => {
-                              const seat = seats.find(s => s.id === id);
-                              if (!seat) return null;
-                              return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
-                            })}
-                          </div>
-
-                          {/* RIGHT SIDE */}
-                          <div className="absolute right-[32%] top-[14%] flex w-[10%] flex-col gap-1.5 sm:gap-2">
-                            {[66, 65].map(id => {
-                              const seat = seats.find(s => s.id === id);
-                              if (!seat) return null;
-                              return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} vertical />;
-                            })}
-                          </div>
-
-                          <div className="absolute right-[3%] top-[39%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
-                            {[61, 62, 63, 64].map(id => {
-                              const seat = seats.find(s => s.id === id);
-                              if (!seat) return null;
-                              return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
-                            })}
-                          </div>
-
-                          <div className="absolute right-[3%] top-[52%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
-                            {[57, 58, 59, 60, 53, 54, 55, 56].map(id => {
-                              const seat = seats.find(s => s.id === id);
-                              if (!seat) return null;
-                              return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
-                            })}
-                          </div>
-
-                          <div className="absolute right-[3%] top-[72%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
-                            {[49, 50, 51, 52, 45, 46, 47, 48].map(id => {
-                              const seat = seats.find(s => s.id === id);
-                              if (!seat) return null;
-                              return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
-                            })}
-                          </div>
-
-                          <div className="absolute bottom-[0%] right-[3%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
-                            {[41, 42, 43, 44].map(id => {
-                              const seat = seats.find(s => s.id === id);
-                              if (!seat) return null;
-                              return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
-                            })}
-                          </div>
-
-                          {/* ENTRY */}
-                          <div className="absolute bottom-[2%] left-1/2 z-20 -translate-x-1/2 translate-y-1/2">
-                            <div className="flex flex-col items-center">
-                              <div className="mb-1 h-8 w-16 rounded-t-xl border-x-2 border-t-2 border-yellow-500/40 bg-yellow-500/10"></div>
-                              <div className="rounded-full border border-yellow-500/30 bg-[#0b1220] px-5 py-1.5 text-[8px] font-black uppercase tracking-[0.3em] text-yellow-400 shadow-lg">
-                                ↑ Entry
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* STAIRS */}
-                          <div className="absolute right-[4%] top-[6%] hidden rounded-xl border border-purple-500/10 bg-purple-500/5 px-20 py-20 text-center lg:block">
-                            <div className="mt-1 text-[7px] font-black uppercase tracking-widest text-purple-300">
-                              Stairs
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* FUTURE EXPANSION */}
-                        {seats.some(seat => seat.id > 66) && (
-                          <div className="mt-8 rounded-2xl border border-dashed border-yellow-500/20 bg-yellow-500/[0.03] p-4">
-                            <div className="mb-3 flex items-center gap-2">
-                              <span className="text-lg">＋</span>
-                              <div>
-                                <p className="text-xs font-black uppercase tracking-widest text-yellow-400">
-                                  New Seating Area
-                                </p>
-                                <p className="text-[10px] text-gray-500">
-                                  Future added seats
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {seats
-                                .filter(seat => seat.id > 66)
-                                .map(seat => (
-                                  <HallSeat
-                                    key={seat.id}
-                                    seat={seat}
-                                    setShowQuickView={setShowQuickView}
-                                  />
-                                ))}
-                            </div>
-                          </div>
-                        )}
-
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-            )}
-
-            {/* ---> PUBLIC: DETAILED SEAT MAP <--- */}
-            <div className="bg-gradient-to-br from-[#0f172a] via-black to-[#111827] p-8 rounded-[40px] border border-yellow-500/20 shadow-[0_20px_80px_rgba(0,0,0,0.7)] relative overflow-hidden">
-              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_gold,_transparent_30%)]"></div>
-              <div className="flex items-center justify-between flex-wrap gap-4 mb-8 relative z-10">
-                <div>
-                  <h3 className="text-3xl font-black text-yellow-400 tracking-[3px]">SMART SEAT MAP</h3>
-                  <p className="text-gray-400 mt-2 text-sm">Real-time AI powered seat monitoring dashboard</p>
-                </div>
-                <div className="flex flex-wrap gap-3 text-xs font-bold">
-                  <div className="bg-green-500/20 border border-green-400 text-green-300 px-4 py-2 rounded-full">AVAILABLE</div>
-                  <div className="bg-yellow-500/20 border border-yellow-400 text-yellow-300 px-4 py-2 rounded-full">HALF DAY</div>
-                  <div className="bg-red-500/20 border border-red-400 text-red-300 px-4 py-2 rounded-full">FULL DAY</div>
-                  <div className="bg-blue-500/20 border border-blue-400 text-blue-300 px-4 py-2 rounded-full">24 HOURS</div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 relative z-10">
-                {currentSeats.map((seat) => (
-                  <div key={seat.id} className={`${getSeatColor(seat.status)} rounded-[32px] p-6 min-h-[180px] shadow-[0_10px_30px_rgba(0,0,0,0.5)] text-white border border-white/10 transition-all duration-300 hover:scale-105 hover:-translate-y-2 cursor-pointer relative overflow-hidden group`}>
-                    <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition"></div>
-                    <div className="relative z-10">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <p className="text-[11px] uppercase tracking-[2px] opacity-70">Seat</p>
-                          <h4 className="text-4xl font-black leading-none">{seat.id}</h4>
-                        </div>
-                        <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center text-lg backdrop-blur-md border border-white/20">
-                          {seat.status === 'Available' ? '✓' : '📘'}
-                        </div>
-                      </div>
-
-                      <div className="mt-5 bg-black/20 backdrop-blur-md rounded-2xl p-3 border border-white/10">
-                        <div className="flex justify-between items-end mb-2">
-                          <div>
-                            <p className="text-[10px] uppercase tracking-[1px] opacity-70 mb-1">Current Status</p>
-                            <p className="font-bold text-lg leading-tight">{seat.status}</p>
-                          </div>
-                          <p className="text-xs opacity-90 text-right max-w-[50%]">{seat.timing}</p>
-                        </div>
-
-                        {seat.status !== 'Available' && (
-                          <div className="mt-3 pt-3 border-t border-white/10 space-y-1.5 text-[11px]">
-
-                            {/* 24 HOURS */}
-                            {seat.status === '24 Hours' ? (
-                              <div className="bg-black/30 p-2 rounded-lg">
-                                <div className="flex justify-between items-center">
-                                  <span className="opacity-80 whitespace-nowrap">🔒 24 Hours:</span>
-                                  <span className="font-bold text-white truncate ml-2">
-                                    {seat.nightStudent || "Booked"}
-                                  </span>
-                                </div>
-                                {seat.nightStudent && (
-                                  <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
-                                    🗓 {seat.fromDate} To {seat.toDate}
-                                  </div>
-                                )}
-                              </div>
-                            ) : seat.status === 'Full Day' ? (
-                              <>
-                                <div className="bg-black/30 p-2 rounded-lg">
-                                  <div className="flex justify-between items-center">
-                                    <span className="opacity-80 whitespace-nowrap">🌅 Day 8 AM - 8 PM:</span>
-                                    <span className="font-bold text-white truncate ml-2">
-                                      {seat.fullDayStudent || "Available"}
-                                    </span>
-                                  </div>
-                                  {seat.fullDayStudent && (
-                                    <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
-                                      🗓 {seat.fullDayFrom} To {seat.fullDayTo}
-                                    </div>
-                                  )}
-                                </div>
-
-                                <div className="bg-black/30 p-2 rounded-lg">
-                                  <div className="flex justify-between items-center">
-                                    <span className="opacity-80 whitespace-nowrap">🌙 Night 8 PM - 8 AM:</span>
-                                    <span className={seat.nightStudent ? "font-bold text-white truncate ml-2" : "text-green-400 font-bold ml-2"}>
-                                      {seat.nightStudent || "Available"}
-                                    </span>
-                                  </div>
-                                  {seat.nightStudent && (
-                                    <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
-                                      🗓 {seat.nightFrom} To {seat.nightTo}
-                                    </div>
-                                  )}
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="bg-black/30 p-2 rounded-lg">
-                                  <div className="flex justify-between items-center">
-                                    <span className="opacity-80 whitespace-nowrap">🌅 8 AM - 2 PM:</span>
-                                    <span className={seat.morningStudent ? "font-bold text-white truncate ml-2" : "text-green-400 font-bold ml-2"}>
-                                      {seat.morningStudent || "Available"}
-                                    </span>
-                                  </div>
-                                  {seat.morningStudent && (
-                                    <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
-                                      🗓 {seat.morningFrom} To {seat.morningTo}
-                                    </div>
-                                  )}
-                                </div>
-
-                                <div className="bg-black/30 p-2 rounded-lg">
-                                  <div className="flex justify-between items-center">
-                                    <span className="opacity-80 whitespace-nowrap">☀️ 2 PM - 8 PM:</span>
-                                    <span className={seat.afternoonStudent ? "font-bold text-white truncate ml-2" : "text-green-400 font-bold ml-2"}>
-                                      {seat.afternoonStudent || "Available"}
-                                    </span>
-                                  </div>
-                                  {seat.afternoonStudent && (
-                                    <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
-                                      🗓 {seat.afternoonFrom} To {seat.afternoonTo}
-                                    </div>
-                                  )}
-                                </div>
-
-                                <div className="bg-black/30 p-2 rounded-lg">
-                                  <div className="flex justify-between items-center">
-                                    <span className="opacity-80 whitespace-nowrap">🌙 8 PM - 8 AM:</span>
-                                    <span className={seat.nightStudent ? "font-bold text-white truncate ml-2" : "text-green-400 font-bold ml-2"}>
-                                      {seat.nightStudent || "Available"}
-                                    </span>
-                                  </div>
-                                  {seat.nightStudent && (
-                                    <div className="mt-1.5 text-[9px] text-gray-400 text-right opacity-80 border-t border-white/5 pt-1">
-                                      🗓 {seat.nightFrom} To {seat.nightTo}
-                                    </div>
-                                  )}
-                                </div>
-                              </>
-                            )}
-
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* ---> PUBLIC: BOTTOM PAGINATION <--- */}
-              <div className="sticky bottom-6 z-40 flex flex-wrap justify-center gap-4 mt-10 bg-black/40 backdrop-blur-xl p-4 rounded-[30px] border border-yellow-400/20 shadow-[0_10px_40px_rgba(0,0,0,0.6)] max-w-fit mx-auto">
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <button key={i + 1} onClick={() => setCurrentPage(i + 1)} className={`${currentPage === i + 1 ? 'bg-yellow-400 text-black scale-105' : 'bg-gray-800 text-white'} min-w-[190px] px-7 py-5 rounded-3xl font-black shadow-2xl transition-all duration-300 hover:scale-105 border border-yellow-400/30`}>
-                    <p className="text-sm uppercase tracking-[2px] opacity-80 mb-1">Explore Seats</p>
-                    <h3 className="text-2xl">{i * seatsPerPage + 1} - {Math.min((i + 1) * seatsPerPage, seats.length)}</h3>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <Plans />
-
-          {showBookingPopup && (
-            <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-              <div className="relative max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
-
-                {/* CLOSE BUTTON */}
-                <button
-                  onClick={() => {
-                    setShowBookingPopup(false);
-                    setSelectedPlan("");
-                    setSelectedTiming("");
-                    setLockerOption("");
-                    setTotalAmount(0);
-                  }}
-                  className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-xl font-black text-gray-600 hover:bg-red-100 hover:text-red-600"
+                  onClick={() => document.getElementById('adminLoginPanel')?.classList.add('hidden')}
+                  className="absolute top-5 right-5 text-xl font-bold text-gray-400 hover:text-white transition w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center"
                 >
                   ✕
                 </button>
-
-                {/* HEADER */}
-                <div className="mb-7 pr-10">
-                  <p className="text-sm font-black uppercase tracking-widest text-indigo-600">
-                    Any Time Library
-                  </p>
-                  <h2 className="mt-2 text-3xl font-black text-gray-900">
-                    Book Your Seat 🪑
-                  </h2>
-                  <p className="mt-2 text-sm text-gray-500">
-                    Select your plan, seat and timing.
-                  </p>
+                <div className="text-center mb-6">
+                  <div className="inline-flex p-3 rounded-2xl bg-amber-400/10 text-amber-400 border border-amber-400/20 text-2xl mb-3 shadow-lg">
+                    🔒
+                  </div>
+                  <h2 className="text-2xl font-black tracking-tight text-white">Administrator Access</h2>
+                  <p className="text-xs text-slate-400 mt-1">Management Portal Verification</p>
                 </div>
-
-                {/* STUDENT DETAILS */}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-2 block text-sm font-bold text-gray-700">Your Name</label>
-                    <input
-                      type="text"
-                      id="bookingName"
-                      placeholder="Enter your name"
-                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-bold text-gray-700">WhatsApp Number</label>
-                    <input
-                      type="tel"
-                      id="bookingPhone"
-                      placeholder="Enter WhatsApp number"
-                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-bold text-gray-700">Email Address</label>
-                    <input
-                      type="email"
-                      id="bookingEmail"
-                      placeholder="Enter your email"
-                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:border-indigo-500"
-                    />
-                  </div>
-
-                  {/* STUDENT ADDRESS INPUT IN BOOKING MODAL */}
-                  <div>
-                    <label className="mb-2 block text-sm font-bold text-gray-700">Address / City</label>
-                    <input
-                      type="text"
-                      id="bookingAddress"
-                      placeholder="Enter your address"
-                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:border-indigo-500"
-                    />
-                  </div>
-                </div>
-
-                {/* PLAN SELECTION */}
-                <div className="mt-6">
-                  <label className="mb-3 block text-sm font-black text-gray-700">Select Your Plan</label>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {/* HALF DAY */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedPlan("Half Day");
-                        setSelectedTiming("");
-                        setLockerOption("");
-                        setTotalAmount(0);
-                      }}
-                      className={`rounded-2xl border p-4 text-left transition ${selectedPlan === "Half Day"
-                        ? "border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500"
-                        : "border-gray-200 bg-gray-50 hover:border-indigo-400"
-                        }`}
-                    >
-                      <p className="font-black text-gray-900">Half Day</p>
-                      <p className="mt-1 text-sm text-gray-500">₹500 Without Locker</p>
-                      <p className="mt-1 text-sm font-bold text-indigo-600">₹600 With Locker</p>
-                    </button>
-
-                    {/* FULL DAY */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedPlan("Full Day");
-                        setSelectedTiming("");
-                        setLockerOption("");
-                        setTotalAmount(0);
-                      }}
-                      className={`rounded-2xl border p-4 text-left transition ${selectedPlan === "Full Day"
-                        ? "border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500"
-                        : "border-gray-200 bg-gray-50 hover:border-indigo-400"
-                        }`}
-                    >
-                      <p className="font-black text-gray-900">Full Day</p>
-                      <p className="mt-1 text-sm text-gray-500">₹700 Without Locker</p>
-                      <p className="mt-1 text-sm font-bold text-indigo-600">₹800 With Locker</p>
-                    </button>
-
-                    {/* NIGHT */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedPlan("Night");
-                        setSelectedTiming("");
-                        setLockerOption("");
-                        setTotalAmount(0);
-                      }}
-                      className={`rounded-2xl border p-4 text-left transition ${selectedPlan === "Night"
-                        ? "border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500"
-                        : "border-gray-200 bg-gray-50 hover:border-indigo-400"
-                        }`}
-                    >
-                      <p className="font-black text-gray-900">Night</p>
-                      <p className="mt-1 text-sm text-gray-500">₹500 Without Locker</p>
-                      <p className="mt-1 text-sm font-bold text-indigo-600">₹600 With Locker</p>
-                    </button>
-
-                    {/* 24 HOURS */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedPlan("24 Hours");
-                        setSelectedTiming("24 Hours");
-                        setLockerOption("Free Locker Included");
-                        setTotalAmount(1000);
-                      }}
-                      className={`rounded-2xl border p-4 text-left transition ${selectedPlan === "24 Hours"
-                        ? "border-green-600 bg-green-50 ring-2 ring-green-500"
-                        : "border-gray-200 bg-gray-50 hover:border-green-400"
-                        }`}
-                    >
-                      <p className="font-black text-gray-900">24 Hours</p>
-                      <p className="mt-1 text-lg font-black text-green-600">₹1000</p>
-                      <p className="mt-1 text-sm font-bold text-green-600">🎁 Free Locker Included</p>
-                    </button>
-                  </div>
-                </div>
-
-                {/* LOCKER OPTION */}
-                {selectedPlan && selectedPlan !== "24 Hours" && (
-                  <div className="mt-5">
-                    <label className="mb-2 block text-sm font-bold text-gray-700">Locker Option</label>
-                    <select
-                      value={lockerOption}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setLockerOption(value);
-                        if (selectedPlan === "Half Day") setTotalAmount(value === "With Locker" ? 600 : 500);
-                        if (selectedPlan === "Full Day") setTotalAmount(value === "With Locker" ? 800 : 700);
-                        if (selectedPlan === "Night") setTotalAmount(value === "With Locker" ? 600 : 500);
-                      }}
-                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 font-bold outline-none focus:border-indigo-500"
-                    >
-                      <option value="">Select Locker Option</option>
-                      <option value="Without Locker">Without Locker</option>
-                      <option value="With Locker">With Locker (+₹100)</option>
-                    </select>
-                  </div>
-                )}
-
-                {/* TIMING */}
-                {selectedPlan && selectedPlan !== "24 Hours" && (
-                  <div className="mt-5">
-                    <label className="mb-2 block text-sm font-bold text-gray-700">Select Timing</label>
-                    <select
-                      value={selectedTiming}
-                      onChange={(e) => setSelectedTiming(e.target.value)}
-                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 font-bold outline-none focus:border-indigo-500"
-                    >
-                      <option value="">Select Timing</option>
-                      {selectedPlan === "Half Day" && (
-                        <>
-                          <option value="Morning (8 AM - 2 PM)">Morning — 8 AM - 2 PM</option>
-                          <option value="Afternoon (2 PM - 7 PM)">Afternoon — 2 PM - 7 PM</option>
-                        </>
-                      )}
-                      {selectedPlan === "Full Day" && (
-                        <option value="Full Day (8 AM - 7 PM)">Full Day — 8 AM - 7 PM</option>
-                      )}
-                      {selectedPlan === "Night" && (
-                        <option value="Night (9 PM - 6 AM)">Night — 9 PM - 6 AM</option>
-                      )}
-                    </select>
-                  </div>
-                )}
-
-                {/* 24 HOURS TIMING DISPLAY */}
-                {selectedPlan === "24 Hours" && (
-                  <div className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-4">
-                    <p className="font-bold text-green-800">⏰ Timing: 24 Hours</p>
-                    <p className="mt-1 text-sm text-green-700">🎁 Free Locker Included</p>
-                  </div>
-                )}
-
-                {/* SEAT NUMBER */}
-                <div className="mt-5">
-                  <label className="mb-2 block text-sm font-bold text-gray-700">Seat Number</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="100"
-                    id="bookingSeat"
-                    placeholder="Enter seat number"
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:border-indigo-500"
-                  />
-                </div>
-
-                {/* TOTAL */}
-                {totalAmount > 0 && (
-                  <div className="mt-5 rounded-2xl bg-indigo-50 p-5 text-center">
-                    <p className="text-sm font-bold text-gray-500">Total Payable Amount</p>
-                    <p className="mt-1 text-4xl font-black text-indigo-700">₹{totalAmount}</p>
-                    <p className="mt-2 text-sm font-bold text-gray-600">{selectedPlan} • {lockerOption}</p>
-                  </div>
-                )}
-
-                {/* PAYMENT */}
-                <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5">
-                  <h3 className="text-lg font-black text-green-800">💳 Payment Details</h3>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-xl p-4">
-                      <p className="text-xs font-bold text-gray-500 text-center">Payment Number</p>
-                      <p className="mt-1 text-lg font-black text-gray-900 text-center">9219384600</p>
-                      <img className="mt-2" src={logo} alt="Library Logo" />
-                    </div>
-
-                    <div className="rounded-xl p-4">
-                      <p className="text-xs font-bold text-gray-500 text-center">Scan QR Code to Pay</p>
-                      <img src={qr} alt="UPI QR Code" className="mt-2 rounded-2xl" />
-                    </div>
-                  </div>
-                  <p className="mt-4 text-sm leading-6 text-gray-600">
-                    Payment karne ke baad WhatsApp par booking details bhejein aur payment ka screenshot bhi attach karein.
-                  </p>
-                </div>
-
-                {/* WHATSAPP BUTTON WITH ADDRESS */}
+                <input
+                  type="text"
+                  placeholder="Admin Username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full bg-[#070b14] border border-slate-700 p-3.5 rounded-xl mb-3.5 text-sm text-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 font-semibold"
+                />
+                <input
+                  type="password"
+                  placeholder="Master Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-[#070b14] border border-slate-700 p-3.5 rounded-xl mb-5 text-sm text-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 font-semibold"
+                />
                 <button
                   onClick={() => {
-                    const name = document.getElementById("bookingName").value.trim();
-                    const phone = document.getElementById("bookingPhone").value.trim();
-                    const email = document.getElementById("bookingEmail").value.trim();
-                    const address = document.getElementById("bookingAddress").value.trim();
-                    const seat = document.getElementById("bookingSeat").value.trim();
-
-                    if (
-                      !name ||
-                      !phone ||
-                      !email ||
-                      !address ||
-                      !seat ||
-                      !selectedPlan ||
-                      !selectedTiming ||
-                      !lockerOption ||
-                      !totalAmount
-                    ) {
-                      alert("Please fill all booking details first.");
-                      return;
+                    handleLogin();
+                    if (username === adminUser && password === adminPass) {
+                      document.getElementById('adminLoginPanel')?.classList.add('hidden');
                     }
+                  }}
+                  className="w-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:brightness-110 transition text-slate-950 py-3.5 rounded-xl font-black text-sm uppercase tracking-wider shadow-lg shadow-amber-400/20 active:scale-95"
+                >
+                  Authenticate &amp; Enter
+                </button>
+              </div>
+            </div>
 
-                    const phoneRegex = /^[0-9]{10}$/;
-                    if (!phoneRegex.test(phone)) {
-                      alert("Enter a valid 10-digit mobile number.");
-                      return;
-                    }
+            {/* ---> PUBLIC: HERO SECTION (MODERN LUXURY HIGH-TECH) <--- */}
+            <section className="max-w-6xl mx-auto px-4 md:px-6 py-10 md:py-14">
+              <div className="relative overflow-hidden rounded-[36px] border border-slate-800/90 bg-gradient-to-b from-[#0e1629] via-[#090f1d] to-[#070c18] p-6 sm:p-10 md:p-14 text-center shadow-[0_20px_80px_rgba(0,0,0,0.75)]">
 
-                    const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/i;
-                    if (!gmailRegex.test(email)) {
-                      alert("Enter a valid Gmail address (Ex: yourname@gmail.com).");
-                      return;
-                    }
+                {/* Golden Beam Top Accent */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400 to-transparent"></div>
+                <div className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 w-80 h-28 bg-amber-400/15 blur-3xl rounded-full"></div>
 
-                    const message = `
+                {/* Floating Status Pill */}
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] sm:text-[11px] font-black uppercase tracking-[0.25em] bg-amber-400/10 text-amber-400 border border-amber-400/30 mb-5 shadow-[0_0_20px_rgba(251,191,36,0.15)] animate-pulse">
+                  <span>✨</span> Bachhrawan's Premier Smart Library
+                </div>
+
+                {/* Main Heading */}
+                <h2 className="text-3xl sm:text-5xl md:text-6xl font-black text-white tracking-tight leading-[1.15]">
+                  Premium Digital{" "}
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-300 to-emerald-400">
+                    Study Lounge
+                  </span>
+                </h2>
+
+                {/* Subtitle description (FIXED: 100% FORCED CENTER ON LAPTOP & MOBILE) */}
+                <p
+                  className="mt-4 text-sm sm:text-base md:text-lg leading-relaxed text-slate-300 max-w-2xl mx-auto font-medium text-center !text-center w-full"
+                  style={{ textAlign: "center", marginLeft: "auto", marginRight: "auto", display: "block" }}
+                >
+                  Smart seat tracking, peaceful study environment, high-speed WiFi, CCTV security, and dedicated silent monitoring for competitive aspirants.
+                </p>
+
+                {/* FACILITIES SHOWCASE */}
+                <div className="border-t border-slate-800/90 mt-10 pt-8">
+                  <div className="inline-flex items-center gap-2 mb-6">
+                    <span className="text-amber-400 text-lg">⭐</span>
+                    <h2 className="text-base sm:text-lg font-black uppercase tracking-wider text-slate-200">
+                      Standard Library Facilities
+                    </h2>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 max-w-4xl mx-auto text-xs sm:text-sm font-bold text-slate-200">
+                    <div className="p-3.5 rounded-2xl bg-[#080e1a]/90 border border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a] transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1">
+                      <span className="text-base">🔒</span>
+                      <span>Personal Locker</span>
+                    </div>
+
+                    <div className="p-3.5 rounded-2xl bg-[#080e1a]/90 border border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a] transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1">
+                      <span className="text-base">📶</span>
+                      <span>Free WiFi</span>
+                    </div>
+
+                    <div className="p-3.5 rounded-2xl bg-[#080e1a]/90 border border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a] transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1">
+                      <span className="text-base">❄️</span>
+                      <span>Air Conditioned</span>
+                    </div>
+
+                    <div className="p-3.5 rounded-2xl bg-[#080e1a]/90 border border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a] transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1">
+                      <span className="text-base">💧</span>
+                      <span>RO Water</span>
+                    </div>
+
+                    <div className="p-3.5 rounded-2xl bg-[#080e1a]/90 border border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a] transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1">
+                      <span className="text-base">🎥</span>
+                      <span>CCTV Security</span>
+                    </div>
+
+                    <div className="p-3.5 rounded-2xl bg-[#080e1a]/90 border border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a] transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1">
+                      <span className="text-base">🔋</span>
+                      <span>Power Backup</span>
+                    </div>
+
+                    <div className="p-3.5 rounded-2xl bg-[#080e1a]/90 border border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a] transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1">
+                      <span className="text-base">🤫</span>
+                      <span>Silent Study Zone</span>
+                    </div>
+
+                    <div className="p-3.5 rounded-2xl bg-[#080e1a]/90 border border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a] transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1">
+                      <span className="text-base">🪑</span>
+                      <span>Comfortable Seating</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </section>
+
+            {/* ---> PUBLIC: LIVE SEAT AVAILABILITY SECTION <--- */}
+            <section className="max-w-7xl mx-auto px-4 md:px-6 pb-16">
+
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-10 pb-6 border-b border-slate-800/80">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                    <span className="text-[11px] font-black uppercase tracking-[0.25em] text-emerald-400 font-mono">
+                      Live Occupancy Radar
+                    </span>
+                  </div>
+                  <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+                    LIVE SMART SEAT AVAILABILITY
+                  </h2>
+                  <p className="text-slate-400 text-xs sm:text-sm mt-1">
+                    Real-time automated seat occupancy &amp; slot tracking
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4">
+                  {/* PUBLIC: SEAT BOOKING CTA */}
+                  <button
+                    onClick={() => setShowBookingPopup(true)}
+                    className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-800 px-7 py-3.5 text-white shadow-xl shadow-indigo-600/30 transition-all duration-300 hover:-translate-y-1 hover:scale-105 active:scale-95 border border-indigo-400/30"
+                  >
+                    <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full"></span>
+                    <span className="relative flex items-center gap-3">
+                      <span className="text-xl animate-bounce">🚀</span>
+                      <span className="text-left">
+                        <span className="block text-[15px] font-black uppercase tracking-widest text-amber-300">hurry up!</span>
+                        <span className="block text-sm sm:text-base font-black">Book Your Seat Now</span>
+                      </span>
+                      <span className="text-base transition-transform duration-300 group-hover:translate-x-1 font-bold">→</span>
+                    </span>
+                  </button>
+
+                  {/* PUBLIC: TOTAL SEATS BUTTON */}
+                  <div
+                    onClick={() => setShowQuickView(true)}
+                    role="button"
+                    tabIndex={0}
+                    className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 via-yellow-400 to-amber-500 p-0.5 shadow-xl shadow-amber-400/20 cursor-pointer transition-all duration-300 hover:scale-105 hover:-translate-y-0.5 active:scale-95"
+                  >
+                    <div className="rounded-[22px] bg-[#070c18] px-6 py-3 transition-colors group-hover:bg-[#070c18]/80 text-center">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-amber-400">Seats Hall</p>
+                      <h3 className="text-lg font-black text-white font-mono mt-0.5">MAP</h3>
+                      <div className="mt-1 bg-amber-400 text-slate-950 text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider animate-pulse inline-block shadow">
+                        Click for Map ↗
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* =========================================================
+                            PUBLIC: PROFESSIONAL HALL SEAT MAP MODAL
+                  ========================================================= */}
+              {showQuickView && (
+                <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/85 backdrop-blur-md p-2 sm:p-4">
+                  <div className="relative flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-[32px] border border-amber-400/30 bg-[#080d18] shadow-[0_25px_100px_rgba(0,0,0,0.9)]">
+
+                    {/* TOP HEADER */}
+                    <div className="shrink-0 border-b border-white/10 bg-gradient-to-r from-[#0b1220] via-[#111827] to-[#0b1220] px-5 py-4 sm:px-7 sm:py-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <h4 className="text-xl font-black tracking-tight text-amber-400 sm:text-2xl flex items-center gap-2">
+                            <span>🗺️</span> Live Hall Seat Occupancy Map
+                          </h4>
+                          <p className="text-xs text-slate-400 mt-1 font-mono">
+                            Interactive visual seating architecture • Bachhrawan Library
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => setShowQuickView(false)}
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xl font-bold text-gray-400 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      {/* LEGEND */}
+                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-2 rounded-full border border-green-500/20 bg-green-500/5 px-3 py-1 text-[10px] font-bold text-gray-300">
+                          <span className="h-2.5 w-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></span>
+                          Available
+                        </div>
+                        <div className="flex items-center gap-2 rounded-full border border-yellow-500/20 bg-yellow-500/5 px-3 py-1 text-[10px] font-bold text-gray-300">
+                          <span className="h-2.5 w-2.5 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.8)]"></span>
+                          Morning Available
+                        </div>
+                        <div className="flex items-center gap-2 rounded-full border border-yellow-500/20 bg-yellow-500/5 px-3 py-1 text-[10px] font-bold text-gray-300">
+                          <span className="h-2.5 w-2.5 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.8)]"></span>
+                          Afternoon Available
+                        </div>
+                        <div className="flex items-center gap-2 rounded-full border border-green-500/20 bg-green-500/5 px-3 py-1 text-[10px] font-bold text-gray-300">
+                          <span className="h-2.5 w-2.5 rounded-full bg-gradient-to-r from-green-500 to-black"></span>
+                          Night Available
+                        </div>
+                        <div className="flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/5 px-3 py-1 text-[10px] font-bold text-gray-300">
+                          <span className="h-2.5 w-2.5 rounded-full bg-red-500"></span>
+                          Fully Booked
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* HALL AREA */}
+                    <div className="min-h-0 flex-1 overflow-auto bg-[#050914] p-3 sm:p-5">
+                      <div className="mx-auto min-w-[650px] max-w-5xl">
+                        <div className="relative overflow-hidden rounded-[24px] border-2 border-gray-700 bg-gradient-to-br from-[#151d2b] via-[#0c1422] to-[#080d17] p-4 shadow-[inset_0_0_60px_rgba(0,0,0,0.55)] sm:p-6">
+                          <div className="pointer-events-none absolute inset-2 rounded-[20px] border border-yellow-500/5"></div>
+
+                          {/* WASHROOM */}
+                          <div className="flex justify-between sm:mb-6">
+                            <div className="relative left-17 rounded-xl border border-blue-400/20 bg-blue-500/5 px-10 py-4 text-center shadow-lg">
+                              <div className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-300">Washroom</div>
+                              <div className="mt-1 text-lg">🚻</div>
+                            </div>
+
+                            <div className="rounded-2xl border border-blue-400/20 bg-blue-500/5 px-25 py-6 text-center shadow-lg">
+                              <div className="text-[12px] font-black uppercase tracking-[0.3em] text-blue-300 mt-1">Discussion Hall 💬</div>
+                              <div className="text-[12px] font-black uppercase tracking-[0.3em] text-blue-300 mt-1">Lunch Area 🍽️</div>
+                            </div>
+                          </div>
+
+                          {/* MAIN HALL MAP */}
+                          <div className="relative aspect-[1.08/1] w-full">
+                            <div className="pointer-events-none absolute left-[46%] top-[10%] h-[75%] w-[8%] rounded-full bg-gradient-to-b from-white/[0.02] via-yellow-500/[0.025] to-transparent"></div>
+                            <div className="pointer-events-none absolute left-[45.5%] top-[48%] -rotate-90 text-[7px] font-black uppercase tracking-[0.4em] text-gray-700 sm:text-[8px]">
+                              WALKWAY
+                            </div>
+
+                            {/* LEFT SIDE */}
+                            <div className="absolute left-[3%] top-[5%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                              {[40, 39, 38, 37].map(id => {
+                                const seat = seats.find(s => s.id === id);
+                                if (!seat) return null;
+                                return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
+                              })}
+                            </div>
+
+                            <div className="absolute left-[3%] top-[17%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                              {[36, 35, 34, 33, 32, 31, 30, 29].map(id => {
+                                const seat = seats.find(s => s.id === id);
+                                if (!seat) return null;
+                                return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
+                              })}
+                            </div>
+
+                            <div className="absolute left-[3%] top-[36%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                              {[28, 27, 26, 25, 24, 23, 22, 21].map(id => {
+                                const seat = seats.find(s => s.id === id);
+                                if (!seat) return null;
+                                return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
+                              })}
+                            </div>
+
+                            <div className="absolute left-[3%] top-[55%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                              {[20, 19, 18, 17, 16, 15, 14, 13].map(id => {
+                                const seat = seats.find(s => s.id === id);
+                                if (!seat) return null;
+                                return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
+                              })}
+                            </div>
+
+                            <div className="absolute left-[3%] top-[74%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                              {[12, 11, 10, 9, 8, 7, 6, 5].map(id => {
+                                const seat = seats.find(s => s.id === id);
+                                if (!seat) return null;
+                                return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
+                              })}
+                            </div>
+
+                            <div className="absolute bottom-[0%] left-[3%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                              {[4, 3, 2, 1].map(id => {
+                                const seat = seats.find(s => s.id === id);
+                                if (!seat) return null;
+                                return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
+                              })}
+                            </div>
+
+                            {/* RIGHT SIDE */}
+                            <div className="absolute right-[32%] top-[14%] flex w-[10%] flex-col gap-1.5 sm:gap-2">
+                              {[66, 65].map(id => {
+                                const seat = seats.find(s => s.id === id);
+                                if (!seat) return null;
+                                return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} vertical />;
+                              })}
+                            </div>
+
+                            <div className="absolute right-[3%] top-[39%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                              {[61, 62, 63, 64].map(id => {
+                                const seat = seats.find(s => s.id === id);
+                                if (!seat) return null;
+                                return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
+                              })}
+                            </div>
+
+                            <div className="absolute right-[3%] top-[52%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                              {[57, 58, 59, 60, 53, 54, 55, 56].map(id => {
+                                const seat = seats.find(s => s.id === id);
+                                if (!seat) return null;
+                                return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
+                              })}
+                            </div>
+
+                            <div className="absolute right-[3%] top-[72%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                              {[49, 50, 51, 52, 45, 46, 47, 48].map(id => {
+                                const seat = seats.find(s => s.id === id);
+                                if (!seat) return null;
+                                return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
+                              })}
+                            </div>
+
+                            <div className="absolute bottom-[0%] right-[3%] grid w-[37%] grid-cols-4 gap-1.5 sm:gap-2">
+                              {[41, 42, 43, 44].map(id => {
+                                const seat = seats.find(s => s.id === id);
+                                if (!seat) return null;
+                                return <HallSeat key={id} seat={seat} setShowQuickView={setShowQuickView} />;
+                              })}
+                            </div>
+
+                            {/* ENTRY */}
+                            <div className="absolute bottom-[2%] left-1/2 z-20 -translate-x-1/2 translate-y-1/2">
+                              <div className="flex flex-col items-center">
+                                <div className="mb-1 h-8 w-16 rounded-t-xl border-x-2 border-t-2 border-yellow-500/40 bg-yellow-500/10"></div>
+                                <div className="rounded-full border border-yellow-500/30 bg-[#0b1220] px-5 py-1.5 text-[8px] font-black uppercase tracking-[0.3em] text-yellow-400 shadow-lg">
+                                  ↑ Entry
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* STAIRS */}
+                            <div className="absolute right-[4%] top-[6%] hidden rounded-xl border border-purple-500/10 bg-purple-500/5 px-20 py-20 text-center lg:block">
+                              <div className="mt-1 text-[7px] font-black uppercase tracking-widest text-purple-300">
+                                Stairs
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* FUTURE EXPANSION */}
+                          {seats.some(seat => seat.id > 66) && (
+                            <div className="mt-8 rounded-2xl border border-dashed border-yellow-500/20 bg-yellow-500/[0.03] p-4">
+                              <div className="mb-3 flex items-center gap-2">
+                                <span className="text-lg">＋</span>
+                                <div>
+                                  <p className="text-xs font-black uppercase tracking-widest text-yellow-400">
+                                    New Seating Area
+                                  </p>
+                                  <p className="text-[10px] text-gray-500">
+                                    Future added seats
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {seats
+                                  .filter(seat => seat.id > 66)
+                                  .map(seat => (
+                                    <HallSeat
+                                      key={seat.id}
+                                      seat={seat}
+                                      setShowQuickView={setShowQuickView}
+                                    />
+                                  ))}
+                              </div>
+                            </div>
+                          )}
+
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              )}
+
+              {/* ---> PUBLIC: DETAILED SMART SEAT MAP (LUXURY GLASS ARCHITECTURE) <--- */}
+              <div className="relative overflow-hidden rounded-[38px] border border-slate-800/90 bg-gradient-to-br from-[#0c1322] via-[#070b14] to-[#090f1d] p-6 sm:p-10 shadow-[0_20px_80px_rgba(0,0,0,0.85)]">
+
+                {/* Ambient Top Glow */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/60 to-transparent"></div>
+                <div className="pointer-events-none absolute -top-24 right-10 w-96 h-32 bg-indigo-500/10 blur-3xl rounded-full"></div>
+
+                <div className="flex items-center justify-between flex-wrap gap-4 mb-8 relative z-10">
+                  <div>
+                    <h3 className="text-2xl sm:text-3xl font-black text-amber-400 tracking-[3px] flex items-center gap-2.5">
+                      <span>💺</span> SMART SEAT MAP
+                    </h3>
+                    <p className="text-slate-400 mt-1 text-xs sm:text-sm">Real-time intelligent seat monitoring &amp; validity dashboard</p>
+                  </div>
+
+                  {/* Legend Badges */}
+                  <div className="flex flex-wrap gap-2 text-[10px] sm:text-xs font-bold font-mono">
+                    <div className="bg-emerald-500/10 border border-emerald-400/40 text-emerald-300 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400"></span> AVAILABLE
+                    </div>
+                    <div className="bg-amber-500/10 border border-amber-400/40 text-amber-300 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm">
+                      <span className="w-2 h-2 rounded-full bg-amber-400"></span> HALF DAY
+                    </div>
+                    <div className="bg-rose-500/10 border border-rose-400/40 text-rose-300 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm">
+                      <span className="w-2 h-2 rounded-full bg-rose-400"></span> FULL DAY
+                    </div>
+                    <div className="bg-indigo-500/10 border border-indigo-400/40 text-indigo-300 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm">
+                      <span className="w-2 h-2 rounded-full bg-indigo-400"></span> 24 HOURS
+                    </div>
+                  </div>
+                </div>
+
+                {/* Grid of Seat Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 relative z-10">
+                  {currentSeats.map((seat) => (
+                    <div
+                      key={seat.id}
+                      className={`group relative overflow-hidden rounded-[28px] p-5.5 min-h-[190px] text-white border border-white/10 transition-all duration-300 hover:scale-[1.03] hover:-translate-y-1.5 cursor-pointer shadow-[0_10px_30px_rgba(0,0,0,0.6)] ${getSeatColor(seat.status)}`}
+                    >
+                      <span className="pointer-events-none absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition duration-300"></span>
+
+                      <div className="relative z-10 flex flex-col justify-between h-full">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <p className="text-[10px] uppercase tracking-[2px] opacity-80 font-bold font-mono">SEAT NUMBER</p>
+                            <h4 className="text-3xl font-black leading-none font-mono mt-1 drop-shadow-md">{seat.id}</h4>
+                          </div>
+                          <div className="w-12 h-12 rounded-2xl bg-black/25 backdrop-blur-md flex items-center justify-center text-base border border-white/20 shadow-inner">
+                            {seat.status === 'Available' ? '✓' : '📘'}
+                          </div>
+                        </div>
+
+                        <div className="mt-4 bg-black/35 backdrop-blur-md rounded-2xl p-3.5 border border-white/10 shadow-inner">
+                          <div className="flex justify-between items-end mb-2">
+                            <div>
+                              <p className="text-[9px] uppercase tracking-[1.5px] opacity-75 font-bold">Status</p>
+                              <p className="font-black text-base leading-tight mt-0.5">{seat.status}</p>
+                            </div>
+                            <p className="text-[11px] opacity-90 text-right font-mono font-medium max-w-[55%] truncate">{seat.timing}</p>
+                          </div>
+
+                          {seat.status !== 'Available' && (
+                            <div className="mt-2.5 pt-2.5 border-t border-white/15 space-y-1.5 text-[11px]">
+                              {/* 24 HOURS */}
+                              {seat.status === '24 Hours' ? (
+                                <div className="bg-black/40 p-2 rounded-xl border border-white/5">
+                                  <div className="flex justify-between items-center">
+                                    <span className="opacity-80 whitespace-nowrap text-[10px]">🔒 24 Hours:</span>
+                                    <span className="font-bold text-white truncate ml-2">
+                                      {seat.nightStudent || "Booked"}
+                                    </span>
+                                  </div>
+                                  {seat.nightStudent && (
+                                    <div className="mt-1 text-[9px] text-slate-300 text-right opacity-80 border-t border-white/10 pt-1 font-mono">
+                                      🗓 {seat.fromDate} To {seat.toDate}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : seat.status === 'Full Day' ? (
+                                <>
+                                  <div className="bg-black/40 p-2 rounded-xl border border-white/5">
+                                    <div className="flex justify-between items-center">
+                                      <span className="opacity-80 whitespace-nowrap text-[10px]">🌅 Day (8 AM - 8 PM):</span>
+                                      <span className="font-bold text-white truncate ml-2">
+                                        {seat.fullDayStudent || "Available"}
+                                      </span>
+                                    </div>
+                                    {seat.fullDayStudent && (
+                                      <div className="mt-1 text-[9px] text-slate-300 text-right opacity-80 border-t border-white/10 pt-1 font-mono">
+                                        🗓 {seat.fullDayFrom} To {seat.fullDayTo}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="bg-black/40 p-2 rounded-xl border border-white/5">
+                                    <div className="flex justify-between items-center">
+                                      <span className="opacity-80 whitespace-nowrap text-[10px]">🌙 Night (8 PM - 8 AM):</span>
+                                      <span className={seat.nightStudent ? "font-bold text-white truncate ml-2" : "text-emerald-300 font-bold ml-2"}>
+                                        {seat.nightStudent || "Available"}
+                                      </span>
+                                    </div>
+                                    {seat.nightStudent && (
+                                      <div className="mt-1 text-[9px] text-slate-300 text-right opacity-80 border-t border-white/10 pt-1 font-mono">
+                                        🗓 {seat.nightFrom} To {seat.nightTo}
+                                      </div>
+                                    )}
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="bg-black/40 p-2 rounded-xl border border-white/5">
+                                    <div className="flex justify-between items-center">
+                                      <span className="opacity-80 whitespace-nowrap text-[10px]">🌅 8 AM - 2 PM:</span>
+                                      <span className={seat.morningStudent ? "font-bold text-white truncate ml-2" : "text-emerald-300 font-bold ml-2"}>
+                                        {seat.morningStudent || "Available"}
+                                      </span>
+                                    </div>
+                                    {seat.morningStudent && (
+                                      <div className="mt-1 text-[9px] text-slate-300 text-right opacity-80 border-t border-white/10 pt-1 font-mono">
+                                        🗓 {seat.morningFrom} To {seat.morningTo}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="bg-black/40 p-2 rounded-xl border border-white/5">
+                                    <div className="flex justify-between items-center">
+                                      <span className="opacity-80 whitespace-nowrap text-[10px]">☀️ 2 PM - 8 PM:</span>
+                                      <span className={seat.afternoonStudent ? "font-bold text-white truncate ml-2" : "text-emerald-300 font-bold ml-2"}>
+                                        {seat.afternoonStudent || "Available"}
+                                      </span>
+                                    </div>
+                                    {seat.afternoonStudent && (
+                                      <div className="mt-1 text-[9px] text-slate-300 text-right opacity-80 border-t border-white/10 pt-1 font-mono">
+                                        🗓 {seat.afternoonFrom} To {seat.afternoonTo}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="bg-black/40 p-2 rounded-xl border border-white/5">
+                                    <div className="flex justify-between items-center">
+                                      <span className="opacity-80 whitespace-nowrap text-[10px]">🌙 8 PM - 8 AM:</span>
+                                      <span className={seat.nightStudent ? "font-bold text-white truncate ml-2" : "text-emerald-300 font-bold ml-2"}>
+                                        {seat.nightStudent || "Available"}
+                                      </span>
+                                    </div>
+                                    {seat.nightStudent && (
+                                      <div className="mt-1 text-[9px] text-slate-300 text-right opacity-80 border-t border-white/10 pt-1 font-mono">
+                                        🗓 {seat.nightFrom} To {seat.nightTo}
+                                      </div>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* ---> PUBLIC: BOTTOM PAGINATION (ELEGANT FLOATING BAR) <--- */}
+                <div className="sticky bottom-6 z-40 flex flex-wrap justify-center gap-3.5 mt-10 bg-[#070b14]/90 backdrop-blur-xl p-3.5 rounded-3xl border border-amber-400/30 shadow-[0_15px_50px_rgba(0,0,0,0.85)] max-w-fit mx-auto">
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <button
+                      key={i + 1}
+                      onClick={() => setCurrentPage(i + 1)}
+                      className={`${currentPage === i + 1
+                          ? "bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 font-black scale-105 shadow-[0_0_20px_rgba(251,191,36,0.35)]"
+                          : "bg-slate-900/90 text-slate-300 border border-slate-800 hover:border-slate-700 hover:text-white"
+                        } min-w-[170px] px-6 py-3.5 rounded-2xl transition-all duration-300 hover:scale-105 active:scale-95`}
+                    >
+                      <p className="text-[10px] uppercase tracking-[2px] opacity-80 font-bold">Explore Seats</p>
+                      <h3 className="text-xl font-black font-mono">
+                        {i * seatsPerPage + 1} - {Math.min((i + 1) * seatsPerPage, seats.length)}
+                      </h3>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* ---> PUBLIC: PLANS SECTION <--- */}
+            <Plans />
+
+            {/* ---> PUBLIC: BOOKING MODAL POPUP <--- */}
+            {showBookingPopup && (
+              <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+                <div className="relative max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl sm:p-10 border border-slate-100 text-slate-900">
+
+                  {/* CLOSE BUTTON */}
+                  <button
+                    onClick={() => {
+                      setShowBookingPopup(false);
+                      setSelectedPlan("");
+                      setSelectedTiming("");
+                      setLockerOption("");
+                      setTotalAmount(0);
+                    }}
+                    className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-600 hover:bg-rose-100 hover:text-rose-600 transition"
+                  >
+                    ✕
+                  </button>
+
+                  {/* HEADER */}
+                  <div className="mb-7 pr-10">
+                    <p className="text-xs font-black uppercase tracking-widest text-indigo-600">
+                      Any Time Library • Seat Concierge
+                    </p>
+                    <h2 className="mt-1 text-3xl font-black text-gray-900 tracking-tight">
+                      Book Your Study Seat 🪑
+                    </h2>
+                    <p className="mt-1 text-xs sm:text-sm text-gray-500">
+                      Select your preferred shift, plan, and timing to request instant seat booking.
+                    </p>
+                  </div>
+
+                  {/* STUDENT DETAILS */}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-gray-700 uppercase tracking-wider">Your Full Name</label>
+                      <input
+                        type="text"
+                        id="bookingName"
+                        placeholder="e.g., Aman Singh"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-900 outline-none focus:border-indigo-500 focus:bg-white transition"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-gray-700 uppercase tracking-wider">WhatsApp Mobile Number</label>
+                      <input
+                        type="tel"
+                        id="bookingPhone"
+                        placeholder="10-digit mobile number"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-900 outline-none focus:border-indigo-500 focus:bg-white transition"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-gray-700 uppercase tracking-wider">Email Address</label>
+                      <input
+                        type="email"
+                        id="bookingEmail"
+                        placeholder="yourname@gmail.com"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-900 outline-none focus:border-indigo-500 focus:bg-white transition"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs font-bold text-gray-700 uppercase tracking-wider">Address / City</label>
+                      <input
+                        type="text"
+                        id="bookingAddress"
+                        placeholder="e.g., Bachhrawan, Raebareli"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-900 outline-none focus:border-indigo-500 focus:bg-white transition"
+                      />
+                    </div>
+                  </div>
+
+                  {/* PLAN SELECTION */}
+                  <div className="mt-6">
+                    <label className="mb-2.5 block text-xs font-black uppercase tracking-wider text-gray-700">Select Subscription Plan</label>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPlan("Half Day");
+                          setSelectedTiming("");
+                          setLockerOption("");
+                          setTotalAmount(0);
+                        }}
+                        className={`rounded-2xl border p-4 text-left transition ${selectedPlan === "Half Day"
+                          ? "border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-500 shadow-sm"
+                          : "border-gray-200 bg-gray-50 hover:border-indigo-300"
+                          }`}
+                      >
+                        <p className="font-black text-gray-900">Half Day (6 Hours)</p>
+                        <p className="mt-1 text-xs text-gray-500">₹500 Without Locker</p>
+                        <p className="mt-0.5 text-xs font-bold text-indigo-600">₹600 With Locker</p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPlan("Full Day");
+                          setSelectedTiming("");
+                          setLockerOption("");
+                          setTotalAmount(0);
+                        }}
+                        className={`rounded-2xl border p-4 text-left transition ${selectedPlan === "Full Day"
+                          ? "border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-500 shadow-sm"
+                          : "border-gray-200 bg-gray-50 hover:border-indigo-300"
+                          }`}
+                      >
+                        <p className="font-black text-gray-900">Full Day (12 Hours)</p>
+                        <p className="mt-1 text-xs text-gray-500">₹700 Without Locker</p>
+                        <p className="mt-0.5 text-xs font-bold text-indigo-600">₹800 With Locker</p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPlan("Night");
+                          setSelectedTiming("");
+                          setLockerOption("");
+                          setTotalAmount(0);
+                        }}
+                        className={`rounded-2xl border p-4 text-left transition ${selectedPlan === "Night"
+                          ? "border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-500 shadow-sm"
+                          : "border-gray-200 bg-gray-50 hover:border-indigo-300"
+                          }`}
+                      >
+                        <p className="font-black text-gray-900">Night Shift (8 PM - 8 AM)</p>
+                        <p className="mt-1 text-xs text-gray-500">₹500 Without Locker</p>
+                        <p className="mt-0.5 text-xs font-bold text-indigo-600">₹600 With Locker</p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPlan("24 Hours");
+                          setSelectedTiming("24 Hours");
+                          setLockerOption("Free Locker Included");
+                          setTotalAmount(1000);
+                        }}
+                        className={`rounded-2xl border p-4 text-left transition ${selectedPlan === "24 Hours"
+                          ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500 shadow-sm"
+                          : "border-gray-200 bg-gray-50 hover:border-emerald-300"
+                          }`}
+                      >
+                        <p className="font-black text-gray-900">24 Hours All Access</p>
+                        <p className="mt-1 text-base font-black text-emerald-600">₹1000</p>
+                        <p className="mt-0.5 text-xs font-bold text-emerald-600">🎁 Free Locker Included</p>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* LOCKER OPTION */}
+                  {selectedPlan && selectedPlan !== "24 Hours" && (
+                    <div className="mt-4">
+                      <label className="mb-1.5 block text-xs font-bold text-gray-700 uppercase tracking-wider">Locker Facility</label>
+                      <select
+                        value={lockerOption}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setLockerOption(value);
+                          if (selectedPlan === "Half Day") setTotalAmount(value === "With Locker" ? 600 : 500);
+                          if (selectedPlan === "Full Day") setTotalAmount(value === "With Locker" ? 800 : 700);
+                          if (selectedPlan === "Night") setTotalAmount(value === "With Locker" ? 600 : 500);
+                        }}
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-bold text-gray-800 outline-none focus:border-indigo-500 cursor-pointer"
+                      >
+                        <option value="">-- Choose Locker Option --</option>
+                        <option value="Without Locker">Without Locker</option>
+                        <option value="With Locker">With Locker (+₹100)</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {/* TIMING */}
+                  {selectedPlan && selectedPlan !== "24 Hours" && (
+                    <div className="mt-4">
+                      <label className="mb-1.5 block text-xs font-bold text-gray-700 uppercase tracking-wider">Select Slot Timing</label>
+                      <select
+                        value={selectedTiming}
+                        onChange={(e) => setSelectedTiming(e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-bold text-gray-800 outline-none focus:border-indigo-500 cursor-pointer"
+                      >
+                        <option value="">-- Choose Timing --</option>
+                        {selectedPlan === "Half Day" && (
+                          <>
+                            <option value="Morning (8 AM - 2 PM)">Morning — 8 AM - 2 PM</option>
+                            <option value="Afternoon (2 PM - 8 PM)">Afternoon — 2 PM - 8 PM</option>
+                          </>
+                        )}
+                        {selectedPlan === "Full Day" && (
+                          <option value="Full Day (8 AM - 8 PM)">Full Day — 8 AM - 8 PM</option>
+                        )}
+                        {selectedPlan === "Night" && (
+                          <option value="Night (8 PM - 8 AM)">Night — 8 PM - 8 AM</option>
+                        )}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* 24 HOURS TIMING DISPLAY */}
+                  {selectedPlan === "24 Hours" && (
+                    <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                      <p className="font-bold text-emerald-800 text-sm">⏰ Timing: 24 Hours Unrestricted Access</p>
+                      <p className="mt-0.5 text-xs text-emerald-700">🎁 Free Locker Included With This Plan</p>
+                    </div>
+                  )}
+
+                  {/* SEAT NUMBER */}
+                  <div className="mt-4">
+                    <label className="mb-1.5 block text-xs font-bold text-gray-700 uppercase tracking-wider">Desired Seat Number (1 - 66)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      id="bookingSeat"
+                      placeholder="e.g., 14"
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-bold text-gray-900 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  {/* TOTAL PAYABLE */}
+                  {totalAmount > 0 && (
+                    <div className="mt-5 rounded-2xl bg-indigo-50/90 border border-indigo-100 p-5 text-center">
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Payable Amount</p>
+                      <p className="mt-1 text-3xl font-black text-indigo-700 font-mono">₹{totalAmount}</p>
+                      <p className="mt-1 text-xs font-bold text-slate-600">{selectedPlan} • {lockerOption}</p>
+                    </div>
+                  )}
+
+                  {/* PAYMENT DETAILS */}
+                  <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5">
+                    <h3 className="text-sm font-black uppercase tracking-wider text-emerald-800 flex items-center gap-2">
+                      <span>💳</span> Payment Gateway Details
+                    </h3>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2 items-center">
+                      <div className="bg-white p-4 rounded-xl border border-emerald-100 text-center shadow-sm">
+                        <p className="text-xs font-bold text-gray-500 uppercase">Payment Phone Number</p>
+                        <p className="mt-1 text-lg font-black text-gray-900 font-mono">9219384600</p>
+                        <img className="mt-2 h-14 mx-auto object-contain" src={logo} alt="Library Logo" />
+                      </div>
+
+                      <div className="bg-white p-4 rounded-xl border border-emerald-100 text-center shadow-sm">
+                        <p className="text-xs font-bold text-gray-500 uppercase mb-2">Scan QR Code to Pay</p>
+                        <img src={qr} alt="UPI QR Code" className="max-h-36 mx-auto rounded-xl shadow-sm" />
+                      </div>
+                    </div>
+                    <p className="mt-3 text-xs leading-relaxed text-emerald-800 text-center font-medium">
+                      Payment karne ke baad WhatsApp par screenshot aur details bhej kar seat confirm karwayein.
+                    </p>
+                  </div>
+
+                  {/* WHATSAPP SUBMISSION BUTTON */}
+                  <button
+                    onClick={() => {
+                      const name = document.getElementById("bookingName").value.trim();
+                      const phone = document.getElementById("bookingPhone").value.trim();
+                      const email = document.getElementById("bookingEmail").value.trim();
+                      const address = document.getElementById("bookingAddress").value.trim();
+                      const seat = document.getElementById("bookingSeat").value.trim();
+
+                      if (
+                        !name ||
+                        !phone ||
+                        !email ||
+                        !address ||
+                        !seat ||
+                        !selectedPlan ||
+                        !selectedTiming ||
+                        !lockerOption ||
+                        !totalAmount
+                      ) {
+                        alert("Please fill all booking details first.");
+                        return;
+                      }
+
+                      const phoneRegex = /^[0-9]{10}$/;
+                      if (!phoneRegex.test(phone)) {
+                        alert("Enter a valid 10-digit mobile number.");
+                        return;
+                      }
+
+                      const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/i;
+                      if (!gmailRegex.test(email)) {
+                        alert("Enter a valid Gmail address (Ex: yourname@gmail.com).");
+                        return;
+                      }
+
+                      const message = `
 *🔥 ANY TIME LIBRARY - SEAT BOOKING REQUEST 🔥*
 
 👤 *Name:* ${name}
@@ -3134,133 +3235,160 @@ Warm regards,
 I will attach the payment screenshot here.
 
 Please check and confirm my seat booking.
-    `;
+                      `;
 
-                    const whatsappUrl = `https://wa.me/9161310909?text=${encodeURIComponent(message)}`;
-                    window.open(whatsappUrl, "_blank");
-                  }}
-                  className="mt-6 w-full rounded-2xl bg-green-600 py-4 text-lg font-black text-white shadow-lg transition hover:-translate-y-1 hover:bg-green-700"
-                >
-                  💬 Send Booking Request on WhatsApp
-                </button>
+                      const whatsappUrl = `https://wa.me/9161310909?text=${encodeURIComponent(message)}`;
+                      window.open(whatsappUrl, "_blank");
+                    }}
+                    className="mt-6 w-full rounded-2xl bg-emerald-600 hover:bg-emerald-500 py-4 text-base font-black text-white shadow-xl shadow-emerald-600/30 transition hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <span>💬</span> Send Booking Request on WhatsApp
+                  </button>
 
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* ================= FEATURES SECTION ================= */}
-          <section id="features" className="relative bg-[#0f172a] px-6 py-24 text-white">
-            <div className="mx-auto max-w-5xl">
-              <div className="mb-14">
-                <h2 className="inline-flex items-center gap-3 border-b-4 border-yellow-400 pb-2 text-3xl font-black sm:text-4xl">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full border-4 border-yellow-400 text-xl text-yellow-400">
-                    ◇
-                  </span>
-                  Resource Hub & Updates
-                </h2>
+            {/* ================= RESOURCE HUB & UPDATES ================= */}
+            <section id="features" className="relative bg-[#080d18] px-4 md:px-6 py-20 text-white border-t border-slate-800/80">
+              <div className="mx-auto max-w-5xl">
+                <div className="mb-12 text-center">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-400/10 text-amber-400 border border-amber-400/20 mb-3">
+                    Curated Materials
+                  </div>
+                  <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
+                    Resource Hub &amp; Student Updates
+                  </h2>
+                  
+                  {/* Resource Hub Subtitle (FIXED: 100% FORCED CENTER ON LAPTOP & MOBILE) */}
+                  <p 
+                    className="text-xs sm:text-sm text-slate-400 mt-1 max-w-lg mx-auto text-center !text-center w-full"
+                    style={{ textAlign: "center", marginLeft: "auto", marginRight: "auto", display: "block" }}
+                  >
+                    Direct access to official examination portals, daily current affairs, and archival knowledge.
+                  </p>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {/* UPSC CURRENT AFFAIRS */}
+                  <a
+                    href="https://visionias.in/current-affairs/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group rounded-2xl border border-slate-800 bg-[#0c1424] p-7 shadow-lg transition-all duration-300 hover:-translate-y-1.5 hover:border-blue-500/50 hover:bg-[#111b30] flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="mb-4 text-4xl group-hover:scale-110 transition-transform inline-block">📰</div>
+                      <h3 className="text-lg font-black text-white group-hover:text-blue-400 transition-colors">UPSC Current Affairs</h3>
+                      <p className="mt-2 text-xs leading-relaxed text-slate-400">Daily news and analytical editorial digests from Vision IAS.</p>
+                    </div>
+                    <span className="mt-4 text-[10px] font-bold uppercase tracking-wider text-blue-400 flex items-center gap-1 font-mono">Open Portal ↗</span>
+                  </a>
+
+                  {/* EMPLOYMENT NEWS */}
+                  <a
+                    href="https://employmentnews.gov.in/NewEmp/Home.aspx"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group rounded-2xl border border-slate-800 bg-[#0c1424] p-7 shadow-lg transition-all duration-300 hover:-translate-y-1.5 hover:border-purple-500/50 hover:bg-[#111b30] flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="mb-4 text-4xl group-hover:scale-110 transition-transform inline-block">🗞️</div>
+                      <h3 className="text-lg font-black text-white group-hover:text-purple-400 transition-colors">Employment News</h3>
+                      <p className="mt-2 text-xs leading-relaxed text-slate-400">Official government gazette and central notifications.</p>
+                    </div>
+                    <span className="mt-4 text-[10px] font-bold uppercase tracking-wider text-purple-400 flex items-center gap-1 font-mono">Open Portal ↗</span>
+                  </a>
+
+                  {/* LATEST JOB UPDATES */}
+                  <a
+                    href="https://sarkariresult.com.cm/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group rounded-2xl border border-slate-800 bg-[#0c1424] p-7 shadow-lg transition-all duration-300 hover:-translate-y-1.5 hover:border-pink-500/50 hover:bg-[#111b30] flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="mb-4 text-4xl group-hover:scale-110 transition-transform inline-block">💼</div>
+                      <h3 className="text-lg font-black text-white group-hover:text-pink-400 transition-colors">Latest Job Updates</h3>
+                      <p className="mt-2 text-xs leading-relaxed text-slate-400">Real-time state and central recruitment tracking alerts.</p>
+                    </div>
+                    <span className="mt-4 text-[10px] font-bold uppercase tracking-wider text-pink-400 flex items-center gap-1 font-mono">Open Portal ↗</span>
+                  </a>
+
+                  {/* UPSC PDF MATERIALS */}
+                  <a
+                    href="https://www.pdfnotes.co/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group rounded-2xl border border-slate-800 bg-[#0c1424] p-7 shadow-lg transition-all duration-300 hover:-translate-y-1.5 hover:border-emerald-500/50 hover:bg-[#111b30] flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="mb-4 text-4xl group-hover:scale-110 transition-transform inline-block">📄</div>
+                      <h3 className="text-lg font-black text-white group-hover:text-emerald-400 transition-colors">UPSC PDF Materials</h3>
+                      <p className="mt-2 text-xs leading-relaxed text-slate-400">Direct repository of standard book notes and test series.</p>
+                    </div>
+                    <span className="mt-4 text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1 font-mono">Open Portal ↗</span>
+                  </a>
+
+                  {/* UPSC FORMS & DOWNLOADS */}
+                  <a
+                    href="https://www.upsc.gov.in/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group rounded-2xl border border-slate-800 bg-[#0c1424] p-7 shadow-lg transition-all duration-300 hover:-translate-y-1.5 hover:border-amber-400/50 hover:bg-[#111b30] flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="mb-4 text-4xl group-hover:scale-110 transition-transform inline-block">📋</div>
+                      <h3 className="text-lg font-black text-white group-hover:text-amber-400 transition-colors">UPSC Forms &amp; Downloads</h3>
+                      <p className="mt-2 text-xs leading-relaxed text-slate-400">Official application guidelines, admit cards, and notices.</p>
+                    </div>
+                    <span className="mt-4 text-[10px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1 font-mono">Open Portal ↗</span>
+                  </a>
+
+                  {/* INTERNET ARCHIVE */}
+                  <a
+                    href="https://archive.org/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group rounded-2xl border border-slate-800 bg-[#0c1424] p-7 shadow-lg transition-all duration-300 hover:-translate-y-1.5 hover:border-indigo-500/50 hover:bg-[#111b30] flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="mb-4 text-4xl group-hover:scale-110 transition-transform inline-block">🗃️</div>
+                      <h3 className="text-lg font-black text-white group-hover:text-indigo-400 transition-colors">Internet Archive</h3>
+                      <p className="mt-2 text-xs leading-relaxed text-slate-400">Global non-profit digital library of millions of free books.</p>
+                    </div>
+                    <span className="mt-4 text-[10px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1 font-mono">Open Portal ↗</span>
+                  </a>
+                </div>
+              </div>
+            </section>
+
+            {/* ---> PUBLIC: FOOTER <--- */}
+            <Footer />
+
+            {/* FLOATING WHATSAPP INQUIRY BUTTON */}
+            <a
+              href="https://wa.me/9161310909?text=Hi%20Anytime%20Library%2C%20I%20want%20to%20know%20more%20about%20the%20library."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-2xl border border-emerald-400/40 bg-[#0b1220]/95 backdrop-blur-md px-4 py-3 shadow-[0_10px_35px_rgba(0,0,0,0.8)] transition-all duration-300 hover:-translate-y-1 hover:scale-105 hover:border-emerald-400 sm:bottom-6 sm:right-6"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#25D366] shadow-lg shadow-emerald-500/30">
+                <svg
+                  viewBox="0 0 32 32"
+                  className="h-6 w-6 fill-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path d="M16 3C8.83 3 3 8.83 3 16c0 2.3.6 4.55 1.74 6.53L3 29l6.67-1.7A12.94 12.94 0 0 0 16 29c7.17 0 13-5.83 13-13S23.17 3 16 3Zm0 23.64c-2.04 0-4.03-.55-5.77-1.59l-.41-.24-3.96 1.01 1.06-3.86-.27-.4A10.6 10.6 0 0 1 5.36 16C5.36 10.12 10.12 5.36 16 5.36S26.64 10.12 26.64 16 21.88 26.64 16 26.64Zm5.83-7.94c-.32-.16-1.89-.93-2.18-1.04-.29-.11-.5-.16-.71.16-.21.32-.82 1.04-1 1.25-.18.21-.37.24-.68.08-1.89-.94-3.13-1.68-4.38-3.81-.33-.57.33-.53.94-1.76.1-.21.05-.4-.03-.56-.08-.16-.71-1.71-.97-2.34-.26-.62-.52-.54-.71-.55h-.61c-.21 0-.55.08-.84.4-.29.32-1.1 1.08-1.1 2.63s1.13 3.05 1.29 3.26c.16.21 2.22 3.39 5.38 4.76.75.32 1.34.51 1.8.65.76.24 1.45.21 2 .13.61-.09 1.89-.77 2.15-1.52.27-.75.27-1.39.19-1.52-.08-.13-.29-.21-.61-.37Z" />
+                </svg>
               </div>
 
-              <div className="grid gap-7 md:grid-cols-2 lg:grid-cols-3">
-                {/* UPSC CURRENT AFFAIRS */}
-                <a
-                  href="https://visionias.in/current-affairs/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-xl border-l-4 border-blue-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
-                >
-                  <div className="mb-5 text-5xl text-blue-400">📰</div>
-                  <h3 className="text-xl font-black">UPSC Current Affairs</h3>
-                  <p className="mt-4 text-base text-slate-400">Daily news and analysis from Vision IAS.</p>
-                </a>
-
-                {/* EMPLOYMENT NEWS */}
-                <a
-                  href="https://employmentnews.gov.in/NewEmp/Home.aspx"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-xl border-l-4 border-purple-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
-                >
-                  <div className="mb-5 text-5xl text-purple-400">📰</div>
-                  <h3 className="text-xl font-black">Employment News</h3>
-                  <p className="mt-4 text-base text-slate-400">Official government source for job listings.</p>
-                </a>
-
-                {/* LATEST JOB UPDATES */}
-                <a
-                  href="https://sarkariresult.com.cm/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-xl border-l-4 border-pink-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
-                >
-                  <div className="mb-5 text-5xl text-pink-400">💼</div>
-                  <h3 className="text-xl font-black">Latest Job Updates</h3>
-                  <p className="mt-4 text-base text-slate-400">Latest government job updates from Sarkari Result.</p>
-                </a>
-
-                {/* UPSC PDF MATERIALS */}
-                <a
-                  href="https://www.pdfnotes.co/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-xl border-l-4 border-green-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
-                >
-                  <div className="mb-5 text-5xl text-green-400">📄</div>
-                  <h3 className="text-xl font-black">UPSC PDF Materials</h3>
-                  <p className="mt-4 text-base text-slate-400">Downloadable PDFs and study resources.</p>
-                </a>
-
-                {/* UPSC FORMS & DOWNLOADS */}
-                <a
-                  href="https://www.upsc.gov.in/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-xl border-l-4 border-yellow-400 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
-                >
-                  <div className="mb-5 text-5xl text-yellow-400">📋</div>
-                  <h3 className="text-xl font-black">UPSC Forms & Downloads</h3>
-                  <p className="mt-4 text-base text-slate-400">Official forms from the UPSC website.</p>
-                </a>
-
-                {/* INTERNET ARCHIVE */}
-                <a
-                  href="https://archive.org/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-xl border-l-4 border-indigo-500 bg-[#1e293b] p-7 shadow-xl transition duration-300 hover:-translate-y-1 hover:bg-[#263449]"
-                >
-                  <div className="mb-5 text-5xl text-indigo-400">🗃️</div>
-                  <h3 className="text-xl font-black">Internet Archive</h3>
-                  <p className="mt-4 text-base text-slate-400">A digital library of free books, movies, and more.</p>
-                </a>
+              <div className="hidden pr-1 sm:block text-left">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Direct WhatsApp</p>
+                <p className="text-xs font-black text-white">Anytime Inquiry</p>
               </div>
-            </div>
-          </section>
-
-          {/* ---> PUBLIC: FOOTER <--- */}
-          <Footer />
-
-          {/* FLOATING WHATSAPP INQUIRY BUTTON */}
-          <a
-            href="https://wa.me/9161310909?text=Hi%20Anytime%20Library%2C%20I%20want%20to%20know%20more%20about%20the%20library."
-            target="_blank"
-            rel="noopener noreferrer"
-            className="fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-2xl border border-emerald-400/30 bg-[#111827] px-4 py-3 shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:border-emerald-400/60 sm:bottom-6 sm:right-6"
-          >
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#25D366] shadow-lg">
-              <svg
-                viewBox="0 0 32 32"
-                className="h-7 w-7 fill-white"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path d="M16 3C8.83 3 3 8.83 3 16c0 2.3.6 4.55 1.74 6.53L3 29l6.67-1.7A12.94 12.94 0 0 0 16 29c7.17 0 13-5.83 13-13S23.17 3 16 3Zm0 23.64c-2.04 0-4.03-.55-5.77-1.59l-.41-.24-3.96 1.01 1.06-3.86-.27-.4A10.6 10.6 0 0 1 5.36 16C5.36 10.12 10.12 5.36 16 5.36S26.64 10.12 26.64 16 21.88 26.64 16 26.64Zm5.83-7.94c-.32-.16-1.89-.93-2.18-1.04-.29-.11-.5-.16-.71.16-.21.32-.82 1.04-1 1.25-.18.21-.37.24-.68.08-1.89-.94-3.13-1.68-4.38-3.81-.33-.57.33-.53.94-1.76.1-.21.05-.4-.03-.56-.08-.16-.71-1.71-.97-2.34-.26-.62-.52-.54-.71-.55h-.61c-.21 0-.55.08-.84.4-.29.32-1.1 1.08-1.1 2.63s1.13 3.05 1.29 3.26c.16.21 2.22 3.39 5.38 4.76.75.32 1.34.51 1.8.65.76.24 1.45.21 2 .13.61-.09 1.89-.77 2.15-1.52.27-.75.27-1.39.19-1.52-.08-.13-.29-.21-.61-.37Z" />
-              </svg>
-            </div>
-
-            <div className="hidden pr-1 sm:block">
-              <p className="text-[11px] font-medium text-slate-400">Need Help?</p>
-              <p className="text-sm font-semibold text-white">Message on WhatsApp</p>
-            </div>
-          </a>
+            </a>
+          </div>
 
         </div>
       )}
