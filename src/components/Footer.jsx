@@ -20,10 +20,10 @@ const Footer = () => {
 
           {/* Contact */}
           <div>
-            <h3 className="text-xl font-bold text-white mb-4 hover:text-green-400"> Avinash Singh <span className="text-gray-400 font-normal text-sm"> &</span> <span><a href="tel:+916392165271" className="hover:text-green-400 cursor-pointer"> Devam Patel</a></span></h3>
+            <h3 className="text-xl font-bold text-white mb-4 hover:text-green-400"> <span><a href="tel:+919219384600" className="hover:text-green-400 cursor-pointer"> Avinash Singh</a></span> <span className="text-gray-400 font-normal text-sm"> &</span> <span><a href="tel:+916392165271" className="hover:text-green-400 cursor-pointer"> Devam Patel</a></span></h3>
 
             <p className="mb-2 hover:text-yellow-400 cursor-pointer">📍 Rajamau Road, Near Anant Sherwani's & Dulha Ghar, Bachhrawan Raebareli</p>
-            <p className="mb-2 text-green-400 hover:text-green-400 cursor-pointer"><a href="tel:+919161340909">📞 +91 9161340909</a></p>
+            <p className="mb-2 text-green-400 hover:text-green-400 cursor-pointer"><a href="tel:+919161310909">📞 +91 9161310909</a></p>
             <p>🕒 6:00 AM - 10:00 PM</p>
             <p className="mb-2 hover:text-blue-400 cursor-pointer"> <a href="mailto:anytimelibraries@gmail.com">📧 anytimelibraries@gmail.com</a> </p>
           </div>
