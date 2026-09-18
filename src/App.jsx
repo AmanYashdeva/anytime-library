@@ -249,6 +249,7 @@ export default function App() {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [transferShift, setTransferShift] = useState("");
   const [targetSeatId, setTargetSeatId] = useState("");
+  const [targetShift, setTargetShift] = useState("");
 
 
   const uploadSeatsToFirebase = async () => {
@@ -671,66 +672,127 @@ export default function App() {
   // =====================================================
   // 🔄 ONE-CLICK SEAT TRANSFER FUNCTION
   // =====================================================
-  const handleSeatTransfer = async (fromSeatId, toSeatId, shiftType) => {
-    if (!fromSeatId || !toSeatId || !shiftType) {
-      alert("Kripya transfer ke liye shift aur nayi seat dono select karein.");
+  // =====================================================
+  // 🔄 SMART TRANSFER & SWAP (Cross-Shift + Auto Exchange)
+  // =====================================================
+  const handleSeatTransfer = async (fromSeatId, toSeatId, fromShiftType, toShiftType) => {
+    if (!fromSeatId || !toSeatId || !fromShiftType || !toShiftType) {
+      alert("Kripya source shift, target seat aur target shift teeno select karein.");
       return;
     }
 
     const fromSeat = seats.find((s) => s.id === Number(fromSeatId));
     const toSeat = seats.find((s) => s.id === Number(toSeatId));
-
     if (!fromSeat || !toSeat) return;
 
-    // Saari shifts ke field mapping
-    const fieldMap = {
-      Morning: ["morningStudent", "morningPhone", "morningEmail", "morningFrom", "morningTo", "morningPayment", "morningAmount"],
-      Afternoon: ["afternoonStudent", "afternoonPhone", "afternoonEmail", "afternoonFrom", "afternoonTo", "afternoonPayment", "afternoonAmount"],
-      Night: ["nightStudent", "nightPhone", "nightEmail", "nightFrom", "nightTo", "nightPayment", "nightAmount"],
-      "Full Day": ["fullDayStudent", "fullDayPhone", "fullDayEmail", "fullDayFrom", "fullDayTo", "fullDayPayment", "fullDayAmount"],
-      "24 Hours": ["nightStudent", "nightPhone", "nightEmail", "nightFrom", "nightTo", "nightPayment", "nightAmount"],
+    const shiftMap = {
+      Morning: { student: "morningStudent", phone: "morningPhone", email: "morningEmail", from: "morningFrom", to: "morningTo", payment: "morningPayment", amount: "morningAmount" },
+      Afternoon: { student: "afternoonStudent", phone: "afternoonPhone", email: "afternoonEmail", from: "afternoonFrom", to: "afternoonTo", payment: "afternoonPayment", amount: "afternoonAmount" },
+      Night: { student: "nightStudent", phone: "nightPhone", email: "nightEmail", from: "nightFrom", to: "nightTo", payment: "nightPayment", amount: "nightAmount" },
+      "Full Day": { student: "fullDayStudent", phone: "fullDayPhone", email: "fullDayEmail", from: "fullDayFrom", to: "fullDayTo", payment: "fullDayPayment", amount: "fullDayAmount" },
+      "24 Hours": { student: "nightStudent", phone: "nightPhone", email: "nightEmail", from: "nightFrom", to: "nightTo", payment: "nightPayment", amount: "nightAmount" },
     };
 
-    const fields = fieldMap[shiftType];
-    if (!fields) return;
+    const fromFields = shiftMap[fromShiftType];
+    const toFields = shiftMap[toShiftType];
+    if (!fromFields || !toFields) return;
 
-    const updatedToSeat = { ...toSeat };
-    const updatedFromSeat = { ...fromSeat };
+    const isOccupied = !!toSeat[toFields.student];
+    const targetStudentName = toSeat[toFields.student];
 
-    // 1. Data nayi seat par shift karna
-    fields.forEach((field) => {
-      updatedToSeat[field] = fromSeat[field] || "";
-    });
+    let updatedFromSeat = { ...fromSeat };
+    let updatedToSeat = { ...toSeat };
 
-    // Agar nayi seat Available thi toh uska status set karna
-    if (updatedToSeat.status === "Available") {
-      updatedToSeat.status = fromSeat.status;
-      updatedToSeat.timing = fromSeat.timing;
-    }
+    if (isOccupied) {
+      // ==========================================
+      // 🔄 CASE 1: SWAP (Dono Students Aapas Me Badalna)
+      // ==========================================
+      const tempFromData = {
+        student: fromSeat[fromFields.student] || "",
+        phone: fromSeat[fromFields.phone] || "",
+        email: fromSeat[fromFields.email] || "",
+        from: fromSeat[fromFields.from] || "",
+        to: fromSeat[fromFields.to] || "",
+        payment: fromSeat[fromFields.payment] || "Available",
+        amount: fromSeat[fromFields.amount] || "",
+      };
 
-    // 2. Purani seat se student details clear karna
-    fields.forEach((field) => {
-      if (field.toLowerCase().includes("payment")) {
-        updatedFromSeat[field] = "Available";
-      } else {
-        updatedFromSeat[field] = "";
+      const tempToData = {
+        student: toSeat[toFields.student] || "",
+        phone: toSeat[toFields.phone] || "",
+        email: toSeat[toFields.email] || "",
+        from: toFields.from ? toSeat[toFields.from] || "" : "",
+        to: toFields.to ? toSeat[toFields.to] || "" : "",
+        payment: toSeat[toFields.payment] || "Available",
+        amount: toSeat[toFields.amount] || "",
+      };
+
+      // ToSeat me FromSeat ka student daalein
+      updatedToSeat[toFields.student] = tempFromData.student;
+      updatedToSeat[toFields.phone] = tempFromData.phone;
+      updatedToSeat[toFields.email] = tempFromData.email;
+      updatedToSeat[toFields.from] = tempFromData.from;
+      updatedToSeat[toFields.to] = tempFromData.to;
+      updatedToSeat[toFields.payment] = tempFromData.payment;
+      updatedToSeat[toFields.amount] = tempFromData.amount;
+
+      // FromSeat me ToSeat ka student daalein
+      updatedFromSeat[fromFields.student] = tempToData.student;
+      updatedFromSeat[fromFields.phone] = tempToData.phone;
+      updatedFromSeat[fromFields.email] = tempToData.email;
+      updatedFromSeat[fromFields.from] = tempToData.from;
+      updatedFromSeat[fromFields.to] = tempToData.to;
+      updatedFromSeat[fromFields.payment] = tempToData.payment;
+      updatedFromSeat[fromFields.amount] = tempToData.amount;
+    } else {
+      // ==========================================
+      // 🚀 CASE 2: DIRECT TRANSFER (Khali Slot Par Bhejna)
+      // ==========================================
+      updatedToSeat[toFields.student] = fromSeat[fromFields.student] || "";
+      updatedToSeat[toFields.phone] = fromSeat[fromFields.phone] || "";
+      updatedToSeat[toFields.email] = fromSeat[fromFields.email] || "";
+      updatedToSeat[toFields.from] = fromSeat[fromFields.from] || "";
+      updatedToSeat[toFields.to] = fromSeat[fromFields.to] || "";
+      updatedToSeat[toFields.payment] = fromSeat[fromFields.payment] || "Submitted";
+      updatedToSeat[toFields.amount] = fromSeat[fromFields.amount] || "";
+
+      // Nayi seat ka main status auto-set karein agar wo Available thi
+      if (updatedToSeat.status === "Available") {
+        if (toShiftType === "Full Day") {
+          updatedToSeat.status = "Full Day";
+          updatedToSeat.timing = "8 AM - 8 PM";
+        } else if (toShiftType === "24 Hours") {
+          updatedToSeat.status = "24 Hours";
+          updatedToSeat.timing = "24 Hours";
+        } else {
+          updatedToSeat.status = "Half Day";
+        }
       }
-    });
 
-    // Agar purani seat par koi dusra student nahi bacha toh use Available mark karna
-    const hasRemainingStudents = [
-      updatedFromSeat.morningStudent,
-      updatedFromSeat.afternoonStudent,
-      updatedFromSeat.nightStudent,
-      updatedFromSeat.fullDayStudent,
-    ].some(Boolean);
+      // Purani seat ki shift ko clear karein
+      updatedFromSeat[fromFields.student] = "";
+      updatedFromSeat[fromFields.phone] = "";
+      updatedFromSeat[fromFields.email] = "";
+      updatedFromSeat[fromFields.from] = "";
+      updatedFromSeat[fromFields.to] = "";
+      updatedFromSeat[fromFields.payment] = "Available";
+      updatedFromSeat[fromFields.amount] = "";
 
-    if (!hasRemainingStudents) {
-      updatedFromSeat.status = "Available";
-      updatedFromSeat.timing = "Available";
+      // Check karein purani seat par koi aur student bacha hai ya nahi
+      const hasStudents = [
+        updatedFromSeat.morningStudent,
+        updatedFromSeat.afternoonStudent,
+        updatedFromSeat.nightStudent,
+        updatedFromSeat.fullDayStudent,
+      ].some(Boolean);
+
+      if (!hasStudents) {
+        updatedFromSeat.status = "Available";
+        updatedFromSeat.timing = "Available";
+      }
     }
 
-    // 3. React State Update
+    // State Update
     setSeats((prev) =>
       prev.map((s) => {
         if (s.id === fromSeat.id) return updatedFromSeat;
@@ -738,20 +800,22 @@ export default function App() {
         return s;
       })
     );
-
     setSelectedSeat(updatedToSeat);
 
-    // 4. Firebase me dono seats update karna
+    // Firebase Update
     try {
       await setDoc(doc(db, "bookings", `seat-${fromSeat.id}`), updatedFromSeat);
       await setDoc(doc(db, "bookings", `seat-${toSeat.id}`), updatedToSeat);
-      alert(`Student Seat ${fromSeat.id} se Seat ${toSeat.id} (${shiftType}) par successfully transfer ho gaya!`);
+      if (isOccupied) {
+        alert(`🔄 SWAP SUCCESS!\n${fromSeat[fromFields.student]} (Seat ${fromSeat.id}) ⇄ ${targetStudentName} (Seat ${toSeat.id}) aapas me badal gaye.`);
+      } else {
+        alert(`✅ TRANSFER SUCCESS!\nStudent Seat ${fromSeat.id} (${fromShiftType}) se Seat ${toSeat.id} (${toShiftType}) par successfully move ho gaya.`);
+      }
     } catch (error) {
       console.error("Transfer Error:", error);
       alert("Firebase update me problem aayi.");
     }
   };
-
   // =====================================================
   // ⚡ 1-CLICK RENEW NEXT 30 DAYS FUNCTION
   // =====================================================
@@ -1605,6 +1669,24 @@ export default function App() {
                       }}
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2 mt-3"
                     >
+                      {() => {
+                        setTargetSeatId("");
+                        let defaultShift = "Morning";
+                        if (selectedSeat.status === "24 Hours") {
+                          defaultShift = "24 Hours";
+                        } else if (selectedSeat.status === "Full Day") {
+                          defaultShift = selectedSeat.fullDayStudent ? "Full Day" : "Night";
+                        } else {
+                          defaultShift = selectedSeat.morningStudent
+                            ? "Morning"
+                            : selectedSeat.afternoonStudent
+                              ? "Afternoon"
+                              : "Night";
+                        }
+                        setTransferShift(defaultShift);
+                        setTargetShift(defaultShift); // <-- Target shift by-default same set karega
+                        setShowTransferModal(true);
+                      }}
                       🔄 TRANSFER THIS SEAT / SHIFT
                     </button>
 
@@ -1686,6 +1768,15 @@ export default function App() {
                         </div>
                       ) : selectedSeat.status !== 'Available' ? (
                         <div className="p-4 bg-[#1e293b]/50 space-y-4">
+                          {/* 🌞 FULL DAY STUDENT (Mahzabi yahan se dikhegi) */}
+                          {selectedSeat.fullDayStudent && (
+                            <div>
+                              <p className="text-sm">🌞 {selectedSeat.fullDayStudent} <span className="text-xs text-gray-400">({selectedSeat.fullDayPayment || "Pending"})</span></p>
+                              <p className="text-[10px] text-gray-400 mt-1 ml-5 flex items-center gap-1">
+                                <CalendarIcon className="w-3 h-3" /> {selectedSeat.fullDayFrom} → {selectedSeat.fullDayTo}
+                              </p>
+                            </div>
+                          )}
                           {selectedSeat.morningStudent && (
                             <div>
                               <p className="text-sm">🌅 {selectedSeat.morningStudent} <span className="text-xs text-gray-400">({selectedSeat.morningPayment})</span></p>
@@ -1730,9 +1821,10 @@ export default function App() {
             )}
 
             {/* ---> SEAT TRANSFER MODAL POPUP <--- */}
+            {/* ---> SEAT TRANSFER & SWAP MODAL POPUP <--- */}
             {showTransferModal && selectedSeat && (
-              <div className="fixed inset-0 z-[250] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl relative border border-gray-100">
+              <div className="fixed inset-0 z-[250] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl max-w-lg w-full p-7 shadow-2xl relative border border-gray-100">
 
                   <button
                     type="button"
@@ -1743,88 +1835,125 @@ export default function App() {
                   </button>
 
                   <h3 className="text-xl font-black text-gray-900 mb-1">
-                    Transfer Seat {selectedSeat.id}
+                    Transfer / Swap Seat {selectedSeat.id}
                   </h3>
-                  <p className="text-xs text-gray-500 mb-5">
-                    Student ka sara data (Name, Phone, Dates, Fees status) nayi seat par move ho jayega.
-                  </p>
+                  
 
                   {/* 1. Kaunsi Shift Move Karni Hai */}
                   <div className="mb-4">
-                    <label className="text-xs font-bold text-gray-600 block mb-1">
-                      Select Shift to Move
+                    <label className="text-xs font-bold text-gray-700 block mb-1">
+                      1. Student to Move (From Seat {selectedSeat.id})
                     </label>
                     <select
                       value={transferShift}
-                      onChange={(e) => setTransferShift(e.target.value)}
+                      onChange={(e) => {
+                        setTransferShift(e.target.value);
+                        setTargetShift(e.target.value);
+                      }}
                       className="w-full border border-gray-200 rounded-xl p-3 text-sm bg-gray-50 outline-none focus:border-blue-500 font-semibold cursor-pointer"
                     >
                       {selectedSeat.status === "Half Day" && (
                         <>
                           {selectedSeat.morningStudent && (
-                            <option value="Morning">Morning — {selectedSeat.morningStudent}</option>
+                            <option value="Morning">🌅 Morning — {selectedSeat.morningStudent}</option>
                           )}
                           {selectedSeat.afternoonStudent && (
-                            <option value="Afternoon">Afternoon — {selectedSeat.afternoonStudent}</option>
+                            <option value="Afternoon">☀️ Afternoon — {selectedSeat.afternoonStudent}</option>
                           )}
                           {selectedSeat.nightStudent && (
-                            <option value="Night">Night — {selectedSeat.nightStudent}</option>
+                            <option value="Night">🌙 Night — {selectedSeat.nightStudent}</option>
                           )}
                         </>
                       )}
-
                       {selectedSeat.status === "Full Day" && (
                         <>
                           {selectedSeat.fullDayStudent && (
-                            <option value="Full Day">Full Day — {selectedSeat.fullDayStudent}</option>
+                            <option value="Full Day">🌞 Full Day — {selectedSeat.fullDayStudent}</option>
                           )}
                           {selectedSeat.nightStudent && (
-                            <option value="Night">Night — {selectedSeat.nightStudent}</option>
+                            <option value="Night">🌙 Night — {selectedSeat.nightStudent}</option>
                           )}
                         </>
                       )}
-
                       {selectedSeat.status === "24 Hours" && (
-                        <option value="24 Hours">24 Hours — {selectedSeat.nightStudent}</option>
+                        <option value="24 Hours">🔒 24 Hours — {selectedSeat.nightStudent}</option>
                       )}
                     </select>
                   </div>
 
-                  {/* 2. Nayi Seat Select Karna */}
-                  <div className="mb-6">
-                    <label className="text-xs font-bold text-gray-600 block mb-1">
-                      Select Target Seat (Only Available Seats)
-                    </label>
-                    <select
-                      value={targetSeatId}
-                      onChange={(e) => setTargetSeatId(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl p-3 text-sm bg-gray-50 outline-none focus:border-blue-500 font-semibold cursor-pointer"
-                    >
-                      <option value="">-- Choose Target Seat --</option>
-                      {seats
-                        .filter((s) => s.id !== selectedSeat.id && s.status === "Available")
-                        .map((s) => (
-                          <option key={s.id} value={s.id}>
-                            Seat {s.id} (Available)
-                          </option>
-                        ))}
-                    </select>
+                  {/* 2. Target Seat Select Karna (All Seats Available) */}
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div>
+                      <label className="text-xs font-bold text-gray-700 block mb-1">
+                        2. Target Seat
+                      </label>
+                      <select
+                        value={targetSeatId}
+                        onChange={(e) => setTargetSeatId(e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl p-3 text-sm bg-gray-50 outline-none focus:border-blue-500 font-semibold cursor-pointer"
+                      >
+                        <option value="">-- Choose Seat --</option>
+                        {seats
+                          .filter((s) => s.id !== selectedSeat.id)
+                          .map((s) => (
+                            <option key={s.id} value={s.id}>
+                              Seat {s.id} ({s.status})
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+
+                    {/* 3. Target Shift Select Karna (Cross-Shift) */}
+                    <div>
+                      <label className="text-xs font-bold text-gray-700 block mb-1">
+                        3. Target Shift
+                      </label>
+                      <select
+                        value={targetShift}
+                        onChange={(e) => setTargetShift(e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl p-3 text-sm bg-gray-50 outline-none focus:border-blue-500 font-semibold cursor-pointer"
+                      >
+                        <option value="Morning">🌅 Morning Shift</option>
+                        <option value="Afternoon">☀️ Afternoon Shift</option>
+                        <option value="Night">🌙 Night Shift</option>
+                        <option value="Full Day">🌞 Full Day Shift</option>
+                        <option value="24 Hours">🔒 24 Hours Plan</option>
+                      </select>
+                    </div>
                   </div>
 
-                  {/* 3. Confirm Button */}
+                  {/* Live Status Indicator (Transfer vs Swap Detection) */}
+                  {targetSeatId && targetShift && (() => {
+                    const tSeat = seats.find((s) => s.id === Number(targetSeatId));
+                    if (!tSeat) return null;
+                    const keyMap = { Morning: "morningStudent", Afternoon: "afternoonStudent", Night: "nightStudent", "Full Day": "fullDayStudent", "24 Hours": "nightStudent" };
+                    const occupant = tSeat[keyMap[targetShift]];
+
+                    return (
+                      <div className={`p-3 rounded-xl border text-xs font-semibold mb-5 ${occupant ? "bg-amber-50 text-amber-900 border-amber-200" : "bg-emerald-50 text-emerald-900 border-emerald-200"}`}>
+                        {occupant ? (
+                          <p>🔄 <b>SWAP MODE:</b> Seat {targetSeatId} ({targetShift}) par pehle se <b>{occupant}</b> hain. Dono students aapas me badal jayenge.</p>
+                        ) : (
+                          <p>🟢 <b>TRANSFER MODE:</b> Seat {targetSeatId} ({targetShift}) khali hai. Student direct move ho jayega.</p>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Confirm Action Button */}
                   <button
                     type="button"
                     onClick={async () => {
                       if (!targetSeatId) {
-                        alert("Kripya nayi seat select karein.");
+                        alert("Kripya target seat select karein.");
                         return;
                       }
-                      await handleSeatTransfer(selectedSeat.id, targetSeatId, transferShift);
+                      await handleSeatTransfer(selectedSeat.id, targetSeatId, transferShift, targetShift);
                       setShowTransferModal(false);
                     }}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all text-sm"
                   >
-                    Confirm & Transfer Instantly
+                    Confirm & Execute
                   </button>
 
                 </div>
