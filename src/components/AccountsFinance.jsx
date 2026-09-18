@@ -9,18 +9,30 @@ import {
   setDoc,
 } from "firebase/firestore";
 
-const AccountsFinance = ({ seats = [] }) => {
+const AccountsFinance = ({
+  seats = [],
+  selectedMonth: propMonth,
+  setSelectedMonth: propSetMonth,
+  selectedYear: propYear,
+  setSelectedYear: propSetYear,
+}) => {
   const visibleSeats = seats.filter((seat) => seat.isVisible !== false);
 
   // ==========================================
-  // 📅 1. DATE & MONTH SELECTOR
+  // 📅 1. DATE & MONTH SELECTOR (SYNCED WITH DASHBOARD)
   // ==========================================
   const today = new Date();
   const currentMonthIndex = today.getMonth();
   const currentYear = today.getFullYear();
 
-  const [selectedMonth, setSelectedMonth] = useState(currentMonthIndex);
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [localMonth, setLocalMonth] = useState(currentMonthIndex);
+  const [localYear, setLocalYear] = useState(currentYear);
+
+  // Agar Dashboard se month/year aayega to wo use hoga, warna local state
+  const selectedMonth = propMonth !== undefined ? propMonth : localMonth;
+  const setSelectedMonth = propSetMonth || setLocalMonth;
+  const selectedYear = propYear !== undefined ? propYear : localYear;
+  const setSelectedYear = propSetYear || setLocalYear;
 
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
@@ -223,7 +235,7 @@ const AccountsFinance = ({ seats = [] }) => {
     { label: "Expenses Deducted", value: totalExpensesLogged, color: "#f43f5e", type: "outflow" },
   ].filter((item) => item.value > 0);
 
-  // 2. ALL HEADS: Full Year Breakdown (e.g. 2026, 2027)
+  // 2. ALL HEADS: Full Year Breakdown
   const annualCategoryTotals = {};
   currentYearExpenses.forEach((e) => {
     const cat = e.category || "General / Miscellaneous";
@@ -314,7 +326,7 @@ const AccountsFinance = ({ seats = [] }) => {
   }, []);
 
   // =========================================================================
-  // ⚡ 100% AUTOMATIC PAST YEAR ARCHIVING (No manual button click needed)
+  // ⚡ 100% AUTOMATIC PAST YEAR ARCHIVING
   // =========================================================================
   useEffect(() => {
     if (allCollections.length === 0 && expensesList.length === 0) return;
@@ -629,7 +641,7 @@ const AccountsFinance = ({ seats = [] }) => {
                 </h3>
               </div>
 
-              {/* Clean View Toggle: Monthly Flow vs Full Year All Heads */}
+              {/* Clean View Toggle */}
               <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800 self-start sm:self-auto">
                 <button
                   type="button"
@@ -641,7 +653,7 @@ const AccountsFinance = ({ seats = [] }) => {
                     pieMode === "flow" ? "bg-amber-400 text-slate-950 shadow-sm" : "text-slate-400 hover:text-white"
                   }`}
                 >
-                  Montly ({monthNames[selectedMonth]})
+                  Combined Flow (Month)
                 </button>
                 <button
                   type="button"
@@ -653,7 +665,7 @@ const AccountsFinance = ({ seats = [] }) => {
                     pieMode === "detailed" ? "bg-amber-400 text-slate-950 shadow-sm" : "text-slate-400 hover:text-white"
                   }`}
                 >
-                  Annual ({selectedYear})
+                  All Heads ({selectedYear})
                 </button>
               </div>
             </div>
@@ -786,7 +798,7 @@ const AccountsFinance = ({ seats = [] }) => {
 
               <div className="p-3.5 rounded-2xl bg-[#080d16] border border-sky-500/20 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sm">📱</span>
+                  <span className="w-8 h-8 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-lg">📱</span>
                   <div>
                     <span className="text-xs font-bold text-white block">Online UPI</span>
                     <span className="text-[10px] text-slate-400 font-mono">{onlinePercent}% of total revenue</span>
@@ -1229,7 +1241,7 @@ const AccountsFinance = ({ seats = [] }) => {
           </div>
         </div>
 
-        {/* Previous Years Archive (Automatically Populated When Year Changes) */}
+        {/* Previous Years Archive */}
         {archivedYears.filter((y) => Number(y.year) !== currentYear).length > 0 && (
           <div className="space-y-2 pt-1">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
