@@ -393,38 +393,40 @@ export default function App() {
   };
 
   // ============================================================================
-  // 📍 6. UPDATE SEAT LOGIC
+  // 📍 6. UPDATE SEAT LOGIC (FIXED: CLEAR SHIFTS WHEN STATUS IS AVAILABLE)
   // ============================================================================
   const updateSeat = (field, value) => {
     if (!selectedSeat) return;
 
+    if (field === 'status' && value === 'Available') {
+      const clearedSeat = {
+        ...selectedSeat,
+        status: 'Available',
+        timing: 'Available',
+        morningStudent: '', afternoonStudent: '', nightStudent: '', fullDayStudent: '',
+        morningPhone: '', afternoonPhone: '', nightPhone: '', fullDayPhone: '',
+        morningEmail: '', afternoonEmail: '', nightEmail: '', fullDayEmail: '',
+        morningAddress: '', afternoonAddress: '', nightAddress: '', fullDayAddress: '',
+        morningPayment: '', afternoonPayment: '', nightPayment: '', fullDayPayment: '',
+        morningPaymentMode: '', afternoonPaymentMode: '', nightPaymentMode: '', fullDayPaymentMode: '',
+        morningFrom: '', morningTo: '', afternoonFrom: '', afternoonTo: '', nightFrom: '', nightTo: '',
+        fromDate: '', toDate: '', phone: '', email: '', amount: '', morningAmount: '', afternoonAmount: '', nightAmount: '', fullDayAmount: ''
+      };
+
+      setSeats((prev) =>
+        prev.map((seat) => (seat.id === selectedSeat.id ? clearedSeat : seat))
+      );
+      setSelectedSeat(clearedSeat);
+      setTimeout(() => saveSeatToFirebase(clearedSeat), 100);
+      return;
+    }
+
     if (field === 'status') {
-      if (value === 'Available') {
-        const clearedSeat = {
-          status: 'Available',
-          timing: 'Available',
-          morningStudent: '', afternoonStudent: '', nightStudent: '', fullDayStudent: '',
-          morningPayment: '', afternoonPayment: '', nightPayment: '', fullDayPayment: '',
-          morningPaymentMode: '', afternoonPaymentMode: '', nightPaymentMode: '', fullDayPaymentMode: '',
-          morningAddress: '', afternoonAddress: '', nightAddress: '', fullDayAddress: '',
-          morningFrom: '', morningTo: '', afternoonFrom: '', afternoonTo: '', nightFrom: '', nightTo: '',
-          fromDate: '', toDate: '', phone: '', email: '',
-        };
-
-        const updatedSeat = { ...selectedSeat, ...clearedSeat };
-
-        setSeats((prev) =>
-          prev.map((seat) => (seat.id === selectedSeat.id ? { ...seat, ...clearedSeat } : seat))
-        );
-        setSelectedSeat(updatedSeat);
-        setTimeout(() => saveSeatToFirebase(updatedSeat), 100);
-        return;
-      }
-
       const is24Hr = value === '24 Hours';
       const isFullDay = value === 'Full Day';
 
       const newStatusUpdates = {
+        ...selectedSeat,
         status: value,
         timing: is24Hr ? '24 Hours' : isFullDay ? '8 AM - 8 PM' : selectedSeat.timing,
         morningStudent: is24Hr ? '' : (selectedSeat.morningStudent || ''),
@@ -438,9 +440,9 @@ export default function App() {
       };
 
       setSeats((prev) =>
-        prev.map((seat) => (seat.id === selectedSeat.id ? { ...seat, ...newStatusUpdates } : seat))
+        prev.map((seat) => (seat.id === selectedSeat.id ? newStatusUpdates : seat))
       );
-      setSelectedSeat((prev) => ({ ...prev, ...newStatusUpdates }));
+      setSelectedSeat(newStatusUpdates);
       return;
     }
 
@@ -461,9 +463,23 @@ export default function App() {
       }
     }
 
-    setSeats((prev) => prev.map((seat) => (seat.id === selectedSeat.id ? { ...seat, ...autoUpdates } : seat)));
-    setSelectedSeat((prev) => ({ ...prev, ...autoUpdates }));
-    setTimeout(() => saveSeatToFirebase(), 100);
+    // FIX: Agar Fees Status ko "Available" kiya jaye, toh us specific shift ka data bhi clear kar do
+    if (field.endsWith("Payment") && value === "Available") {
+      const prefix = field.replace("Payment", "");
+      autoUpdates[`${prefix}Student`] = "";
+      autoUpdates[`${prefix}Phone`] = "";
+      autoUpdates[`${prefix}Email`] = "";
+      autoUpdates[`${prefix}Address`] = "";
+      autoUpdates[`${prefix}Amount`] = "";
+      autoUpdates[`${prefix}From`] = "";
+      autoUpdates[`${prefix}To`] = "";
+      autoUpdates[`${prefix}PaymentMode`] = "";
+    }
+
+    const nextSeatState = { ...selectedSeat, ...autoUpdates };
+    setSeats((prev) => prev.map((seat) => (seat.id === selectedSeat.id ? nextSeatState : seat)));
+    setSelectedSeat(nextSeatState);
+    setTimeout(() => saveSeatToFirebase(nextSeatState), 100);
   };
 
   const toggleSeatVisibility = async (seatId) => {
@@ -828,42 +844,42 @@ Warm regards,
   };
 
   // =========================================================================
-  // ⚡ 7. SAVE SEAT & PERMANENT FEE HISTORY ARCHIVE ENGINE (NEVER-LOST RECORD)
+  // ⚡ 7. SAVE SEAT & PERMANENT FEE HISTORY ARCHIVE ENGINE (ROBUST & ERROR-FREE)
   // =========================================================================
   const saveSeatToFirebase = async (seatToSave = selectedSeat) => {
-    if (!seatToSave) return;
+    if (!seatToSave || !seatToSave.id) return;
     try {
-      // 1. Save live seat status
+      const cleanData = JSON.parse(JSON.stringify(seatToSave));
+
       await setDoc(
-        doc(db, "bookings", `seat-${seatToSave.id}`),
-        seatToSave
+        doc(db, "bookings", `seat-${cleanData.id}`),
+        cleanData
       );
 
-      // 2. Permanently lock every submitted fee into 'fee_history' collection
       const shifts = ["morning", "afternoon", "night", "fullDay"];
       for (const p of shifts) {
-        if (seatToSave[`${p}Payment`] === "Submitted" && seatToSave[`${p}Student`]) {
-          const sName = seatToSave[`${p}Student`];
-          const amt = Number(seatToSave[`${p}Amount`]) || 0;
-          const pDate = seatToSave[`${p}PaidDate`] || seatToSave[`${p}From`] || new Date().toISOString().split("T")[0];
+        if (cleanData[`${p}Payment`] === "Submitted" && cleanData[`${p}Student`]) {
+          const sName = cleanData[`${p}Student`];
+          const amt = Number(cleanData[`${p}Amount`]) || 0;
+          const pDate = cleanData[`${p}PaidDate`] || cleanData[`${p}From`] || new Date().toISOString().split("T")[0];
 
-          const historyDocId = `${seatToSave.id}-${p}-${pDate}-${sName.trim().replace(/\s+/g, '_')}`;
+          const historyDocId = `${cleanData.id}-${p}-${pDate}-${sName.trim().replace(/\s+/g, '_')}`;
 
           await setDoc(
             doc(db, "fee_history", historyDocId),
             {
-              seatId: seatToSave.id,
-              plan: seatToSave.status === "24 Hours" ? "24 Hours" : `${p.charAt(0).toUpperCase() + p.slice(1)} Shift`,
+              seatId: cleanData.id,
+              plan: cleanData.status === "24 Hours" ? "24 Hours" : `${p.charAt(0).toUpperCase() + p.slice(1)} Shift`,
               studentName: sName,
-              phone: seatToSave[`${p}Phone`] || "",
-              email: seatToSave[`${p}Email`] || "",
-              address: seatToSave[`${p}Address`] || "",
+              phone: cleanData[`${p}Phone`] || "",
+              email: cleanData[`${p}Email`] || "",
+              address: cleanData[`${p}Address`] || "",
               amount: amt,
               paidDate: pDate,
-              fromDate: seatToSave[`${p}From`] || "",
-              toDate: seatToSave[`${p}To`] || "",
-              paymentMode: seatToSave[`${p}PaymentMode`] || "Cash",
-              entryType: seatToSave[`${p}EntryType`] || "New Admission",
+              fromDate: cleanData[`${p}From`] || "",
+              toDate: cleanData[`${p}To`] || "",
+              paymentMode: cleanData[`${p}PaymentMode`] || "Cash",
+              entryType: cleanData[`${p}EntryType`] || "New Admission",
               status: "Submitted",
               archivedAt: Date.now(),
             },
@@ -874,8 +890,8 @@ Warm regards,
 
       console.log("Saved and permanent fee history updated successfully");
     } catch (error) {
-      console.log(error);
-      alert("Error saving data");
+      console.error("Firebase save error:", error);
+      alert("Error saving data to Firebase. Please check console.");
     }
   };
 
