@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { db } from "../firebase";
+import { collection, doc, updateDoc, deleteDoc, onSnapshot } from "firebase/firestore";
 
 // =====================================================
 // 🔒 LOCKER SEAT NUMBERS
@@ -97,6 +99,52 @@ const Dashboard = ({ seats = [], onToggleSeatVisibility, onNavigateToAccounts })
   const [showSeatMapModal, setShowSeatMapModal] = useState(false);
   // State for highlighting pending section on jump
   const [highlightPending, setHighlightPending] = useState(false);
+
+  // =====================================================
+  // ⭐ REAL-TIME REVIEWS & TESTIMONIALS STATE
+  // =====================================================
+  const [dashboardFeedbacks, setDashboardFeedbacks] = useState([]);
+
+  useEffect(() => {
+    try {
+      const feedbackRef = collection(db, "feedbacks");
+      const unsubscribe = onSnapshot(feedbackRef, (snapshot) => {
+        const list = [];
+        snapshot.forEach((docSnap) => {
+          list.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        // Sort newest first
+        list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        setDashboardFeedbacks(list);
+      });
+
+      return () => unsubscribe();
+    } catch (err) {
+      console.error("Feedback fetch error:", err);
+    }
+  }, []);
+
+  const handleToggleFeedbackLive = async (feedbackId, currentStatus) => {
+    try {
+      const fbRef = doc(db, "feedbacks", feedbackId);
+      await updateDoc(fbRef, { isApproved: !currentStatus });
+    } catch (err) {
+      console.error("Toggle live error:", err);
+      alert("Status update karne me problem aayi.");
+    }
+  };
+
+  const handleDeleteFeedback = async (feedbackId) => {
+    if (!window.confirm("Kya aap is review ko hamesha ke liye delete karna chahte hain?")) {
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, "feedbacks", feedbackId));
+    } catch (err) {
+      console.error("Delete review error:", err);
+      alert("Review delete karne me error aayi.");
+    }
+  };
 
   // =====================================================
   // VISIBLE SEATS
@@ -900,6 +948,114 @@ Warm regards,
                 </div>
               </div>
             ))
+          )}
+        </div>
+      </div>
+
+      {/* =========================================================
+          ⭐ STUDENT REVIEWS & TESTIMONIALS MODERATION SECTION
+      ========================================================= */}
+      <div className="overflow-hidden rounded-3xl border border-slate-800 bg-[#0b1120] shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-800 p-5 bg-gradient-to-r from-[#0b1220] via-[#111827] to-[#0b1220]">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-amber-400 text-lg">⭐</span>
+              <h3 className="font-black text-white text-base tracking-tight">
+                Student Feedback &amp; Reviews Moderation
+              </h3>
+            </div>
+            <p className="mt-0.5 text-xs text-slate-400">
+              Control which reviews are live on the public website homepage.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 font-mono text-xs">
+            <span className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-1 font-bold text-slate-300">
+              Total: {dashboardFeedbacks.length}
+            </span>
+            <span className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 font-black text-emerald-400">
+              Live: {dashboardFeedbacks.filter((f) => f.isApproved).length}
+            </span>
+            <span className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1 font-black text-amber-400">
+              Pending: {dashboardFeedbacks.filter((f) => !f.isApproved).length}
+            </span>
+          </div>
+        </div>
+
+        <div className="p-5">
+          {dashboardFeedbacks.length === 0 ? (
+            <div className="p-12 text-center text-slate-500 bg-[#080d16] rounded-2xl border border-slate-800/80">
+              <div className="text-3xl mb-2 opacity-60">📝</div>
+              <p className="text-xs font-bold text-slate-400">
+                No student reviews submitted yet.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {dashboardFeedbacks.map((fb) => (
+                <div
+                  key={fb.id}
+                  className={`flex flex-col justify-between rounded-2xl p-4.5 border transition-all duration-300 ${
+                    fb.isApproved
+                      ? "bg-[#080d16] border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.1)]"
+                      : "bg-[#080d16] border-amber-500/30"
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="font-bold text-white text-sm leading-tight">
+                          {fb.name}
+                        </h4>
+                        <div className="text-amber-400 text-xs mt-1">
+                          {"★".repeat(Number(fb.rating || 5))}
+                          <span className="text-slate-600 ml-1 font-mono text-[11px]">
+                            ({fb.rating}/5)
+                          </span>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border ${
+                          fb.isApproved
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                            : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                        }`}
+                      >
+                        {fb.isApproved ? "Live" : "Hidden"}
+                      </span>
+                    </div>
+
+                    <p className="mt-3 text-xs text-slate-300 leading-relaxed italic bg-slate-900/60 p-3 rounded-xl border border-slate-800/80">
+                      "{fb.text}"
+                    </p>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleFeedbackLive(fb.id, fb.isApproved)}
+                      className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition ${
+                        fb.isApproved
+                          ? "bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/30"
+                          : "bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/30"
+                      }`}
+                    >
+                      {fb.isApproved ? "✕ Hide From Site" : "✓ Make Live"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteFeedback(fb.id)}
+                      className="p-1.5 px-2.5 rounded-xl text-xs font-bold text-rose-400 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/20 transition"
+                      title="Delete review"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>

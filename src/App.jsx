@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 import { db } from "./firebase";
-import { collection, addDoc, doc, setDoc, getDocs, updateDoc, onSnapshot } from "firebase/firestore";
+import { collection, addDoc, doc, setDoc, getDocs, updateDoc, deleteDoc, onSnapshot } from "firebase/firestore";
 
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -36,14 +36,30 @@ const InfoIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" widt
 const CurrencyRupeeIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 3h12"></path><path d="M6 8h12"></path><path d="M6 13h12"></path><path d="M6 18h12"></path></svg>;
 
 // --- Helper Components for Forms ---
-const FormInput = ({ icon, label, type = "text", value, onChange, onFocus, placeholder }) => (
+const FormInput = ({ icon, label, type = "text", value, onChange, onFocus, placeholder, maxLength }) => (
   <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all bg-white shadow-sm">
     <div className="px-3 py-3 text-gray-400 border-r border-gray-100 bg-gray-50 flex-shrink-0">
       {icon}
     </div>
     <div className="flex flex-col flex-1 px-3 py-1.5">
       <label className="text-[10px] text-gray-500 font-semibold">{label}</label>
-      <input type={type} value={value} onChange={onChange} onFocus={onFocus} placeholder={placeholder} className="w-full text-sm font-medium text-gray-800 outline-none bg-transparent mt-0.5" />
+      <input
+        type={type}
+        value={value}
+        onChange={onChange}
+        onFocus={onFocus}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        onWheel={(e) => {
+          if (type === "number") e.target.blur();
+        }}
+        onKeyDown={(e) => {
+          if (type === "number" && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+            e.preventDefault();
+          }
+        }}
+        className="w-full text-sm font-medium text-gray-800 outline-none bg-transparent mt-0.5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      />
     </div>
   </div>
 );
@@ -202,6 +218,38 @@ export default function App() {
   const [lockerOption, setLockerOption] = useState("");
   const [totalAmount, setTotalAmount] = useState(0);
 
+  // --- BOOKING REQUESTS & INTERACTIVE FEEDBACK STATES ---
+  const [bookingRequests, setBookingRequests] = useState([]);
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [reviewerName, setReviewerName] = useState("");
+  const [reviewRating, setReviewRating] = useState(5);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [reviewText, setReviewText] = useState("");
+
+  // MACBOOK STYLE NOTIFICATION PANEL STATE
+  const [showNotifPopup, setShowNotifPopup] = useState(false);
+  const notifDropdownRef = useRef(null);
+
+  // PENDING FEEDBACK COUNT (ONLY UNAPPROVED REVIEWS)
+  const pendingFeedbacksCount = feedbacks.filter((f) => !f.isApproved).length;
+  // TOTAL PENDING NOTIFICATIONS COUNT
+  const totalNotifications = bookingRequests.length + pendingFeedbacksCount;
+
+  // OUTSIDE CLICK LISTENER TO CLOSE NOTIFICATION POPUP
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (notifDropdownRef.current && !notifDropdownRef.current.contains(e.target)) {
+        setShowNotifPopup(false);
+      }
+    };
+    if (showNotifPopup) {
+      document.addEventListener("mousedown", handleOutsideClick);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [showNotifPopup]);
+
   // --- SEAT TRANSFER STATES ---
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [transferShift, setTransferShift] = useState("");
@@ -233,7 +281,7 @@ export default function App() {
   };
 
   // =====================================================
-  // ⚡ LIVE REAL-TIME DATA SYNC
+  // ⚡ LIVE REAL-TIME DATA SYNC (SEATS, REQUESTS & FEEDBACKS)
   // =====================================================
   useEffect(() => {
     const bookingsRef = collection(db, "bookings");
@@ -258,7 +306,32 @@ export default function App() {
       }
     );
 
-    return () => unsubscribe();
+    // Live Booking Requests
+    const requestsRef = collection(db, "booking_requests");
+    const unsubscribeRequests = onSnapshot(requestsRef, (snapshot) => {
+      const reqs = [];
+      snapshot.forEach((docSnap) => {
+        reqs.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      setBookingRequests(reqs);
+    });
+
+    // Live Feedbacks (Sorted newest first)
+    const feedbackRef = collection(db, "feedbacks");
+    const unsubscribeFeedback = onSnapshot(feedbackRef, (snapshot) => {
+      const fb = [];
+      snapshot.forEach((docSnap) => {
+        fb.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      fb.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      setFeedbacks(fb);
+    });
+
+    return () => {
+      unsubscribe();
+      unsubscribeRequests();
+      unsubscribeFeedback();
+    };
   }, []);
 
   // ============================================================================
@@ -393,7 +466,7 @@ export default function App() {
   };
 
   // ============================================================================
-  // 📍 6. UPDATE SEAT LOGIC (FIXED: CLEAR SHIFTS WHEN STATUS IS AVAILABLE)
+  // 📍 6. UPDATE SEAT LOGIC (CLEAR SHIFTS WHEN STATUS IS AVAILABLE)
   // ============================================================================
   const updateSeat = (field, value) => {
     if (!selectedSeat) return;
@@ -463,7 +536,6 @@ export default function App() {
       }
     }
 
-    // FIX: Agar Fees Status ko "Available" kiya jaye, toh us specific shift ka data bhi clear kar do
     if (field.endsWith("Payment") && value === "Available") {
       const prefix = field.replace("Payment", "");
       autoUpdates[`${prefix}Student`] = "";
@@ -505,7 +577,7 @@ export default function App() {
   // =====================================================
   const handleSeatTransfer = async (fromSeatId, toSeatId, fromShiftType, toShiftType) => {
     if (!fromSeatId || !toSeatId || !fromShiftType || !toShiftType) {
-      alert("Kripya source shift, target seat aur target shift teeno select karein.");
+      alert("Please select both seats and their respective shift types for transfer.");
       return;
     }
 
@@ -644,6 +716,179 @@ export default function App() {
     }
   };
 
+  // ============================================================================
+  // ⚡ 1-CLICK APPROVE BOOKING REQUEST (AIRTIGHT CONFLICT CHECK & ENGLISH ALERT)
+  // ============================================================================
+  const approveBookingRequest = async (req) => {
+    const seatId = req.seat;
+    const targetSeat = seats.find((s) => s.id === Number(seatId));
+    if (!targetSeat) {
+      alert(`Seat ${seatId} not found!`);
+      return;
+    }
+
+    let shiftType = "Morning";
+    let planName = req.plan;
+    if (planName === "24 Hours") shiftType = "24 Hours";
+    else if (planName === "Full Day") shiftType = "Full Day";
+    else if (req.timing?.includes("Afternoon")) shiftType = "Afternoon";
+    else if (req.timing?.includes("Night")) shiftType = "Night";
+
+    const shiftMap = {
+      Morning: { student: "morningStudent", phone: "morningPhone", email: "morningEmail", address: "morningAddress", from: "morningFrom", to: "morningTo", payment: "morningPayment", amount: "morningAmount", mode: "morningPaymentMode" },
+      Afternoon: { student: "afternoonStudent", phone: "afternoonPhone", email: "afternoonEmail", address: "afternoonAddress", from: "afternoonFrom", to: "afternoonTo", payment: "afternoonPayment", amount: "afternoonAmount", mode: "afternoonPaymentMode" },
+      Night: { student: "nightStudent", phone: "nightPhone", email: "nightEmail", address: "nightAddress", from: "nightFrom", to: "nightTo", payment: "nightPayment", amount: "nightAmount", mode: "nightPaymentMode" },
+      "Full Day": { student: "fullDayStudent", phone: "fullDayPhone", email: "fullDayEmail", address: "fullDayAddress", from: "fullDayFrom", to: "fullDayTo", payment: "fullDayPayment", amount: "fullDayAmount", mode: "fullDayPaymentMode" },
+      "24 Hours": { student: "nightStudent", phone: "nightPhone", email: "nightEmail", address: "nightAddress", from: "nightFrom", to: "nightTo", payment: "nightPayment", amount: "nightAmount", mode: "nightPaymentMode" },
+    };
+
+    const fields = shiftMap[shiftType];
+
+    // ==========================================================
+    // 🛡️ AIRTIGHT OVERWRITE & OVERLAP PROTECTION
+    // ==========================================================
+    const hasMorning = Boolean(targetSeat.morningStudent && targetSeat.morningStudent.trim() !== "");
+    const hasAfternoon = Boolean(targetSeat.afternoonStudent && targetSeat.afternoonStudent.trim() !== "");
+    const hasNight = Boolean(targetSeat.nightStudent && targetSeat.nightStudent.trim() !== "");
+    const hasFullDay = Boolean(targetSeat.fullDayStudent && targetSeat.fullDayStudent.trim() !== "");
+    const is24HrOccupied = targetSeat.status === "24 Hours" && hasNight;
+
+    let conflictReason = "";
+
+    if (shiftType === "Morning") {
+      if (hasMorning) {
+        conflictReason = `Morning Shift is already occupied by "${targetSeat.morningStudent}".`;
+      } else if (hasFullDay) {
+        conflictReason = `Seat has Full Day student "${targetSeat.fullDayStudent}" (8 AM - 8 PM). Morning Shift overlaps.`;
+      } else if (is24HrOccupied) {
+        conflictReason = `Seat is booked for 24 Hours by "${targetSeat.nightStudent}".`;
+      }
+    } else if (shiftType === "Afternoon") {
+      if (hasAfternoon) {
+        conflictReason = `Afternoon Shift is already occupied by "${targetSeat.afternoonStudent}".`;
+      } else if (hasFullDay) {
+        conflictReason = `Seat has Full Day student "${targetSeat.fullDayStudent}" (8 AM - 8 PM). Afternoon Shift overlaps.`;
+      } else if (is24HrOccupied) {
+        conflictReason = `Seat is booked for 24 Hours by "${targetSeat.nightStudent}".`;
+      }
+    } else if (shiftType === "Night") {
+      if (hasNight) {
+        conflictReason = `Night Shift is already occupied by "${targetSeat.nightStudent}".`;
+      } else if (is24HrOccupied) {
+        conflictReason = `Seat is booked for 24 Hours by "${targetSeat.nightStudent}".`;
+      }
+    } else if (shiftType === "Full Day") {
+      if (hasFullDay) {
+        conflictReason = `Full Day is already occupied by "${targetSeat.fullDayStudent}".`;
+      } else if (hasMorning) {
+        conflictReason = `Seat has Morning Shift student "${targetSeat.morningStudent}". Full Day cannot overlap.`;
+      } else if (hasAfternoon) {
+        conflictReason = `Seat has Afternoon Shift student "${targetSeat.afternoonStudent}". Full Day cannot overlap.`;
+      } else if (is24HrOccupied) {
+        conflictReason = `Seat is booked for 24 Hours by "${targetSeat.nightStudent}".`;
+      }
+    } else if (shiftType === "24 Hours") {
+      if (is24HrOccupied || hasMorning || hasAfternoon || hasNight || hasFullDay) {
+        const occ = targetSeat.fullDayStudent || targetSeat.morningStudent || targetSeat.afternoonStudent || targetSeat.nightStudent;
+        conflictReason = `Seat is already occupied by "${occ}". Seat must be 100% vacant for 24 Hours plan.`;
+      }
+    }
+
+    if (conflictReason) {
+      alert(`⚠️ OVERWRITE BLOCKED!\n\nSeat ${seatId} (${shiftType}) conflict:\n${conflictReason}\n\nAction cancelled to prevent data loss. Please clear or transfer the seat first, or assign manually.`);
+      return;
+    }
+
+    let updatedSeat = { ...targetSeat };
+
+    if (targetSeat.status === "Available") {
+      if (shiftType === "Full Day") {
+        updatedSeat.status = "Full Day";
+        updatedSeat.timing = "8 AM - 8 PM";
+      } else if (shiftType === "24 Hours") {
+        updatedSeat.status = "24 Hours";
+        updatedSeat.timing = "24 Hours";
+      } else {
+        updatedSeat.status = "Half Day";
+      }
+    }
+
+    const todayStr = new Date().toISOString().split("T")[0];
+    const nextDate = new Date();
+    nextDate.setDate(nextDate.getDate() + 30);
+    const nextDateStr = nextDate.toISOString().split("T")[0];
+
+    updatedSeat[fields.student] = req.name || "";
+    updatedSeat[fields.phone] = req.phone || "";
+    updatedSeat[fields.email] = req.email || "";
+    updatedSeat[fields.address] = req.address || "";
+    updatedSeat[fields.amount] = req.amount || "";
+    updatedSeat[fields.payment] = "Submitted";
+    updatedSeat[fields.mode] = "Online (UPI)";
+    updatedSeat[fields.from] = todayStr;
+    updatedSeat[fields.to] = nextDateStr;
+
+    if (shiftType === "24 Hours") {
+      updatedSeat.fromDate = todayStr;
+      updatedSeat.toDate = nextDateStr;
+    }
+
+    setSeats((prev) => prev.map((s) => (s.id === targetSeat.id ? updatedSeat : s)));
+
+    try {
+      await setDoc(doc(db, "bookings", `seat-${targetSeat.id}`), updatedSeat);
+      await deleteDoc(doc(db, "booking_requests", req.id));
+
+      alert(`✅ Seat ${seatId} successfully assigned to ${req.name} (${shiftType})!`);
+    } catch (error) {
+      console.error("Approval error:", error);
+      alert("Approval save karne mein error aayi.");
+    }
+  };
+
+  // SEPARATE WHATSAPP BUTTON TRIGGER WITH LIVE PORTAL LINK
+  const sendRequestWhatsAppMsg = (req) => {
+    let cleanPhone = (req.phone || "").replace(/\D/g, "");
+    if (cleanPhone.length === 10) cleanPhone = `91${cleanPhone}`;
+
+    if (!cleanPhone || cleanPhone.length < 10) {
+      alert(`Student (${req.name}) ka valid mobile number nahi mila!`);
+      return;
+    }
+
+    const message = `*Dear ${req.name},*
+
+🎉 *SEAT ALLOCATION CONFIRMED* - *ANY TIME LIBRARY* 📚
+
+We are pleased to inform you that your seat booking has been *CONFIRMED & ACTIVATED*.
+
+📌 *Booking Summary:*
+• *Seat Number:* Seat ${req.seat}
+• *Shift / Plan:* ${req.plan}
+• *Timing:* ${req.timing || "Standard"}
+• *Total Fees:* ₹${req.amount || 0}
+${req.address ? `• *Address:* ${req.address}\n` : ""}
+🔍 *Apni seat online live check karne ke liye visit karein:*
+👉 https://anytime-library-ruddy.vercel.app/
+
+Welcome to Any Time Library! Wishing you productive study hours ahead.
+
+Warm regards,  
+*Management Team*  
+*Any Time Library*`;
+
+    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, "_blank");
+  };
+
+  const deleteBookingRequest = async (id) => {
+    try {
+      await deleteDoc(doc(db, "booking_requests", id));
+    } catch (err) {
+      console.error("Delete request error:", err);
+    }
+  };
+
   // =====================================================
   // ⚡ 1-CLICK RENEW NEXT 30 DAYS FUNCTION
   // =====================================================
@@ -775,7 +1020,7 @@ export default function App() {
   };
 
   // =====================================================
-  // 💬 DYNAMIC WHATSAPP NOTIFICATION (BOOKED VS RESERVED)
+  // 💬 DYNAMIC WHATSAPP NOTIFICATION WITH LIVE LINK
   // =====================================================
   const sendStudentWhatsAppUpdate = (student) => {
     if (!student.name || student.name.trim() === "") {
@@ -807,6 +1052,9 @@ We are pleased to inform you that your library seat subscription is *CONFIRMED &
 • *Amount Paid:* ₹${student.amount || 0} (${student.paymentMode || "Cash"})
 • *Valid Period:* ${student.fromDate || "N/A"} to ${student.toDate || "N/A"}
 ${student.address ? `• *Address:* ${student.address}\n` : ""}
+🔍 *Apni seat online live check karne ke liye visit karein:*
+👉 https://anytime-library-ruddy.vercel.app/
+
 Welcome to a peaceful and productive study environment at Any Time Library!
 
 Warm regards,  
@@ -825,6 +1073,9 @@ Your library seat has been provisionally *RESERVED*, awaiting fee payment confir
 • *Amount Due:* ₹${student.amount || 0}
 • *Valid Until:* ${student.toDate || "Immediate"}
 ${student.address ? `• *Address:* ${student.address}\n` : ""}
+🔍 *Check seat availability online:*
+👉 https://anytime-library-ruddy.vercel.app/
+
 Kindly complete your payment at the earliest to confirm your permanent seat allocation.
 
 💳 *Payment Methods:*
@@ -994,6 +1245,11 @@ Warm regards,
                 }`}
             >
               💺 Seat Management
+              {bookingRequests.length > 0 && (
+                <span className="ml-2 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black">
+                  {bookingRequests.length}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setActiveAdminSection("dashboard")}
@@ -1090,7 +1346,7 @@ Warm regards,
         {/* ---> ADMIN: MAIN CONTENT AREA <--- */}
         <div className="flex-1 flex flex-col h-screen overflow-hidden">
 
-          {/* ---> ADMIN: TOP NAVBAR <--- */}
+          {/* ---> ADMIN: TOP NAVBAR (WITH MACBOOK-STYLE NOTIFICATION DROPDOWN) <--- */}
           <div className="h-16 bg-[#1e273c] border-b px-6 flex items-center justify-between shrink-0 shadow-sm z-10">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -1099,10 +1355,134 @@ Warm regards,
               <MenuIcon className="w-5 h-5 text-gray-500 hover:text-black transition" />
             </button>
             <div className="flex items-center gap-6">
-              <div className="relative cursor-pointer hover:text-blue-600 transition">
-                <BellIcon className="w-5 h-5 text-gray-600" />
-                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 rounded-full border-2 border-white text-[9px] text-white flex items-center justify-center font-bold">3</span>
+              
+              {/* MACBOOK STYLE BELL NOTIFICATION BUTTON & POPUP */}
+              <div className="relative" ref={notifDropdownRef}>
+                <div
+                  onClick={() => setShowNotifPopup((prev) => !prev)}
+                  className="relative cursor-pointer hover:text-amber-400 transition p-1.5 rounded-xl hover:bg-slate-800/60"
+                  title="Notifications"
+                >
+                  <BellIcon className="w-5 h-5 text-gray-300 hover:text-amber-400 transition" />
+                  {totalNotifications > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full border-2 border-[#1e273c] text-[9px] text-white flex items-center justify-center font-black px-1 shadow animate-pulse">
+                      {totalNotifications}
+                    </span>
+                  )}
+                </div>
+
+                {/* MACBOOK STYLE FLOATING POPUP MODAL */}
+                {showNotifPopup && (
+                  <div className="absolute right-0 mt-3 w-80 sm:w-96 rounded-2xl bg-[#0b1220]/95 backdrop-blur-2xl border border-slate-700/80 shadow-[0_20px_60px_rgba(0,0,0,0.85)] p-4 text-white z-50 animate-in fade-in zoom-in-95 duration-150">
+                    
+                    {/* Pop-up Header */}
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-700/60 mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">🔔</span>
+                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-200">
+                          Notification Center
+                        </h4>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
+                        {totalNotifications} New
+                      </span>
+                    </div>
+
+                    {/* Pop-up Content Items */}
+                    <div className="space-y-2.5">
+                      
+                      {/* Item 1: Seat Booking Requests */}
+                      <div
+                        onClick={() => {
+                          setShowNotifPopup(false);
+                          setActiveAdminSection("seats");
+                          setTimeout(() => {
+                            const reqSec = document.getElementById("incoming-requests-section");
+                            if (reqSec) reqSec.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }, 100);
+                        }}
+                        className="group flex items-center justify-between p-3 rounded-xl bg-slate-900/80 hover:bg-indigo-950/50 border border-slate-800 hover:border-indigo-500/50 transition cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-base shrink-0 group-hover:scale-110 transition-transform">
+                            💺
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-white group-hover:text-indigo-300 transition-colors">
+                              Seat Booking Requests
+                            </p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">
+                              {bookingRequests.length} pending requests awaiting approval
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className={`text-xs font-black font-mono px-2 py-0.5 rounded-lg border ${
+                            bookingRequests.length > 0 
+                              ? "bg-amber-400/20 text-amber-300 border-amber-400/30" 
+                              : "bg-slate-800 text-slate-500 border-slate-700"
+                          }`}>
+                            {bookingRequests.length}
+                          </span>
+                          <span className="text-xs text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all">→</span>
+                        </div>
+                      </div>
+
+                      {/* Item 2: Student Reviews & Feedbacks */}
+                      <div
+                        onClick={() => {
+                          setShowNotifPopup(false);
+                          setActiveAdminSection("dashboard");
+                          setTimeout(() => {
+                            window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+                          }, 150);
+                        }}
+                        className="group flex items-center justify-between p-3 rounded-xl bg-slate-900/80 hover:bg-amber-950/40 border border-slate-800 hover:border-amber-500/50 transition cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-base shrink-0 group-hover:scale-110 transition-transform">
+                            ⭐
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors">
+                              Student Reviews
+                            </p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">
+                              {pendingFeedbacksCount} reviews pending to make live
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className={`text-xs font-black font-mono px-2 py-0.5 rounded-lg border ${
+                            pendingFeedbacksCount > 0 
+                              ? "bg-amber-400/20 text-amber-300 border-amber-400/30" 
+                              : "bg-slate-800 text-slate-500 border-slate-700"
+                          }`}>
+                            {pendingFeedbacksCount}
+                          </span>
+                          <span className="text-xs text-slate-500 group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all">→</span>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Pop-up Footer */}
+                    <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-500 font-medium">
+                      <span></span>
+                      <button
+                        onClick={() => setShowNotifPopup(false)}
+                        className="text-slate-400 hover:text-white underline cursor-pointer"
+                      >
+                        Close
+                      </button>
+                    </div>
+
+                  </div>
+                )}
               </div>
+
               <button
                 onClick={() => setAdminLoggedIn(false)}
                 className="group relative overflow-hidden flex items-center gap-2.5 px-4 py-2 rounded-xl text-xs font-black tracking-wider text-rose-500 bg-rose-500/10 border border-rose-500/30 transition-all duration-300 hover:bg-rose-600 hover:text-white hover:border-rose-500 hover:shadow-[0_0_20px_rgba(244,63,94,0.45)] hover:scale-105 active:scale-95 cursor-pointer"
@@ -1138,1040 +1518,1133 @@ Warm regards,
               />
             ) : selectedSeat ? (
 
-              <div className="max-w-[1400px] mx-auto grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+              <div className="max-w-[1400px] mx-auto space-y-8">
 
-                {/* ---> ADMIN: EDIT FORM <--- */}
-                <div className="xl:col-span-2 bg-[#282f3d] rounded-2xl shadow-sm border border-gray-200 p-8">
-                  <h3 className="text-2xl font-bold mb-6 text-slate-100">Editing Seat {selectedSeat.id}</h3>
+                {/* EDIT FORM & LIVE PREVIEW GRID */}
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
 
-                  <div className="space-y-5">
+                  {/* ---> ADMIN: EDIT FORM <--- */}
+                  <div className="xl:col-span-2 bg-[#282f3d] rounded-2xl shadow-sm border border-gray-200 p-8">
+                    <h3 className="text-2xl font-bold mb-6 text-slate-100">Editing Seat {selectedSeat.id}</h3>
 
-                    <FormSelect
-                      label="Seat Type / Status"
-                      value={selectedSeat.status}
-                      onChange={(e) => updateSeat('status', e.target.value)}
-                      options={['Available', 'Half Day', 'Full Day', '24 Hours']}
-                    />
+                    <div className="space-y-5">
 
-                    {/* 24 HOURS PLAN SECTION */}
-                    {selectedSeat.status === "24 Hours" ? (
-                      <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                      <FormSelect
+                        label="Seat Type / Status"
+                        value={selectedSeat.status}
+                        onChange={(e) => updateSeat('status', e.target.value)}
+                        options={['Available', 'Half Day', 'Full Day', '24 Hours']}
+                      />
 
-                        <div className="flex flex-wrap justify-between items-center gap-2">
-                          <h4 className="font-bold text-lg text-slate-800">24 Hours Student</h4>
-                          <div className="flex items-center gap-2">
+                      {/* 24 HOURS PLAN SECTION */}
+                      {selectedSeat.status === "24 Hours" ? (
+                        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+
+                          <div className="flex flex-wrap justify-between items-center gap-2">
+                            <h4 className="font-bold text-lg text-slate-800">24 Hours Student</h4>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => renewSeatShift("nightFrom", "nightTo", "nightPayment")}
+                                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm"
+                              >
+                                ⚡️ Renew (+30 Days)
+                              </button>
+                            </div>
+                          </div>
+
+                          <FormInput
+                            icon={<UserIcon className="w-4 h-4" />}
+                            label="Student Name"
+                            value={selectedSeat.nightStudent || ""}
+                            onChange={(e) => updateSeat("nightStudent", e.target.value)}
+                          />
+
+                          <FormInput
+                            icon={<PhoneIcon className="w-4 h-4" />}
+                            label="Mobile Number"
+                            value={selectedSeat.nightPhone || ""}
+                            maxLength={10}
+                            onChange={(e) => updateSeat("nightPhone", e.target.value.replace(/\D/g, '').slice(0, 10))}
+                            placeholder="10-digit number"
+                          />
+
+                          <FormInput
+                            icon={<MailIcon className="w-4 h-4" />}
+                            label="Email"
+                            type="email"
+                            value={selectedSeat.nightEmail || ""}
+                            onChange={(e) => updateSeat("nightEmail", e.target.value)}
+                          />
+
+                          <FormInput
+                            icon={<CalendarIcon className="w-4 h-4" />}
+                            label="Student Address / City"
+                            value={selectedSeat.nightAddress || ""}
+                            onChange={(e) => updateSeat("nightAddress", e.target.value)}
+                            placeholder="Enter student address"
+                          />
+
+                          <FormInput
+                            icon={<CurrencyRupeeIcon className="w-4 h-4" />}
+                            label="Actual Fees Received (₹)"
+                            type="number"
+                            value={selectedSeat.nightAmount || ""}
+                            onChange={(e) =>
+                              updateSeat("nightAmount", e.target.value)
+                            }
+                          />
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <FormInput
+                              icon={<CalendarIcon className="w-4 h-4" />}
+                              label="From Date"
+                              type="date"
+                              value={selectedSeat.nightFrom || ""}
+                              onChange={(e) => updateSeat("nightFrom", e.target.value)}
+                            />
+
+                            <FormInput
+                              icon={<CalendarIcon className="w-4 h-4" />}
+                              label="To Date"
+                              type="date"
+                              value={selectedSeat.nightTo || ""}
+                              onChange={(e) => updateSeat("nightTo", e.target.value)}
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <FormSelect
+                              label="Fees Status"
+                              value={selectedSeat.nightPayment || "Available"}
+                              onChange={(e) => updateSeat("nightPayment", e.target.value)}
+                              options={isDateExpired(selectedSeat.nightTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
+                              disabled={isDateExpired(selectedSeat.nightTo)}
+                            />
+
+                            <FormSelect
+                              label="Payment Mode"
+                              value={selectedSeat.nightPaymentMode || "Cash"}
+                              onChange={(e) => updateSeat("nightPaymentMode", e.target.value)}
+                              options={["Cash", "Online (UPI)"]}
+                            />
+                          </div>
+
+                          {/* 🧾 RECEIPT & WHATSAPP BUTTONS (24 HOURS) */}
+                          <div className="flex flex-wrap gap-2 pt-2">
                             <button
                               type="button"
-                              onClick={() => renewSeatShift("nightFrom", "nightTo", "nightPayment")}
-                              className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm"
+                              onClick={() => printFeeReceipt({
+                                name: selectedSeat.nightStudent,
+                                seat: selectedSeat.id,
+                                plan: "24 Hours",
+                                phone: selectedSeat.nightPhone,
+                                address: selectedSeat.nightAddress,
+                                amount: selectedSeat.nightAmount,
+                                fromDate: selectedSeat.nightFrom,
+                                toDate: selectedSeat.nightTo,
+                                payment: selectedSeat.nightPayment,
+                                paymentMode: selectedSeat.nightPaymentMode
+                              })}
+                              className="flex-1 bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-400/30 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
                             >
-                              ⚡️ Renew (+30 Days)
+                              🧾 Print Fee Receipt
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => sendStudentWhatsAppUpdate({
+                                name: selectedSeat.nightStudent,
+                                seat: selectedSeat.id,
+                                plan: "24 Hours",
+                                phone: selectedSeat.nightPhone,
+                                address: selectedSeat.nightAddress,
+                                amount: selectedSeat.nightAmount,
+                                fromDate: selectedSeat.nightFrom,
+                                toDate: selectedSeat.nightTo,
+                                payment: selectedSeat.nightPayment,
+                                paymentMode: selectedSeat.nightPaymentMode
+                              })}
+                              className="flex-1 bg-[#25D366]/10 hover:bg-[#25D366] text-[#25D366] hover:text-slate-950 border border-[#25D366]/30 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                            >
+                              💬 WhatsApp Status Slip
                             </button>
                           </div>
+
+                          {selectedSeat.nightTo && (
+                            <div className="text-sm font-semibold text-red-600">
+                              {getDueStatus(selectedSeat.nightTo)}
+                            </div>
+                          )}
                         </div>
+                      ) : selectedSeat.status !== "Available" ? (
+                        <div className="p-4 border rounded-xl bg-gray-50 space-y-5">
 
-                        <FormInput
-                          icon={<UserIcon className="w-4 h-4" />}
-                          label="Student Name"
-                          value={selectedSeat.nightStudent || ""}
-                          onChange={(e) => updateSeat("nightStudent", e.target.value)}
-                        />
+                          <h4 className="text-lg font-bold">
+                            Student Details
+                          </h4>
 
-                        <FormInput
-                          icon={<PhoneIcon className="w-4 h-4" />}
-                          label="Mobile Number"
-                          value={selectedSeat.nightPhone || ""}
-                          onChange={(e) => updateSeat("nightPhone", e.target.value)}
-                        />
+                          {/* ================= HALF DAY ================= */}
+                          {selectedSeat.status === "Half Day" && (
+                            <>
+                              {/* Morning Shift */}
+                              <div className="bg-white border rounded-xl p-4 space-y-3 shadow-sm">
+                                <div className="flex justify-between items-center">
+                                  <h4 className="font-bold text-blue-600">🌤️ Morning Shift</h4>
+                                  <button
+                                    type="button"
+                                    onClick={() => renewSeatShift("morningFrom", "morningTo", "morningPayment")}
+                                    className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm ml-auto mr-2"
+                                  >
+                                    ⚡️ Renew (+30 Days)
+                                  </button>
 
-                        <FormInput
-                          icon={<MailIcon className="w-4 h-4" />}
-                          label="Email"
-                          type="email"
-                          value={selectedSeat.nightEmail || ""}
-                          onChange={(e) => updateSeat("nightEmail", e.target.value)}
-                        />
+                                  {selectedSeat.morningPayment !== "Available" && (
+                                    <span className="text-sm font-semibold text-red-500">
+                                      {getDueStatus(selectedSeat.morningTo)}
+                                    </span>
+                                  )}
+                                </div>
 
-                        <FormInput
-                          icon={<CalendarIcon className="w-4 h-4" />}
-                          label="Student Address / City"
-                          value={selectedSeat.nightAddress || ""}
-                          onChange={(e) => updateSeat("nightAddress", e.target.value)}
-                          placeholder="Enter student address"
-                        />
+                                <div className="grid grid-cols-2 gap-4">
+                                  <FormSelect
+                                    label="Fees Status"
+                                    value={selectedSeat.morningPayment || "Available"}
+                                    onChange={(e) => updateSeat("morningPayment", e.target.value)}
+                                    options={isDateExpired(selectedSeat.morningTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
+                                    disabled={isDateExpired(selectedSeat.morningTo)}
+                                  />
 
-                        <FormInput
-                          icon={<CurrencyRupeeIcon className="w-4 h-4" />}
-                          label="Actual Fees Received (₹)"
-                          type="number"
-                          value={selectedSeat.nightAmount || ""}
-                          onChange={(e) =>
-                            updateSeat("nightAmount", e.target.value)
-                          }
-                        />
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <FormInput
-                            icon={<CalendarIcon className="w-4 h-4" />}
-                            label="From Date"
-                            type="date"
-                            value={selectedSeat.nightFrom || ""}
-                            onChange={(e) => updateSeat("nightFrom", e.target.value)}
-                          />
-
-                          <FormInput
-                            icon={<CalendarIcon className="w-4 h-4" />}
-                            label="To Date"
-                            type="date"
-                            value={selectedSeat.nightTo || ""}
-                            onChange={(e) => updateSeat("nightTo", e.target.value)}
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <FormSelect
-                            label="Fees Status"
-                            value={selectedSeat.nightPayment || "Available"}
-                            onChange={(e) => updateSeat("nightPayment", e.target.value)}
-                            options={isDateExpired(selectedSeat.nightTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
-                            disabled={isDateExpired(selectedSeat.nightTo)}
-                          />
-
-                          <FormSelect
-                            label="Payment Mode"
-                            value={selectedSeat.nightPaymentMode || "Cash"}
-                            onChange={(e) => updateSeat("nightPaymentMode", e.target.value)}
-                            options={["Cash", "Online (UPI)"]}
-                          />
-                        </div>
-
-                        {/* 🧾 RECEIPT & WHATSAPP BUTTONS (24 HOURS) */}
-                        <div className="flex flex-wrap gap-2 pt-2">
-                          <button
-                            type="button"
-                            onClick={() => printFeeReceipt({
-                              name: selectedSeat.nightStudent,
-                              seat: selectedSeat.id,
-                              plan: "24 Hours",
-                              phone: selectedSeat.nightPhone,
-                              address: selectedSeat.nightAddress,
-                              amount: selectedSeat.nightAmount,
-                              fromDate: selectedSeat.nightFrom,
-                              toDate: selectedSeat.nightTo,
-                              payment: selectedSeat.nightPayment,
-                              paymentMode: selectedSeat.nightPaymentMode
-                            })}
-                            className="flex-1 bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-400/30 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
-                          >
-                            🧾 Print Fee Receipt
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => sendStudentWhatsAppUpdate({
-                              name: selectedSeat.nightStudent,
-                              seat: selectedSeat.id,
-                              plan: "24 Hours",
-                              phone: selectedSeat.nightPhone,
-                              address: selectedSeat.nightAddress,
-                              amount: selectedSeat.nightAmount,
-                              fromDate: selectedSeat.nightFrom,
-                              toDate: selectedSeat.nightTo,
-                              payment: selectedSeat.nightPayment,
-                              paymentMode: selectedSeat.nightPaymentMode
-                            })}
-                            className="flex-1 bg-[#25D366]/10 hover:bg-[#25D366] text-[#25D366] hover:text-slate-950 border border-[#25D366]/30 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
-                          >
-                            💬 WhatsApp Status Slip
-                          </button>
-                        </div>
-
-                        {selectedSeat.nightTo && (
-                          <div className="text-sm font-semibold text-red-600">
-                            {getDueStatus(selectedSeat.nightTo)}
-                          </div>
-                        )}
-                      </div>
-                    ) : selectedSeat.status !== "Available" ? (
-                      <div className="p-4 border rounded-xl bg-gray-50 space-y-5">
-
-                        <h4 className="text-lg font-bold">
-                          Student Details
-                        </h4>
-
-                        {/* ================= HALF DAY ================= */}
-                        {selectedSeat.status === "Half Day" && (
-                          <>
-                            {/* Morning Shift */}
-                            <div className="bg-white border rounded-xl p-4 space-y-3 shadow-sm">
-                              <div className="flex justify-between items-center">
-                                <h4 className="font-bold text-blue-600">🌤️ Morning Shift</h4>
-                                <button
-                                  type="button"
-                                  onClick={() => renewSeatShift("morningFrom", "morningTo", "morningPayment")}
-                                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm ml-auto mr-2"
-                                >
-                                  ⚡️ Renew (+30 Days)
-                                </button>
+                                  <FormSelect
+                                    label="Payment Mode"
+                                    value={selectedSeat.morningPaymentMode || "Cash"}
+                                    onChange={(e) => updateSeat("morningPaymentMode", e.target.value)}
+                                    options={["Cash", "Online (UPI)"]}
+                                  />
+                                </div>
 
                                 {selectedSeat.morningPayment !== "Available" && (
-                                  <span className="text-sm font-semibold text-red-500">
-                                    {getDueStatus(selectedSeat.morningTo)}
-                                  </span>
+                                  <>
+                                    <div className="grid md:grid-cols-2 gap-4">
+                                      <FormInput
+                                        icon={<UserIcon className="w-4 h-4" />}
+                                        label="Student Name"
+                                        value={selectedSeat.morningStudent || ""}
+                                        onChange={(e) => updateSeat("morningStudent", e.target.value)}
+                                      />
+
+                                      <FormInput
+                                        icon={<PhoneIcon className="w-4 h-4" />}
+                                        label="Mobile Number"
+                                        value={selectedSeat.morningPhone || ""}
+                                        maxLength={10}
+                                        onChange={(e) => updateSeat("morningPhone", e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                        placeholder="10-digit number"
+                                      />
+
+                                      <FormInput
+                                        icon={<CalendarIcon className="w-4 h-4" />}
+                                        label="From Date"
+                                        type="date"
+                                        value={selectedSeat.morningFrom || ""}
+                                        onChange={(e) => updateSeat("morningFrom", e.target.value)}
+                                      />
+
+                                      <FormInput
+                                        icon={<CalendarIcon className="w-4 h-4" />}
+                                        label="To Date"
+                                        type="date"
+                                        value={selectedSeat.morningTo || ""}
+                                        onChange={(e) => updateSeat("morningTo", e.target.value)}
+                                      />
+
+                                      <FormInput
+                                        icon={<MailIcon className="w-4 h-4" />}
+                                        label="Email"
+                                        value={selectedSeat.morningEmail || ""}
+                                        onChange={(e) => updateSeat("morningEmail", e.target.value)}
+                                      />
+
+                                      <FormInput
+                                        icon={<CalendarIcon className="w-4 h-4" />}
+                                        label="Student Address / City"
+                                        value={selectedSeat.morningAddress || ""}
+                                        onChange={(e) => updateSeat("morningAddress", e.target.value)}
+                                        placeholder="Enter student address"
+                                      />
+
+                                      <FormInput
+                                        icon={<CurrencyRupeeIcon className="w-4 h-4" />}
+                                        label="Actual Fees Received (₹)"
+                                        type="number"
+                                        value={selectedSeat.morningAmount || ""}
+                                        onChange={(e) =>
+                                          updateSeat("morningAmount", e.target.value)
+                                        }
+                                      />
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2 pt-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => printFeeReceipt({
+                                          name: selectedSeat.morningStudent,
+                                          seat: selectedSeat.id,
+                                          plan: "Morning Shift",
+                                          phone: selectedSeat.morningPhone,
+                                          address: selectedSeat.morningAddress,
+                                          amount: selectedSeat.morningAmount,
+                                          fromDate: selectedSeat.morningFrom,
+                                          toDate: selectedSeat.morningTo,
+                                          payment: selectedSeat.morningPayment,
+                                          paymentMode: selectedSeat.morningPaymentMode
+                                        })}
+                                        className="flex-1 bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-400/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                                      >
+                                        🧾 Print Fee Receipt
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => sendStudentWhatsAppUpdate({
+                                          name: selectedSeat.morningStudent,
+                                          seat: selectedSeat.id,
+                                          plan: "Morning Shift",
+                                          phone: selectedSeat.morningPhone,
+                                          address: selectedSeat.morningAddress,
+                                          amount: selectedSeat.morningAmount,
+                                          fromDate: selectedSeat.morningFrom,
+                                          toDate: selectedSeat.morningTo,
+                                          payment: selectedSeat.morningPayment,
+                                          paymentMode: selectedSeat.morningPaymentMode
+                                        })}
+                                        className="flex-1 bg-[#25D366]/10 hover:bg-[#25D366] text-[#25D366] hover:text-slate-950 border border-[#25D366]/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                                      >
+                                        💬 WhatsApp Status Slip
+                                      </button>
+                                    </div>
+                                  </>
                                 )}
                               </div>
 
-                              <div className="grid grid-cols-2 gap-4">
-                                <FormSelect
-                                  label="Fees Status"
-                                  value={selectedSeat.morningPayment || "Available"}
-                                  onChange={(e) => updateSeat("morningPayment", e.target.value)}
-                                  options={isDateExpired(selectedSeat.morningTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
-                                  disabled={isDateExpired(selectedSeat.morningTo)}
-                                />
+                              {/* Afternoon Shift */}
+                              <div className="bg-white border rounded-xl p-4 space-y-3 shadow-sm">
+                                <div className="flex justify-between items-center">
+                                  <h4 className="font-bold text-blue-600">☀️ Afternoon Shift</h4>
+                                  <button
+                                    type="button"
+                                    onClick={() => renewSeatShift("afternoonFrom", "afternoonTo", "afternoonPayment")}
+                                    className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm ml-auto mr-2"
+                                  >
+                                    ⚡️ Renew (+30 Days)
+                                  </button>
 
-                                <FormSelect
-                                  label="Payment Mode"
-                                  value={selectedSeat.morningPaymentMode || "Cash"}
-                                  onChange={(e) => updateSeat("morningPaymentMode", e.target.value)}
-                                  options={["Cash", "Online (UPI)"]}
-                                />
-                              </div>
+                                  {selectedSeat.afternoonPayment !== "Available" && (
+                                    <span className="text-sm font-semibold text-red-500">
+                                      {getDueStatus(selectedSeat.afternoonTo)}
+                                    </span>
+                                  )}
+                                </div>
 
-                              {selectedSeat.morningPayment !== "Available" && (
-                                <>
-                                  <div className="grid md:grid-cols-2 gap-4">
-                                    <FormInput
-                                      icon={<UserIcon className="w-4 h-4" />}
-                                      label="Student Name"
-                                      value={selectedSeat.morningStudent || ""}
-                                      onChange={(e) => updateSeat("morningStudent", e.target.value)}
-                                    />
+                                <div className="grid grid-cols-2 gap-4">
+                                  <FormSelect
+                                    label="Fees Status"
+                                    value={selectedSeat.afternoonPayment || "Available"}
+                                    onChange={(e) => updateSeat("afternoonPayment", e.target.value)}
+                                    options={isDateExpired(selectedSeat.afternoonTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
+                                    disabled={isDateExpired(selectedSeat.afternoonTo)}
+                                  />
 
-                                    <FormInput
-                                      icon={<PhoneIcon className="w-4 h-4" />}
-                                      label="Mobile Number"
-                                      value={selectedSeat.morningPhone || ""}
-                                      onChange={(e) => updateSeat("morningPhone", e.target.value)}
-                                    />
-
-                                    <FormInput
-                                      icon={<CalendarIcon className="w-4 h-4" />}
-                                      label="From Date"
-                                      type="date"
-                                      value={selectedSeat.morningFrom || ""}
-                                      onChange={(e) => updateSeat("morningFrom", e.target.value)}
-                                    />
-
-                                    <FormInput
-                                      icon={<CalendarIcon className="w-4 h-4" />}
-                                      label="To Date"
-                                      type="date"
-                                      value={selectedSeat.morningTo || ""}
-                                      onChange={(e) => updateSeat("morningTo", e.target.value)}
-                                    />
-
-                                    <FormInput
-                                      icon={<MailIcon className="w-4 h-4" />}
-                                      label="Email"
-                                      value={selectedSeat.morningEmail || ""}
-                                      onChange={(e) => updateSeat("morningEmail", e.target.value)}
-                                    />
-
-                                    <FormInput
-                                      icon={<CalendarIcon className="w-4 h-4" />}
-                                      label="Student Address / City"
-                                      value={selectedSeat.morningAddress || ""}
-                                      onChange={(e) => updateSeat("morningAddress", e.target.value)}
-                                      placeholder="Enter student address"
-                                    />
-
-                                    <FormInput
-                                      icon={<CurrencyRupeeIcon className="w-4 h-4" />}
-                                      label="Actual Fees Received (₹)"
-                                      type="number"
-                                      value={selectedSeat.morningAmount || ""}
-                                      onChange={(e) =>
-                                        updateSeat("morningAmount", e.target.value)
-                                      }
-                                    />
-                                  </div>
-
-                                  <div className="flex flex-wrap gap-2 pt-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => printFeeReceipt({
-                                        name: selectedSeat.morningStudent,
-                                        seat: selectedSeat.id,
-                                        plan: "Morning Shift",
-                                        phone: selectedSeat.morningPhone,
-                                        address: selectedSeat.morningAddress,
-                                        amount: selectedSeat.morningAmount,
-                                        fromDate: selectedSeat.morningFrom,
-                                        toDate: selectedSeat.morningTo,
-                                        payment: selectedSeat.morningPayment,
-                                        paymentMode: selectedSeat.morningPaymentMode
-                                      })}
-                                      className="flex-1 bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-400/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
-                                    >
-                                      🧾 Print Fee Receipt
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => sendStudentWhatsAppUpdate({
-                                        name: selectedSeat.morningStudent,
-                                        seat: selectedSeat.id,
-                                        plan: "Morning Shift",
-                                        phone: selectedSeat.morningPhone,
-                                        address: selectedSeat.morningAddress,
-                                        amount: selectedSeat.morningAmount,
-                                        fromDate: selectedSeat.morningFrom,
-                                        toDate: selectedSeat.morningTo,
-                                        payment: selectedSeat.morningPayment,
-                                        paymentMode: selectedSeat.morningPaymentMode
-                                      })}
-                                      className="flex-1 bg-[#25D366]/10 hover:bg-[#25D366] text-[#25D366] hover:text-slate-950 border border-[#25D366]/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
-                                    >
-                                      💬 WhatsApp Status Slip
-                                    </button>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-
-                            {/* Afternoon Shift */}
-                            <div className="bg-white border rounded-xl p-4 space-y-3 shadow-sm">
-                              <div className="flex justify-between items-center">
-                                <h4 className="font-bold text-blue-600">☀️ Afternoon Shift</h4>
-                                <button
-                                  type="button"
-                                  onClick={() => renewSeatShift("afternoonFrom", "afternoonTo", "afternoonPayment")}
-                                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm ml-auto mr-2"
-                                >
-                                  ⚡️ Renew (+30 Days)
-                                </button>
+                                  <FormSelect
+                                    label="Payment Mode"
+                                    value={selectedSeat.afternoonPaymentMode || "Cash"}
+                                    onChange={(e) => updateSeat("afternoonPaymentMode", e.target.value)}
+                                    options={["Cash", "Online (UPI)"]}
+                                  />
+                                </div>
 
                                 {selectedSeat.afternoonPayment !== "Available" && (
-                                  <span className="text-sm font-semibold text-red-500">
-                                    {getDueStatus(selectedSeat.afternoonTo)}
-                                  </span>
+                                  <>
+                                    <div className="grid md:grid-cols-2 gap-4">
+                                      <FormInput
+                                        icon={<UserIcon className="w-4 h-4" />}
+                                        label="Student Name"
+                                        value={selectedSeat.afternoonStudent || ""}
+                                        onChange={(e) => updateSeat("afternoonStudent", e.target.value)}
+                                      />
+
+                                      <FormInput
+                                        icon={<PhoneIcon className="w-4 h-4" />}
+                                        label="Mobile Number"
+                                        value={selectedSeat.afternoonPhone || ""}
+                                        maxLength={10}
+                                        onChange={(e) => updateSeat("afternoonPhone", e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                        placeholder="10-digit number"
+                                      />
+
+                                      <FormInput
+                                        icon={<CalendarIcon className="w-4 h-4" />}
+                                        label="From Date"
+                                        type="date"
+                                        value={selectedSeat.afternoonFrom || ""}
+                                        onChange={(e) => updateSeat("afternoonFrom", e.target.value)}
+                                      />
+
+                                      <FormInput
+                                        icon={<CalendarIcon className="w-4 h-4" />}
+                                        label="To Date"
+                                        type="date"
+                                        value={selectedSeat.afternoonTo || ""}
+                                        onChange={(e) => updateSeat("afternoonTo", e.target.value)}
+                                      />
+
+                                      <FormInput
+                                        icon={<MailIcon className="w-4 h-4" />}
+                                        label="Email"
+                                        value={selectedSeat.afternoonEmail || ""}
+                                        onChange={(e) => updateSeat("afternoonEmail", e.target.value)}
+                                      />
+
+                                      <FormInput
+                                        icon={<CalendarIcon className="w-4 h-4" />}
+                                        label="Student Address / City"
+                                        value={selectedSeat.afternoonAddress || ""}
+                                        onChange={(e) => updateSeat("afternoonAddress", e.target.value)}
+                                        placeholder="Enter student address"
+                                      />
+
+                                      <FormInput
+                                        icon={<CurrencyRupeeIcon className="w-4 h-4" />}
+                                        label="Actual Fees Received (₹)"
+                                        type="number"
+                                        value={selectedSeat.afternoonAmount || ""}
+                                        onChange={(e) => updateSeat("afternoonAmount", e.target.value)}
+                                      />
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2 pt-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => printFeeReceipt({
+                                          name: selectedSeat.afternoonStudent,
+                                          seat: selectedSeat.id,
+                                          plan: "Afternoon Shift",
+                                          phone: selectedSeat.afternoonPhone,
+                                          address: selectedSeat.afternoonAddress,
+                                          amount: selectedSeat.afternoonAmount,
+                                          fromDate: selectedSeat.afternoonFrom,
+                                          toDate: selectedSeat.afternoonTo,
+                                          payment: selectedSeat.afternoonPayment,
+                                          paymentMode: selectedSeat.afternoonPaymentMode
+                                        })}
+                                        className="flex-1 bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-400/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                                      >
+                                        🧾 Print Fee Receipt
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => sendStudentWhatsAppUpdate({
+                                          name: selectedSeat.afternoonStudent,
+                                          seat: selectedSeat.id,
+                                          plan: "Afternoon Shift",
+                                          phone: selectedSeat.afternoonPhone,
+                                          address: selectedSeat.afternoonAddress,
+                                          amount: selectedSeat.afternoonAmount,
+                                          fromDate: selectedSeat.afternoonFrom,
+                                          toDate: selectedSeat.afternoonTo,
+                                          payment: selectedSeat.afternoonPayment,
+                                          paymentMode: selectedSeat.afternoonPaymentMode
+                                        })}
+                                        className="flex-1 bg-[#25D366]/10 hover:bg-[#25D366] text-[#25D366] hover:text-slate-950 border border-[#25D366]/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                                      >
+                                        💬 WhatsApp Status Slip
+                                      </button>
+                                    </div>
+                                  </>
                                 )}
                               </div>
 
-                              <div className="grid grid-cols-2 gap-4">
-                                <FormSelect
-                                  label="Fees Status"
-                                  value={selectedSeat.afternoonPayment || "Available"}
-                                  onChange={(e) => updateSeat("afternoonPayment", e.target.value)}
-                                  options={isDateExpired(selectedSeat.afternoonTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
-                                  disabled={isDateExpired(selectedSeat.afternoonTo)}
-                                />
+                              {/* Night Shift */}
+                              <div className="bg-white border rounded-xl p-4 space-y-3 shadow-sm">
+                                <div className="flex justify-between items-center">
+                                  <h4 className="font-bold text-blue-600">🌙 Night Shift</h4>
+                                  <button
+                                    type="button"
+                                    onClick={() => renewSeatShift("nightFrom", "nightTo", "nightPayment")}
+                                    className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm ml-auto mr-2"
+                                  >
+                                    ⚡️ Renew (+30 Days)
+                                  </button>
 
-                                <FormSelect
-                                  label="Payment Mode"
-                                  value={selectedSeat.afternoonPaymentMode || "Cash"}
-                                  onChange={(e) => updateSeat("afternoonPaymentMode", e.target.value)}
-                                  options={["Cash", "Online (UPI)"]}
-                                />
-                              </div>
+                                  {selectedSeat.nightPayment !== "Available" && (
+                                    <span className="text-sm font-semibold text-red-500">
+                                      {getDueStatus(selectedSeat.nightTo)}
+                                    </span>
+                                  )}
+                                </div>
 
-                              {selectedSeat.afternoonPayment !== "Available" && (
-                                <>
-                                  <div className="grid md:grid-cols-2 gap-4">
-                                    <FormInput
-                                      icon={<UserIcon className="w-4 h-4" />}
-                                      label="Student Name"
-                                      value={selectedSeat.afternoonStudent || ""}
-                                      onChange={(e) => updateSeat("afternoonStudent", e.target.value)}
-                                    />
+                                <div className="grid grid-cols-2 gap-4">
+                                  <FormSelect
+                                    label="Fees Status"
+                                    value={selectedSeat.nightPayment || "Available"}
+                                    onChange={(e) => updateSeat("nightPayment", e.target.value)}
+                                    options={isDateExpired(selectedSeat.nightTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
+                                    disabled={isDateExpired(selectedSeat.nightTo)}
+                                  />
 
-                                    <FormInput
-                                      icon={<PhoneIcon className="w-4 h-4" />}
-                                      label="Mobile Number"
-                                      value={selectedSeat.afternoonPhone || ""}
-                                      onChange={(e) => updateSeat("afternoonPhone", e.target.value)}
-                                    />
-
-                                    <FormInput
-                                      icon={<CalendarIcon className="w-4 h-4" />}
-                                      label="From Date"
-                                      type="date"
-                                      value={selectedSeat.afternoonFrom || ""}
-                                      onChange={(e) => updateSeat("afternoonFrom", e.target.value)}
-                                    />
-
-                                    <FormInput
-                                      icon={<CalendarIcon className="w-4 h-4" />}
-                                      label="To Date"
-                                      type="date"
-                                      value={selectedSeat.afternoonTo || ""}
-                                      onChange={(e) => updateSeat("afternoonTo", e.target.value)}
-                                    />
-
-                                    <FormInput
-                                      icon={<MailIcon className="w-4 h-4" />}
-                                      label="Email"
-                                      value={selectedSeat.afternoonEmail || ""}
-                                      onChange={(e) => updateSeat("afternoonEmail", e.target.value)}
-                                    />
-
-                                    <FormInput
-                                      icon={<CalendarIcon className="w-4 h-4" />}
-                                      label="Student Address / City"
-                                      value={selectedSeat.afternoonAddress || ""}
-                                      onChange={(e) => updateSeat("afternoonAddress", e.target.value)}
-                                      placeholder="Enter student address"
-                                    />
-
-                                    <FormInput
-                                      icon={<CurrencyRupeeIcon className="w-4 h-4" />}
-                                      label="Actual Fees Received (₹)"
-                                      type="number"
-                                      value={selectedSeat.afternoonAmount || ""}
-                                      onChange={(e) => updateSeat("afternoonAmount", e.target.value)}
-                                    />
-                                  </div>
-
-                                  <div className="flex flex-wrap gap-2 pt-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => printFeeReceipt({
-                                        name: selectedSeat.afternoonStudent,
-                                        seat: selectedSeat.id,
-                                        plan: "Afternoon Shift",
-                                        phone: selectedSeat.afternoonPhone,
-                                        address: selectedSeat.afternoonAddress,
-                                        amount: selectedSeat.afternoonAmount,
-                                        fromDate: selectedSeat.afternoonFrom,
-                                        toDate: selectedSeat.afternoonTo,
-                                        payment: selectedSeat.afternoonPayment,
-                                        paymentMode: selectedSeat.afternoonPaymentMode
-                                      })}
-                                      className="flex-1 bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-400/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
-                                    >
-                                      🧾 Print Fee Receipt
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => sendStudentWhatsAppUpdate({
-                                        name: selectedSeat.afternoonStudent,
-                                        seat: selectedSeat.id,
-                                        plan: "Afternoon Shift",
-                                        phone: selectedSeat.afternoonPhone,
-                                        address: selectedSeat.afternoonAddress,
-                                        amount: selectedSeat.afternoonAmount,
-                                        fromDate: selectedSeat.afternoonFrom,
-                                        toDate: selectedSeat.afternoonTo,
-                                        payment: selectedSeat.afternoonPayment,
-                                        paymentMode: selectedSeat.afternoonPaymentMode
-                                      })}
-                                      className="flex-1 bg-[#25D366]/10 hover:bg-[#25D366] text-[#25D366] hover:text-slate-950 border border-[#25D366]/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
-                                    >
-                                      💬 WhatsApp Status Slip
-                                    </button>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-
-                            {/* Night Shift */}
-                            <div className="bg-white border rounded-xl p-4 space-y-3 shadow-sm">
-                              <div className="flex justify-between items-center">
-                                <h4 className="font-bold text-blue-600">🌙 Night Shift</h4>
-                                <button
-                                  type="button"
-                                  onClick={() => renewSeatShift("nightFrom", "nightTo", "nightPayment")}
-                                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm ml-auto mr-2"
-                                >
-                                  ⚡️ Renew (+30 Days)
-                                </button>
+                                  <FormSelect
+                                    label="Payment Mode"
+                                    value={selectedSeat.nightPaymentMode || "Cash"}
+                                    onChange={(e) => updateSeat("nightPaymentMode", e.target.value)}
+                                    options={["Cash", "Online (UPI)"]}
+                                  />
+                                </div>
 
                                 {selectedSeat.nightPayment !== "Available" && (
-                                  <span className="text-sm font-semibold text-red-500">
-                                    {getDueStatus(selectedSeat.nightTo)}
-                                  </span>
+                                  <>
+                                    <div className="grid md:grid-cols-2 gap-4">
+                                      <FormInput
+                                        icon={<UserIcon className="w-4 h-4" />}
+                                        label="Student Name"
+                                        value={selectedSeat.nightStudent || ""}
+                                        onChange={(e) => updateSeat("nightStudent", e.target.value)}
+                                      />
+
+                                      <FormInput
+                                        icon={<PhoneIcon className="w-4 h-4" />}
+                                        label="Mobile Number"
+                                        value={selectedSeat.nightPhone || ""}
+                                        maxLength={10}
+                                        onChange={(e) => updateSeat("nightPhone", e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                        placeholder="10-digit number"
+                                      />
+
+                                      <FormInput
+                                        icon={<CalendarIcon className="w-4 h-4" />}
+                                        label="From Date"
+                                        type="date"
+                                        value={selectedSeat.nightFrom || ""}
+                                        onChange={(e) => updateSeat("nightFrom", e.target.value)}
+                                      />
+
+                                      <FormInput
+                                        icon={<CalendarIcon className="w-4 h-4" />}
+                                        label="To Date"
+                                        type="date"
+                                        value={selectedSeat.nightTo || ""}
+                                        onChange={(e) => updateSeat("nightTo", e.target.value)}
+                                      />
+
+                                      <FormInput
+                                        icon={<MailIcon className="w-4 h-4" />}
+                                        label="Email"
+                                        value={selectedSeat.nightEmail || ""}
+                                        onChange={(e) => updateSeat("nightEmail", e.target.value)}
+                                      />
+
+                                      <FormInput
+                                        icon={<CalendarIcon className="w-4 h-4" />}
+                                        label="Student Address / City"
+                                        value={selectedSeat.nightAddress || ""}
+                                        onChange={(e) => updateSeat("nightAddress", e.target.value)}
+                                        placeholder="Enter student address"
+                                      />
+
+                                      <FormInput
+                                        icon={<CurrencyRupeeIcon className="w-4 h-4" />}
+                                        label="Actual Fees Received (₹)"
+                                        type="number"
+                                        value={selectedSeat.nightAmount || ""}
+                                        onChange={(e) => updateSeat("nightAmount", e.target.value)}
+                                      />
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2 pt-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => printFeeReceipt({
+                                          name: selectedSeat.nightStudent,
+                                          seat: selectedSeat.id,
+                                          plan: "Night Shift",
+                                          phone: selectedSeat.nightPhone,
+                                          address: selectedSeat.nightAddress,
+                                          amount: selectedSeat.nightAmount,
+                                          fromDate: selectedSeat.nightFrom,
+                                          toDate: selectedSeat.nightTo,
+                                          payment: selectedSeat.nightPayment,
+                                          paymentMode: selectedSeat.nightPaymentMode
+                                        })}
+                                        className="flex-1 bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-400/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                                      >
+                                        🧾 Print Fee Receipt
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => sendStudentWhatsAppUpdate({
+                                          name: selectedSeat.nightStudent,
+                                          seat: selectedSeat.id,
+                                          plan: "Night Shift",
+                                          phone: selectedSeat.nightPhone,
+                                          address: selectedSeat.nightAddress,
+                                          amount: selectedSeat.nightAmount,
+                                          fromDate: selectedSeat.nightFrom,
+                                          toDate: selectedSeat.nightTo,
+                                          payment: selectedSeat.nightPayment,
+                                          paymentMode: selectedSeat.nightPaymentMode
+                                        })}
+                                        className="flex-1 bg-[#25D366]/10 hover:bg-[#25D366] text-[#25D366] hover:text-slate-950 border border-[#25D366]/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                                      >
+                                        💬 WhatsApp Status Slip
+                                      </button>
+                                    </div>
+                                  </>
                                 )}
                               </div>
+                            </>
+                          )}
 
-                              <div className="grid grid-cols-2 gap-4">
-                                <FormSelect
-                                  label="Fees Status"
-                                  value={selectedSeat.nightPayment || "Available"}
-                                  onChange={(e) => updateSeat("nightPayment", e.target.value)}
-                                  options={isDateExpired(selectedSeat.nightTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
-                                  disabled={isDateExpired(selectedSeat.nightTo)}
-                                />
+                          {/* ================= FULL DAY ================= */}
+                          {selectedSeat.status === "Full Day" && (
+                            <>
+                              {/* Full Day Shift */}
+                              <div className="bg-white border rounded-xl p-4 space-y-3 shadow-sm">
+                                <div className="flex justify-between items-center">
+                                  <h5 className="font-bold text-blue-600">
+                                    🌞 Full Day Shift
+                                  </h5>
+                                  <button
+                                    type="button"
+                                    onClick={() => renewSeatShift("fullDayFrom", "fullDayTo", "fullDayPayment")}
+                                    className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm ml-auto mr-2"
+                                  >
+                                    ⚡️ Renew (+30 Days)
+                                  </button>
+                                  {selectedSeat.fullDayPayment !== "Available" && (
+                                    <span className="text-sm font-semibold text-red-500">
+                                      {getDueStatus(selectedSeat.fullDayTo)}
+                                    </span>
+                                  )}
+                                </div>
 
-                                <FormSelect
-                                  label="Payment Mode"
-                                  value={selectedSeat.nightPaymentMode || "Cash"}
-                                  onChange={(e) => updateSeat("nightPaymentMode", e.target.value)}
-                                  options={["Cash", "Online (UPI)"]}
-                                />
+                                <div className="grid md:grid-cols-2 gap-4">
+                                  <FormInput
+                                    icon={<UserIcon className="w-4 h-4" />}
+                                    label="Student Name"
+                                    value={selectedSeat.fullDayStudent || ""}
+                                    onChange={(e) => updateSeat("fullDayStudent", e.target.value)}
+                                  />
+
+                                  <FormInput
+                                    icon={<PhoneIcon className="w-4 h-4" />}
+                                    label="Mobile Number"
+                                    value={selectedSeat.fullDayPhone || ""}
+                                    maxLength={10}
+                                    onChange={(e) => updateSeat("fullDayPhone", e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                    placeholder="10-digit number"
+                                  />
+
+                                  <FormInput
+                                    icon={<MailIcon className="w-4 h-4" />}
+                                    label="Email"
+                                    value={selectedSeat.fullDayEmail || ""}
+                                    onChange={(e) => updateSeat("fullDayEmail", e.target.value)}
+                                  />
+
+                                  <FormInput
+                                    icon={<CalendarIcon className="w-4 h-4" />}
+                                    label="Student Address / City"
+                                    value={selectedSeat.fullDayAddress || ""}
+                                    onChange={(e) => updateSeat("fullDayAddress", e.target.value)}
+                                    placeholder="Enter student address"
+                                  />
+
+                                  <FormInput
+                                    icon={<CurrencyRupeeIcon className="w-4 h-4" />}
+                                    label="Actual Fees Received (₹)"
+                                    type="number"
+                                    value={selectedSeat.fullDayAmount || ""}
+                                    onChange={(e) => updateSeat("fullDayAmount", e.target.value)}
+                                  />
+
+                                  <FormSelect
+                                    label="Fees Status"
+                                    value={selectedSeat.fullDayPayment || "Available"}
+                                    onChange={(e) => updateSeat("fullDayPayment", e.target.value)}
+                                    options={isDateExpired(selectedSeat.fullDayTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
+                                    disabled={isDateExpired(selectedSeat.fullDayTo)}
+                                  />
+
+                                  <FormSelect
+                                    label="Payment Mode"
+                                    value={selectedSeat.fullDayPaymentMode || "Cash"}
+                                    onChange={(e) => updateSeat("fullDayPaymentMode", e.target.value)}
+                                    options={["Cash", "Online (UPI)"]}
+                                  />
+
+                                  <FormInput
+                                    icon={<CalendarIcon className="w-4 h-4" />}
+                                    label="From Date"
+                                    type="date"
+                                    value={selectedSeat.fullDayFrom || ""}
+                                    onChange={(e) => updateSeat("fullDayFrom", e.target.value)}
+                                  />
+
+                                  <FormInput
+                                    icon={<CalendarIcon className="w-4 h-4" />}
+                                    label="To Date"
+                                    type="date"
+                                    value={selectedSeat.fullDayTo || ""}
+                                    onChange={(e) => updateSeat("fullDayTo", e.target.value)}
+                                  />
+                                </div>
+
+                                <div className="flex flex-wrap gap-2 pt-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => printFeeReceipt({
+                                      name: selectedSeat.fullDayStudent,
+                                      seat: selectedSeat.id,
+                                      plan: "Full Day Shift",
+                                      phone: selectedSeat.fullDayPhone,
+                                      address: selectedSeat.fullDayAddress,
+                                      amount: selectedSeat.fullDayAmount,
+                                      fromDate: selectedSeat.fullDayFrom,
+                                      toDate: selectedSeat.fullDayTo,
+                                      payment: selectedSeat.fullDayPayment,
+                                      paymentMode: selectedSeat.fullDayPaymentMode
+                                    })}
+                                    className="flex-1 bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-400/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                                  >
+                                    🧾 Print Fee Receipt
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => sendStudentWhatsAppUpdate({
+                                      name: selectedSeat.fullDayStudent,
+                                      seat: selectedSeat.id,
+                                      plan: "Full Day Shift",
+                                      phone: selectedSeat.fullDayPhone,
+                                      address: selectedSeat.fullDayAddress,
+                                      amount: selectedSeat.fullDayAmount,
+                                      fromDate: selectedSeat.fullDayFrom,
+                                      toDate: selectedSeat.fullDayTo,
+                                      payment: selectedSeat.fullDayPayment,
+                                      paymentMode: selectedSeat.fullDayPaymentMode
+                                    })}
+                                    className="flex-1 bg-[#25D366]/10 hover:bg-[#25D366] text-[#25D366] hover:text-slate-950 border border-[#25D366]/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                                  >
+                                    💬 WhatsApp Status Slip
+                                  </button>
+                                </div>
                               </div>
 
-                              {selectedSeat.nightPayment !== "Available" && (
-                                <>
-                                  <div className="grid md:grid-cols-2 gap-4">
-                                    <FormInput
-                                      icon={<UserIcon className="w-4 h-4" />}
-                                      label="Student Name"
-                                      value={selectedSeat.nightStudent || ""}
-                                      onChange={(e) => updateSeat("nightStudent", e.target.value)}
-                                    />
+                              {/* Night Shift (under Full Day) */}
+                              <div className="bg-white border rounded-xl p-4 space-y-3 shadow-sm">
+                                <div className="flex justify-between items-center">
+                                  <h5 className="font-bold text-blue-600">
+                                    🌙 Night Shift
+                                  </h5>
+                                  <button
+                                    type="button"
+                                    onClick={() => renewSeatShift("nightFrom", "nightTo", "nightPayment")}
+                                    className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm ml-auto mr-2"
+                                  >
+                                    ⚡️ Renew (+30 Days)
+                                  </button>
 
-                                    <FormInput
-                                      icon={<PhoneIcon className="w-4 h-4" />}
-                                      label="Mobile Number"
-                                      value={selectedSeat.nightPhone || ""}
-                                      onChange={(e) => updateSeat("nightPhone", e.target.value)}
-                                    />
+                                  {selectedSeat.nightPayment !== "Available" && (
+                                    <span className="text-sm font-semibold text-red-500">
+                                      {getDueStatus(selectedSeat.nightTo)}
+                                    </span>
+                                  )}
+                                </div>
 
-                                    <FormInput
-                                      icon={<CalendarIcon className="w-4 h-4" />}
-                                      label="From Date"
-                                      type="date"
-                                      value={selectedSeat.nightFrom || ""}
-                                      onChange={(e) => updateSeat("nightFrom", e.target.value)}
-                                    />
+                                <div className="grid md:grid-cols-2 gap-4">
+                                  <FormInput
+                                    icon={<UserIcon className="w-4 h-4" />}
+                                    label="Student Name"
+                                    value={selectedSeat.nightStudent || ""}
+                                    onChange={(e) => updateSeat("nightStudent", e.target.value)}
+                                  />
 
-                                    <FormInput
-                                      icon={<CalendarIcon className="w-4 h-4" />}
-                                      label="To Date"
-                                      type="date"
-                                      value={selectedSeat.nightTo || ""}
-                                      onChange={(e) => updateSeat("nightTo", e.target.value)}
-                                    />
+                                  <FormInput
+                                    icon={<PhoneIcon className="w-4 h-4" />}
+                                    label="Mobile Number"
+                                    value={selectedSeat.nightPhone || ""}
+                                    maxLength={10}
+                                    onChange={(e) => updateSeat("nightPhone", e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                    placeholder="10-digit number"
+                                  />
 
-                                    <FormInput
-                                      icon={<MailIcon className="w-4 h-4" />}
-                                      label="Email"
-                                      value={selectedSeat.nightEmail || ""}
-                                      onChange={(e) => updateSeat("nightEmail", e.target.value)}
-                                    />
+                                  <FormInput
+                                    icon={<MailIcon className="w-4 h-4" />}
+                                    label="Email"
+                                    value={selectedSeat.nightEmail || ""}
+                                    onChange={(e) => updateSeat("nightEmail", e.target.value)}
+                                  />
 
-                                    <FormInput
-                                      icon={<CalendarIcon className="w-4 h-4" />}
-                                      label="Student Address / City"
-                                      value={selectedSeat.nightAddress || ""}
-                                      onChange={(e) => updateSeat("nightAddress", e.target.value)}
-                                      placeholder="Enter student address"
-                                    />
+                                  <FormInput
+                                    icon={<CalendarIcon className="w-4 h-4" />}
+                                    label="Student Address / City"
+                                    value={selectedSeat.nightAddress || ""}
+                                    onChange={(e) => updateSeat("nightAddress", e.target.value)}
+                                    placeholder="Enter student address"
+                                  />
 
-                                    <FormInput
-                                      icon={<CurrencyRupeeIcon className="w-4 h-4" />}
-                                      label="Actual Fees Received (₹)"
-                                      type="number"
-                                      value={selectedSeat.nightAmount || ""}
-                                      onChange={(e) => updateSeat("nightAmount", e.target.value)}
-                                    />
-                                  </div>
+                                  <FormInput
+                                    icon={<CurrencyRupeeIcon className="w-4 h-4" />}
+                                    label="Actual Fees Received (₹)"
+                                    type="number"
+                                    value={selectedSeat.nightAmount || ""}
+                                    onChange={(e) => updateSeat("nightAmount", e.target.value)}
+                                  />
 
-                                  <div className="flex flex-wrap gap-2 pt-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => printFeeReceipt({
-                                        name: selectedSeat.nightStudent,
-                                        seat: selectedSeat.id,
-                                        plan: "Night Shift",
-                                        phone: selectedSeat.nightPhone,
-                                        address: selectedSeat.nightAddress,
-                                        amount: selectedSeat.nightAmount,
-                                        fromDate: selectedSeat.nightFrom,
-                                        toDate: selectedSeat.nightTo,
-                                        payment: selectedSeat.nightPayment,
-                                        paymentMode: selectedSeat.nightPaymentMode
-                                      })}
-                                      className="flex-1 bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-400/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
-                                    >
-                                      🧾 Print Fee Receipt
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => sendStudentWhatsAppUpdate({
-                                        name: selectedSeat.nightStudent,
-                                        seat: selectedSeat.id,
-                                        plan: "Night Shift",
-                                        phone: selectedSeat.nightPhone,
-                                        address: selectedSeat.nightAddress,
-                                        amount: selectedSeat.nightAmount,
-                                        fromDate: selectedSeat.nightFrom,
-                                        toDate: selectedSeat.nightTo,
-                                        payment: selectedSeat.nightPayment,
-                                        paymentMode: selectedSeat.nightPaymentMode
-                                      })}
-                                      className="flex-1 bg-[#25D366]/10 hover:bg-[#25D366] text-[#25D366] hover:text-slate-950 border border-[#25D366]/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
-                                    >
-                                      💬 WhatsApp Status Slip
-                                    </button>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          </>
-                        )}
+                                  <FormSelect
+                                    label="Fees Status"
+                                    value={selectedSeat.nightPayment || "Available"}
+                                    onChange={(e) => updateSeat("nightPayment", e.target.value)}
+                                    options={isDateExpired(selectedSeat.nightTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
+                                    disabled={isDateExpired(selectedSeat.nightTo)}
+                                  />
 
-                        {/* ================= FULL DAY ================= */}
-                        {selectedSeat.status === "Full Day" && (
-                          <>
-                            {/* Full Day Shift */}
-                            <div className="bg-white border rounded-xl p-4 space-y-3 shadow-sm">
-                              <div className="flex justify-between items-center">
-                                <h5 className="font-bold text-blue-600">
-                                  🌞 Full Day Shift
-                                </h5>
-                                <button
-                                  type="button"
-                                  onClick={() => renewSeatShift("fullDayFrom", "fullDayTo", "fullDayPayment")}
-                                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm ml-auto mr-2"
-                                >
-                                  ⚡️ Renew (+30 Days)
-                                </button>
-                                {selectedSeat.fullDayPayment !== "Available" && (
-                                  <span className="text-sm font-semibold text-red-500">
-                                    {getDueStatus(selectedSeat.fullDayTo)}
-                                  </span>
-                                )}
+                                  <FormSelect
+                                    label="Payment Mode"
+                                    value={selectedSeat.nightPaymentMode || "Cash"}
+                                    onChange={(e) => updateSeat("nightPaymentMode", e.target.value)}
+                                    options={["Cash", "Online (UPI)"]}
+                                  />
+
+                                  <FormInput
+                                    icon={<CalendarIcon className="w-4 h-4" />}
+                                    label="From Date"
+                                    type="date"
+                                    value={selectedSeat.nightFrom || ""}
+                                    onChange={(e) => updateSeat("nightFrom", e.target.value)}
+                                  />
+
+                                  <FormInput
+                                    icon={<CalendarIcon className="w-4 h-4" />}
+                                    label="To Date"
+                                    type="date"
+                                    value={selectedSeat.nightTo || ""}
+                                    onChange={(e) => updateSeat("nightTo", e.target.value)}
+                                  />
+                                </div>
+
+                                <div className="flex flex-wrap gap-2 pt-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => printFeeReceipt({
+                                      name: selectedSeat.nightStudent,
+                                      seat: selectedSeat.id,
+                                      plan: "Night Shift",
+                                      phone: selectedSeat.nightPhone,
+                                      address: selectedSeat.nightAddress,
+                                      amount: selectedSeat.nightAmount,
+                                      fromDate: selectedSeat.nightFrom,
+                                      toDate: selectedSeat.nightTo,
+                                      payment: selectedSeat.nightPayment,
+                                      paymentMode: selectedSeat.nightPaymentMode
+                                    })}
+                                    className="flex-1 bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-400/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                                  >
+                                    🧾 Print Fee Receipt
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => sendStudentWhatsAppUpdate({
+                                      name: selectedSeat.nightStudent,
+                                      seat: selectedSeat.id,
+                                      plan: "Night Shift",
+                                      phone: selectedSeat.nightPhone,
+                                      address: selectedSeat.nightAddress,
+                                      amount: selectedSeat.nightAmount,
+                                      fromDate: selectedSeat.nightFrom,
+                                      toDate: selectedSeat.nightTo,
+                                      payment: selectedSeat.nightPayment,
+                                      paymentMode: selectedSeat.nightPaymentMode
+                                    })}
+                                    className="flex-1 bg-[#25D366]/10 hover:bg-[#25D366] text-[#25D366] hover:text-slate-950 border border-[#25D366]/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                                  >
+                                    💬 WhatsApp Status Slip
+                                  </button>
+                                </div>
                               </div>
+                            </>
+                          )}
 
-                              <div className="grid md:grid-cols-2 gap-4">
-                                <FormInput
-                                  icon={<UserIcon className="w-4 h-4" />}
-                                  label="Student Name"
-                                  value={selectedSeat.fullDayStudent || ""}
-                                  onChange={(e) => updateSeat("fullDayStudent", e.target.value)}
-                                />
+                        </div>
+                      ) : null}
 
-                                <FormInput
-                                  icon={<PhoneIcon className="w-4 h-4" />}
-                                  label="Mobile Number"
-                                  value={selectedSeat.fullDayPhone || ""}
-                                  onChange={(e) => updateSeat("fullDayPhone", e.target.value)}
-                                />
+                      <button
+                        onClick={saveSeatToFirebase}
+                        className="w-full bg-[#10b981] hover:bg-[#059669] text-white py-3.5 rounded-xl font-bold shadow-md shadow-green-500/20 transition-all flex items-center justify-center gap-2 mt-4"
+                      >
+                        <CalendarIcon className="w-5 h-5" /> SAVE SEAT DETAILS
+                      </button>
 
-                                <FormInput
-                                  icon={<MailIcon className="w-4 h-4" />}
-                                  label="Email"
-                                  value={selectedSeat.fullDayEmail || ""}
-                                  onChange={(e) => updateSeat("fullDayEmail", e.target.value)}
-                                />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTargetSeatId("");
+                          let defaultShift = "Morning";
+                          if (selectedSeat.status === "24 Hours") {
+                            defaultShift = "24 Hours";
+                          } else if (selectedSeat.status === "Full Day") {
+                            defaultShift = selectedSeat.fullDayStudent ? "Full Day" : "Night";
+                          } else {
+                            defaultShift = selectedSeat.morningStudent
+                              ? "Morning"
+                              : selectedSeat.afternoonStudent
+                                ? "Afternoon"
+                                : "Night";
+                          }
+                          setTransferShift(defaultShift);
+                          setTargetShift(defaultShift);
+                          setShowTransferModal(true);
+                        }}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2 mt-3"
+                      >
+                        🔄 TRANSFER THIS SEAT / SHIFT
+                      </button>
 
-                                <FormInput
-                                  icon={<CalendarIcon className="w-4 h-4" />}
-                                  label="Student Address / City"
-                                  value={selectedSeat.fullDayAddress || ""}
-                                  onChange={(e) => updateSeat("fullDayAddress", e.target.value)}
-                                  placeholder="Enter student address"
-                                />
-
-                                <FormInput
-                                  icon={<CurrencyRupeeIcon className="w-4 h-4" />}
-                                  label="Actual Fees Received (₹)"
-                                  type="number"
-                                  value={selectedSeat.fullDayAmount || ""}
-                                  onChange={(e) => updateSeat("fullDayAmount", e.target.value)}
-                                />
-
-                                <FormSelect
-                                  label="Fees Status"
-                                  value={selectedSeat.fullDayPayment || "Available"}
-                                  onChange={(e) => updateSeat("fullDayPayment", e.target.value)}
-                                  options={isDateExpired(selectedSeat.fullDayTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
-                                  disabled={isDateExpired(selectedSeat.fullDayTo)}
-                                />
-
-                                <FormSelect
-                                  label="Payment Mode"
-                                  value={selectedSeat.fullDayPaymentMode || "Cash"}
-                                  onChange={(e) => updateSeat("fullDayPaymentMode", e.target.value)}
-                                  options={["Cash", "Online (UPI)"]}
-                                />
-
-                                <FormInput
-                                  icon={<CalendarIcon className="w-4 h-4" />}
-                                  label="From Date"
-                                  type="date"
-                                  value={selectedSeat.fullDayFrom || ""}
-                                  onChange={(e) => updateSeat("fullDayFrom", e.target.value)}
-                                />
-
-                                <FormInput
-                                  icon={<CalendarIcon className="w-4 h-4" />}
-                                  label="To Date"
-                                  type="date"
-                                  value={selectedSeat.fullDayTo || ""}
-                                  onChange={(e) => updateSeat("fullDayTo", e.target.value)}
-                                />
-                              </div>
-
-                              <div className="flex flex-wrap gap-2 pt-2">
-                                <button
-                                  type="button"
-                                  onClick={() => printFeeReceipt({
-                                    name: selectedSeat.fullDayStudent,
-                                    seat: selectedSeat.id,
-                                    plan: "Full Day Shift",
-                                    phone: selectedSeat.fullDayPhone,
-                                    address: selectedSeat.fullDayAddress,
-                                    amount: selectedSeat.fullDayAmount,
-                                    fromDate: selectedSeat.fullDayFrom,
-                                    toDate: selectedSeat.fullDayTo,
-                                    payment: selectedSeat.fullDayPayment,
-                                    paymentMode: selectedSeat.fullDayPaymentMode
-                                  })}
-                                  className="flex-1 bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-400/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
-                                >
-                                  🧾 Print Fee Receipt
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => sendStudentWhatsAppUpdate({
-                                    name: selectedSeat.fullDayStudent,
-                                    seat: selectedSeat.id,
-                                    plan: "Full Day Shift",
-                                    phone: selectedSeat.fullDayPhone,
-                                    address: selectedSeat.fullDayAddress,
-                                    amount: selectedSeat.fullDayAmount,
-                                    fromDate: selectedSeat.fullDayFrom,
-                                    toDate: selectedSeat.fullDayTo,
-                                    payment: selectedSeat.fullDayPayment,
-                                    paymentMode: selectedSeat.fullDayPaymentMode
-                                  })}
-                                  className="flex-1 bg-[#25D366]/10 hover:bg-[#25D366] text-[#25D366] hover:text-slate-950 border border-[#25D366]/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
-                                >
-                                  💬 WhatsApp Status Slip
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Night Shift (under Full Day) */}
-                            <div className="bg-white border rounded-xl p-4 space-y-3 shadow-sm">
-                              <div className="flex justify-between items-center">
-                                <h5 className="font-bold text-blue-600">
-                                  🌙 Night Shift
-                                </h5>
-                                <button
-                                  type="button"
-                                  onClick={() => renewSeatShift("nightFrom", "nightTo", "nightPayment")}
-                                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-sm ml-auto mr-2"
-                                >
-                                  ⚡️ Renew (+30 Days)
-                                </button>
-
-                                {selectedSeat.nightPayment !== "Available" && (
-                                  <span className="text-sm font-semibold text-red-500">
-                                    {getDueStatus(selectedSeat.nightTo)}
-                                  </span>
-                                )}
-                              </div>
-
-                              <div className="grid md:grid-cols-2 gap-4">
-                                <FormInput
-                                  icon={<UserIcon className="w-4 h-4" />}
-                                  label="Student Name"
-                                  value={selectedSeat.nightStudent || ""}
-                                  onChange={(e) => updateSeat("nightStudent", e.target.value)}
-                                />
-
-                                <FormInput
-                                  icon={<PhoneIcon className="w-4 h-4" />}
-                                  label="Mobile Number"
-                                  value={selectedSeat.nightPhone || ""}
-                                  onChange={(e) => updateSeat("nightPhone", e.target.value)}
-                                />
-
-                                <FormInput
-                                  icon={<MailIcon className="w-4 h-4" />}
-                                  label="Email"
-                                  value={selectedSeat.nightEmail || ""}
-                                  onChange={(e) => updateSeat("nightEmail", e.target.value)}
-                                />
-
-                                <FormInput
-                                  icon={<CalendarIcon className="w-4 h-4" />}
-                                  label="Student Address / City"
-                                  value={selectedSeat.nightAddress || ""}
-                                  onChange={(e) => updateSeat("nightAddress", e.target.value)}
-                                  placeholder="Enter student address"
-                                />
-
-                                <FormInput
-                                  icon={<CurrencyRupeeIcon className="w-4 h-4" />}
-                                  label="Actual Fees Received (₹)"
-                                  type="number"
-                                  value={selectedSeat.nightAmount || ""}
-                                  onChange={(e) => updateSeat("nightAmount", e.target.value)}
-                                />
-
-                                <FormSelect
-                                  label="Fees Status"
-                                  value={selectedSeat.nightPayment || "Available"}
-                                  onChange={(e) => updateSeat("nightPayment", e.target.value)}
-                                  options={isDateExpired(selectedSeat.nightTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
-                                  disabled={isDateExpired(selectedSeat.nightTo)}
-                                />
-
-                                <FormSelect
-                                  label="Payment Mode"
-                                  value={selectedSeat.nightPaymentMode || "Cash"}
-                                  onChange={(e) => updateSeat("nightPaymentMode", e.target.value)}
-                                  options={["Cash", "Online (UPI)"]}
-                                />
-
-                                <FormInput
-                                  icon={<CalendarIcon className="w-4 h-4" />}
-                                  label="From Date"
-                                  type="date"
-                                  value={selectedSeat.nightFrom || ""}
-                                  onChange={(e) => updateSeat("nightFrom", e.target.value)}
-                                />
-
-                                <FormInput
-                                  icon={<CalendarIcon className="w-4 h-4" />}
-                                  label="To Date"
-                                  type="date"
-                                  value={selectedSeat.nightTo || ""}
-                                  onChange={(e) => updateSeat("nightTo", e.target.value)}
-                                />
-                              </div>
-
-                              <div className="flex flex-wrap gap-2 pt-2">
-                                <button
-                                  type="button"
-                                  onClick={() => printFeeReceipt({
-                                    name: selectedSeat.nightStudent,
-                                    seat: selectedSeat.id,
-                                    plan: "Night Shift",
-                                    phone: selectedSeat.nightPhone,
-                                    address: selectedSeat.nightAddress,
-                                    amount: selectedSeat.nightAmount,
-                                    fromDate: selectedSeat.nightFrom,
-                                    toDate: selectedSeat.nightTo,
-                                    payment: selectedSeat.nightPayment,
-                                    paymentMode: selectedSeat.nightPaymentMode
-                                  })}
-                                  className="flex-1 bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-400/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
-                                >
-                                  🧾 Print Fee Receipt
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => sendStudentWhatsAppUpdate({
-                                    name: selectedSeat.nightStudent,
-                                    seat: selectedSeat.id,
-                                    plan: "Night Shift",
-                                    phone: selectedSeat.nightPhone,
-                                    address: selectedSeat.nightAddress,
-                                    amount: selectedSeat.nightAmount,
-                                    fromDate: selectedSeat.nightFrom,
-                                    toDate: selectedSeat.nightTo,
-                                    payment: selectedSeat.nightPayment,
-                                    paymentMode: selectedSeat.nightPaymentMode
-                                  })}
-                                  className="flex-1 bg-[#25D366]/10 hover:bg-[#25D366] text-[#25D366] hover:text-slate-950 border border-[#25D366]/30 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
-                                >
-                                  💬 WhatsApp Status Slip
-                                </button>
-                              </div>
-                            </div>
-                          </>
-                        )}
-
-                      </div>
-                    ) : null}
-
-                    <button
-                      onClick={saveSeatToFirebase}
-                      className="w-full bg-[#10b981] hover:bg-[#059669] text-white py-3.5 rounded-xl font-bold shadow-md shadow-green-500/20 transition-all flex items-center justify-center gap-2 mt-4"
-                    >
-                      <CalendarIcon className="w-5 h-5" /> SAVE SEAT DETAILS
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTargetSeatId("");
-                        let defaultShift = "Morning";
-                        if (selectedSeat.status === "24 Hours") {
-                          defaultShift = "24 Hours";
-                        } else if (selectedSeat.status === "Full Day") {
-                          defaultShift = selectedSeat.fullDayStudent ? "Full Day" : "Night";
-                        } else {
-                          defaultShift = selectedSeat.morningStudent
-                            ? "Morning"
-                            : selectedSeat.afternoonStudent
-                              ? "Afternoon"
-                              : "Night";
-                        }
-                        setTransferShift(defaultShift);
-                        setTargetShift(defaultShift);
-                        setShowTransferModal(true);
-                      }}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2 mt-3"
-                    >
-                      🔄 TRANSFER THIS SEAT / SHIFT
-                    </button>
-
-                    <div className="bg-blue-50 text-blue-800 p-4 rounded-xl flex gap-3 text-sm mt-4 border border-blue-100">
-                      <InfoIcon className="w-5 h-5 shrink-0 text-blue-500 mt-0.5" />
-                      <div>
-                        <p className="font-bold mb-1">Note:</p>
-                        <p className="opacity-90 leading-relaxed">
-                          {selectedSeat.status === '24 Hours'
-                            ? 'In 24 Hours booking, only one student will be assigned for the full 24 hours.'
-                            : 'Ensure student timings do not overlap. Update fee status accurately upon payment.'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ---> ADMIN: LIVE PREVIEW CARD <--- */}
-                <div className="bg-[#0f172a] rounded-2xl shadow-xl p-6 text-white border border-gray-800 xl:sticky xl:top-6">
-                  <div className="flex items-center justify-between mb-6 border-b border-gray-800 pb-4">
-                    <h3 className="text-xl font-black text-yellow-400">Live Seat Preview</h3>
-                    <div className="mt-3 rounded-lg bg-black/20 border border-yellow-500/20 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wider text-gray-400">
-                        Fees Due Status
-                      </p>
-
-                      <p className="text-sm font-bold mt-1">
-                        {getOverallSeatStatus(selectedSeat)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="bg-[#1e293b] rounded-xl p-4 border border-gray-800">
-                      <p className="text-[10px] text-gray-400 tracking-wider uppercase mb-1">Seat Number</p>
-                      <h4 className="text-3xl font-black">{selectedSeat.id}</h4>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-[#1e293b] rounded-xl p-4 border border-gray-800">
-                        <p className="text-[10px] text-gray-400 tracking-wider uppercase mb-1">Seat Type</p>
-                        <p className="font-bold text-sm">{selectedSeat.status}</p>
-                        <p className="text-xs mt-1 text-gray-400">{selectedSeat.timing}</p>
-                      </div>
-
-                      <div className="bg-[#1e293b] rounded-xl p-4 border border-gray-800">
-                        <p className="text-[10px] text-gray-400 tracking-wider uppercase mb-2">Fee Status ({selectedSeat.status})</p>
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${selectedSeat.nightPayment === 'Submitted' || selectedSeat.morningPayment === 'Submitted' ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                          <p className="font-bold text-sm">
-                            {selectedSeat.status === '24 Hours' ? selectedSeat.nightPayment : 'Mixed/Partial'}
+                      <div className="bg-blue-50 text-blue-800 p-4 rounded-xl flex gap-3 text-sm mt-4 border border-blue-100">
+                        <InfoIcon className="w-5 h-5 shrink-0 text-blue-500 mt-0.5" />
+                        <div>
+                          <p className="font-bold mb-1">Note:</p>
+                          <p className="opacity-90 leading-relaxed">
+                            {selectedSeat.status === '24 Hours'
+                              ? 'In 24 Hours booking, only one student will be assigned for the full 24 hours.'
+                              : 'Ensure student timings do not overlap. Update fee status accurately upon payment.'}
                           </p>
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    <div className="border border-gray-800 rounded-xl overflow-hidden mt-2">
-                      <div className="px-4 py-3 bg-[#0f172a] border-b border-gray-800">
-                        <p className="text-[10px] text-gray-400 tracking-wider uppercase">Student Records ({selectedSeat.status})</p>
+                  {/* ---> ADMIN: LIVE PREVIEW CARD <--- */}
+                  <div className="bg-[#0f172a] rounded-2xl shadow-xl p-6 text-white border border-gray-800 xl:sticky xl:top-6">
+                    <div className="flex items-center justify-between mb-6 border-b border-gray-800 pb-4">
+                      <h3 className="text-xl font-black text-yellow-400">Live Seat Preview</h3>
+                      <div className="mt-3 rounded-lg bg-black/20 border border-yellow-500/20 px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-wider text-gray-400">
+                          Fees Due Status
+                        </p>
+
+                        <p className="text-sm font-bold mt-1">
+                          {getOverallSeatStatus(selectedSeat)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="bg-[#1e293b] rounded-xl p-4 border border-gray-800">
+                        <p className="text-[10px] text-gray-400 tracking-wider uppercase mb-1">Seat Number</p>
+                        <h4 className="text-3xl font-black">{selectedSeat.id}</h4>
                       </div>
 
-                      {selectedSeat.status === '24 Hours' && selectedSeat.nightStudent ? (
-                        <div className="p-4 bg-[#1e293b]/50">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shrink-0">
-                              <UserIcon className="w-6 h-6" />
-                            </div>
-                            <div>
-                              <h4 className="font-bold text-lg">{selectedSeat.nightStudent}</h4>
-                              <p className="text-xs text-gray-400 mt-0.5">
-                                Fees: <span className={selectedSeat.nightPayment === 'Submitted' ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>{selectedSeat.nightPayment}</span>
-                                {selectedSeat.nightPaymentMode && <span className="ml-2 text-yellow-400 font-bold">• {selectedSeat.nightPaymentMode}</span>}
-                              </p>
-                              {selectedSeat.nightAddress && (
-                                <p className="text-[11px] text-slate-300 mt-1">📍 {selectedSeat.nightAddress}</p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="mt-4 pt-3 border-t border-gray-700/50 flex items-center gap-2 text-xs text-gray-300">
-                            <CalendarIcon className="w-4 h-4 text-gray-500" />
-                            {selectedSeat.fromDate} → {selectedSeat.toDate}
-                          </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-[#1e293b] rounded-xl p-4 border border-gray-800">
+                          <p className="text-[10px] text-gray-400 tracking-wider uppercase mb-1">Seat Type</p>
+                          <p className="font-bold text-sm">{selectedSeat.status}</p>
+                          <p className="text-xs mt-1 text-gray-400">{selectedSeat.timing}</p>
                         </div>
-                      ) : selectedSeat.status !== 'Available' ? (
-                        <div className="p-4 bg-[#1e293b]/50 space-y-4">
-                          {selectedSeat.fullDayStudent && (
-                            <div>
-                              <p className="text-sm">
-                                🌞 {selectedSeat.fullDayStudent}{" "}
-                                <span className="text-xs text-gray-400 font-bold">
-                                  ({selectedSeat.fullDayPayment || "Pending"}
-                                  {selectedSeat.fullDayPaymentMode ? ` • ${selectedSeat.fullDayPaymentMode}` : ""})
-                                </span>
-                              </p>
-                              {selectedSeat.fullDayAddress && (
-                                <p className="text-[11px] text-slate-300 mt-0.5 ml-5">📍 {selectedSeat.fullDayAddress}</p>
-                              )}
-                              <p className="text-[10px] text-gray-400 mt-1 ml-5 flex items-center gap-1">
-                                <CalendarIcon className="w-3 h-3" /> {selectedSeat.fullDayFrom} → {selectedSeat.fullDayTo}
-                              </p>
-                            </div>
-                          )}
-                          {selectedSeat.morningStudent && (
-                            <div>
-                              <p className="text-sm">
-                                🌅 {selectedSeat.morningStudent}{" "}
-                                <span className="text-xs text-gray-400 font-bold">
-                                  ({selectedSeat.morningPayment}
-                                  {selectedSeat.morningPaymentMode ? ` • ${selectedSeat.morningPaymentMode}` : ""})
-                                </span>
-                              </p>
-                              {selectedSeat.morningAddress && (
-                                <p className="text-[11px] text-slate-300 mt-0.5 ml-5">📍 {selectedSeat.morningAddress}</p>
-                              )}
-                              <p className="text-[10px] text-gray-400 mt-1 ml-5 flex items-center gap-1"><CalendarIcon className="w-3 h-3" /> {selectedSeat.morningFrom} → {selectedSeat.morningTo}</p>
-                            </div>
-                          )}
-                          {selectedSeat.afternoonStudent && (
-                            <div>
-                              <p className="text-sm">
-                                ☀️ {selectedSeat.afternoonStudent}{" "}
-                                <span className="text-xs text-gray-400 font-bold">
-                                  ({selectedSeat.afternoonPayment}
-                                  {selectedSeat.afternoonPaymentMode ? ` • ${selectedSeat.afternoonPaymentMode}` : ""})
-                                </span>
-                              </p>
-                              {selectedSeat.afternoonAddress && (
-                                <p className="text-[11px] text-slate-300 mt-0.5 ml-5">📍 {selectedSeat.afternoonAddress}</p>
-                              )}
-                              <p className="text-[10px] text-gray-400 mt-1 ml-5 flex items-center gap-1"><CalendarIcon className="w-3 h-3" /> {selectedSeat.afternoonFrom} → {selectedSeat.afternoonTo}</p>
-                            </div>
-                          )}
-                          {selectedSeat.nightStudent && (
-                            <div>
-                              <p className="text-sm">
-                                🌙 {selectedSeat.nightStudent}{" "}
-                                <span className="text-xs text-gray-400 font-bold">
-                                  ({selectedSeat.nightPayment}
-                                  {selectedSeat.nightPaymentMode ? ` • ${selectedSeat.nightPaymentMode}` : ""})
-                                </span>
-                              </p>
-                              {selectedSeat.nightAddress && (
-                                <p className="text-[11px] text-slate-300 mt-0.5 ml-5">📍 {selectedSeat.nightAddress}</p>
-                              )}
-                              <p className="text-[10px] text-gray-400 mt-1 ml-5 flex items-center gap-1"><CalendarIcon className="w-3 h-3" /> {selectedSeat.nightFrom} → {selectedSeat.nightTo}</p>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="p-6 text-center text-gray-500 text-sm bg-[#1e293b]/50">No students assigned.</div>
-                      )}
-                    </div>
 
-                    <div className="pt-2 text-xs text-gray-500">
-                      <p>Developer- Aman Yashdeva</p>
-                      <p>May 11, 2026</p>
+                        <div className="bg-[#1e293b] rounded-xl p-4 border border-gray-800">
+                          <p className="text-[10px] text-gray-400 tracking-wider uppercase mb-2">Fee Status ({selectedSeat.status})</p>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${selectedSeat.nightPayment === 'Submitted' || selectedSeat.morningPayment === 'Submitted' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                            <p className="font-bold text-sm">
+                              {selectedSeat.status === '24 Hours' ? selectedSeat.nightPayment : 'Mixed/Partial'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border border-gray-800 rounded-xl overflow-hidden mt-2">
+                        <div className="px-4 py-3 bg-[#0f172a] border-b border-gray-800">
+                          <p className="text-[10px] text-gray-400 tracking-wider uppercase">Student Records ({selectedSeat.status})</p>
+                        </div>
+
+                        {selectedSeat.status === '24 Hours' && selectedSeat.nightStudent ? (
+                          <div className="p-4 bg-[#1e293b]/50">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shrink-0">
+                                <UserIcon className="w-6 h-6" />
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-lg">{selectedSeat.nightStudent}</h4>
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                  Fees: <span className={selectedSeat.nightPayment === 'Submitted' ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>{selectedSeat.nightPayment}</span>
+                                  {selectedSeat.nightPaymentMode && <span className="ml-2 text-yellow-400 font-bold">• {selectedSeat.nightPaymentMode}</span>}
+                                </p>
+                                {selectedSeat.nightAddress && (
+                                  <p className="text-[11px] text-slate-300 mt-1">📍 {selectedSeat.nightAddress}</p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="mt-4 pt-3 border-t border-gray-700/50 flex items-center gap-2 text-xs text-gray-300">
+                              <CalendarIcon className="w-4 h-4 text-gray-500" />
+                              {selectedSeat.fromDate} → {selectedSeat.toDate}
+                            </div>
+                          </div>
+                        ) : selectedSeat.status !== 'Available' ? (
+                          <div className="p-4 bg-[#1e293b]/50 space-y-4">
+                            {selectedSeat.fullDayStudent && (
+                              <div>
+                                <p className="text-sm">
+                                  🌞 {selectedSeat.fullDayStudent}{" "}
+                                  <span className="text-xs text-gray-400 font-bold">
+                                    ({selectedSeat.fullDayPayment || "Pending"}
+                                    {selectedSeat.fullDayPaymentMode ? ` • ${selectedSeat.fullDayPaymentMode}` : ""})
+                                  </span>
+                                </p>
+                                {selectedSeat.fullDayAddress && (
+                                  <p className="text-[11px] text-slate-300 mt-0.5 ml-5">📍 {selectedSeat.fullDayAddress}</p>
+                                )}
+                                <p className="text-[10px] text-gray-400 mt-1 ml-5 flex items-center gap-1">
+                                  <CalendarIcon className="w-3 h-3" /> {selectedSeat.fullDayFrom} → {selectedSeat.fullDayTo}
+                                </p>
+                              </div>
+                            )}
+                            {selectedSeat.morningStudent && (
+                              <div>
+                                <p className="text-sm">
+                                  🌅 {selectedSeat.morningStudent}{" "}
+                                  <span className="text-xs text-gray-400 font-bold">
+                                    ({selectedSeat.morningPayment}
+                                    {selectedSeat.morningPaymentMode ? ` • ${selectedSeat.morningPaymentMode}` : ""})
+                                  </span>
+                                </p>
+                                {selectedSeat.morningAddress && (
+                                  <p className="text-[11px] text-slate-300 mt-0.5 ml-5">📍 {selectedSeat.morningAddress}</p>
+                                )}
+                                <p className="text-[10px] text-gray-400 mt-1 ml-5 flex items-center gap-1"><CalendarIcon className="w-3 h-3" /> {selectedSeat.morningFrom} → {selectedSeat.morningTo}</p>
+                              </div>
+                            )}
+                            {selectedSeat.afternoonStudent && (
+                              <div>
+                                <p className="text-sm">
+                                  ☀️ {selectedSeat.afternoonStudent}{" "}
+                                  <span className="text-xs text-gray-400 font-bold">
+                                    ({selectedSeat.afternoonPayment}
+                                    {selectedSeat.afternoonPaymentMode ? ` • ${selectedSeat.afternoonPaymentMode}` : ""})
+                                  </span>
+                                </p>
+                                {selectedSeat.afternoonAddress && (
+                                  <p className="text-[11px] text-slate-300 mt-0.5 ml-5">📍 {selectedSeat.afternoonAddress}</p>
+                                )}
+                                <p className="text-[10px] text-gray-400 mt-1 ml-5 flex items-center gap-1"><CalendarIcon className="w-3 h-3" /> {selectedSeat.afternoonFrom} → {selectedSeat.afternoonTo}</p>
+                              </div>
+                            )}
+                            {selectedSeat.nightStudent && (
+                              <div>
+                                <p className="text-sm">
+                                  🌙 {selectedSeat.nightStudent}{" "}
+                                  <span className="text-xs text-gray-400 font-bold">
+                                    ({selectedSeat.nightPayment}
+                                    {selectedSeat.nightPaymentMode ? ` • ${selectedSeat.nightPaymentMode}` : ""})
+                                  </span>
+                                </p>
+                                {selectedSeat.nightAddress && (
+                                  <p className="text-[11px] text-slate-300 mt-0.5 ml-5">📍 {selectedSeat.nightAddress}</p>
+                                )}
+                                <p className="text-[10px] text-gray-400 mt-1 ml-5 flex items-center gap-1"><CalendarIcon className="w-3 h-3" /> {selectedSeat.nightFrom} → {selectedSeat.nightTo}</p>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="p-6 text-center text-gray-500 text-sm bg-[#1e293b]/50">No students assigned.</div>
+                        )}
+                      </div>
+
+                      <div className="pt-2 text-xs text-gray-500">
+                        <p>Developer- Aman Yashdeva</p>
+                        <p>May 11, 2026</p>
+                      </div>
                     </div>
                   </div>
+
+                </div>
+
+                {/* ---> INCOMING PUBLIC SEAT BOOKING REQUESTS (ALWAYS VISIBLE AT BOTTOM) <--- */}
+                <div id="incoming-requests-section" className="bg-[#1e293b] border border-amber-400/40 rounded-3xl p-7 shadow-2xl">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5 border-b border-slate-700/80 pb-4">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-2xl">🔔</span>
+                      <div>
+                        <h3 className="text-lg font-black text-amber-400 tracking-tight">
+                          Incoming Public Seat Booking Requests ({bookingRequests.length})
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-0.5">Approve to auto-fill seat details. Use WhatsApp button to send confirmation.</p>
+                      </div>
+                    </div>
+                    <span className="bg-amber-400/10 text-amber-300 border border-amber-400/20 text-[10px] font-black uppercase px-3 py-1 rounded-full w-fit">
+                      {bookingRequests.length} Pending
+                    </span>
+                  </div>
+
+                  {bookingRequests.length === 0 ? (
+                    <div className="text-center py-8 bg-[#0b1220] rounded-2xl border border-slate-800">
+                      <span className="text-3xl opacity-60">📭</span>
+                      <p className="text-xs font-bold text-slate-400 mt-2">No pending seat booking requests right now.</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">When students submit the booking form from the website, their requests appear here instantly.</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {bookingRequests.map((req) => (
+                        <div key={req.id} className="bg-[#0b1220] border border-slate-700/90 hover:border-amber-400/40 rounded-2xl p-5 flex flex-col justify-between gap-4 shadow-lg transition">
+                          <div>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-bold text-white text-base">{req.name}</h4>
+                                <p className="text-xs text-amber-300 font-mono mt-0.5">Desired Seat: <b>Seat {req.seat}</b> • {req.plan}</p>
+                              </div>
+                              <span className="text-xs font-mono font-black text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-xl border border-emerald-500/30">₹{req.amount}</span>
+                            </div>
+
+                            <div className="mt-3 text-xs text-slate-300 space-y-1.5 font-medium bg-slate-900/50 p-3 rounded-xl border border-slate-800">
+                              <p>📱 Phone: <a href={`tel:${req.phone}`} className="text-blue-400 underline">{req.phone}</a></p>
+                              <p>⏰ Timing: {req.timing}</p>
+                              <p>🔐 Locker: {req.locker}</p>
+                              <p>📍 Address: {req.address}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 pt-2 border-t border-slate-800/80">
+                            {/* APPROVE BUTTON (ONLY APPROVES & ASSIGNS SEAT) */}
+                            <button
+                              onClick={() => approveBookingRequest(req)}
+                              className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition shadow cursor-pointer"
+                            >
+                              ✓ Approve Seat
+                            </button>
+
+                            {/* SEPARATE WHATSAPP BUTTON WITH PORTAL LINK */}
+                            <button
+                              onClick={() => sendRequestWhatsAppMsg(req)}
+                              className="bg-[#25D366]/10 hover:bg-[#25D366] text-[#25D366] hover:text-slate-950 border border-[#25D366]/30 px-3.5 py-2.5 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                              title="Send Confirmation on WhatsApp"
+                            >
+                              <span>💬</span> WhatsApp
+                            </button>
+
+                            {/* REJECT BUTTON */}
+                            <button
+                              onClick={() => deleteBookingRequest(req.id)}
+                              className="bg-rose-500/10 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/30 px-3.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
               </div>
             ) : (
               <div className="flex items-center justify-center h-full text-gray-400 flex-col gap-4 bg-white rounded-3xl border border-gray-200">
                 <SearchIcon className="w-16 h-16 opacity-20" />
-                <p className="text-lg font-medium">Kripya sidebar se koi seat select karein.</p>
+                <p className="text-lg font-medium">Please select a seat from the sidebar.</p>
               </div>
             )}
 
@@ -2293,7 +2766,7 @@ Warm regards,
                     type="button"
                     onClick={async () => {
                       if (!targetSeatId) {
-                        alert("Kripya target seat select karein.");
+                        alert("Please select a target seat.");
                         return;
                       }
                       await handleSeatTransfer(selectedSeat.id, targetSeatId, transferShift, targetShift);
@@ -2301,7 +2774,7 @@ Warm regards,
                     }}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all text-sm"
                   >
-                    Confirm & Execute
+                    Confirm &amp; Execute
                   </button>
 
                 </div>
@@ -2415,7 +2888,7 @@ Warm regards,
                   </span>
                 </h2>
 
-                {/* Subtitle description (FIXED: 100% FORCED CENTER ON LAPTOP & MOBILE) */}
+                {/* Subtitle description */}
                 <p
                   className="mt-4 text-sm sm:text-base md:text-lg leading-relaxed text-slate-300 max-w-2xl mx-auto font-medium text-center !text-center w-full"
                   style={{ textAlign: "center", marginLeft: "auto", marginRight: "auto", display: "block" }}
@@ -2939,7 +3412,7 @@ Warm regards,
             {/* ---> PUBLIC: PLANS SECTION <--- */}
             <Plans />
 
-            {/* ---> PUBLIC: BOOKING MODAL POPUP <--- */}
+            {/* ---> PUBLIC: BOOKING MODAL POPUP (1-CLICK DB + WHATSAPP) <--- */}
             {showBookingPopup && (
               <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
                 <div className="relative max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl sm:p-10 border border-slate-100 text-slate-900">
@@ -2978,7 +3451,7 @@ Warm regards,
                       <input
                         type="text"
                         id="bookingName"
-                        placeholder="e.g., Aman Singh"
+                        placeholder="Your Full Name"
                         className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-900 outline-none focus:border-indigo-500 focus:bg-white transition"
                       />
                     </div>
@@ -2988,6 +3461,11 @@ Warm regards,
                       <input
                         type="tel"
                         id="bookingPhone"
+                        maxLength={10}
+                        inputMode="numeric"
+                        onInput={(e) => {
+                          e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        }}
                         placeholder="10-digit mobile number"
                         className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-900 outline-none focus:border-indigo-500 focus:bg-white transition"
                       />
@@ -3148,7 +3626,7 @@ Warm regards,
                     </div>
                   )}
 
-                  {/* SEAT NUMBER */}
+                  {/* SEAT NUMBER (WHEEL & ARROW KEYS DISABLED) */}
                   <div className="mt-4">
                     <label className="mb-1.5 block text-xs font-bold text-gray-700 uppercase tracking-wider">Desired Seat Number (1 - 66)</label>
                     <input
@@ -3156,8 +3634,14 @@ Warm regards,
                       min="1"
                       max="100"
                       id="bookingSeat"
+                      onWheel={(e) => e.target.blur()}
+                      onKeyDown={(e) => {
+                        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                          e.preventDefault();
+                        }
+                      }}
                       placeholder="e.g., 14"
-                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-bold text-gray-900 outline-none focus:border-indigo-500"
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-bold text-gray-900 outline-none focus:border-indigo-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
 
@@ -3192,14 +3676,14 @@ Warm regards,
                     </p>
                   </div>
 
-                  {/* WHATSAPP SUBMISSION BUTTON */}
+                  {/* WHATSAPP SUBMISSION BUTTON (1-CLICK DB + WHATSAPP) */}
                   <button
-                    onClick={() => {
-                      const name = document.getElementById("bookingName").value.trim();
-                      const phone = document.getElementById("bookingPhone").value.trim();
-                      const email = document.getElementById("bookingEmail").value.trim();
-                      const address = document.getElementById("bookingAddress").value.trim();
-                      const seat = document.getElementById("bookingSeat").value.trim();
+                    onClick={async () => {
+                      const name = document.getElementById("bookingName")?.value.trim() || "";
+                      const phone = document.getElementById("bookingPhone")?.value.trim() || "";
+                      const email = document.getElementById("bookingEmail")?.value.trim() || "";
+                      const address = document.getElementById("bookingAddress")?.value.trim() || "";
+                      const seat = document.getElementById("bookingSeat")?.value.trim() || "";
 
                       if (
                         !name ||
@@ -3228,6 +3712,26 @@ Warm regards,
                         return;
                       }
 
+                      // 1. Save directly to Firebase booking_requests
+                      try {
+                        await addDoc(collection(db, "booking_requests"), {
+                          name,
+                          phone,
+                          email,
+                          address,
+                          seat: Number(seat),
+                          plan: selectedPlan,
+                          timing: selectedTiming,
+                          locker: lockerOption,
+                          amount: totalAmount,
+                          status: "Pending",
+                          createdAt: Date.now()
+                        });
+                      } catch (err) {
+                        console.error("Booking request save error:", err);
+                      }
+
+                      // 2. Form WhatsApp message with verification link
                       const message = `
 *🔥 ANY TIME LIBRARY - SEAT BOOKING REQUEST 🔥*
 
@@ -3255,8 +3759,9 @@ Please check and confirm my seat booking.
 
                       const whatsappUrl = `https://wa.me/9161310909?text=${encodeURIComponent(message)}`;
                       window.open(whatsappUrl, "_blank");
+                      setShowBookingPopup(false);
                     }}
-                    className="mt-6 w-full rounded-2xl bg-emerald-600 hover:bg-emerald-500 py-4 text-base font-black text-white shadow-xl shadow-emerald-600/30 transition hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-2"
+                    className="mt-6 w-full rounded-2xl bg-emerald-600 hover:bg-emerald-500 py-4 text-base font-black text-white shadow-xl shadow-emerald-600/30 transition hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <span>💬</span> Send Booking Request on WhatsApp
                   </button>
@@ -3264,6 +3769,162 @@ Please check and confirm my seat booking.
                 </div>
               </div>
             )}
+
+            {/* ================= TESTIMONIALS & REVIEWS SECTION (SIDE-BY-SIDE + PLAYSTORE STARS) ================= */}
+            <section className="relative bg-[#070b16] px-4 md:px-6 py-20 text-white border-t border-slate-800/80">
+              <div className="mx-auto max-w-7xl">
+                <div className="mb-12 text-center">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-400/10 text-amber-400 border border-amber-400/20 mb-3">
+                    Student Wall of Love
+                  </div>
+                  <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
+                    What Aspirants Say About Us
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-lg mx-auto">
+                    Real study thoughts &amp; experiences shared directly by library students.
+                  </p>
+                </div>
+
+                {/* SIDE-BY-SIDE CONTAINER */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                  
+                  {/* LEFT SIDE: INSTANT LIVE REVIEWS DISPLAY */}
+                  <div className="lg:col-span-7 space-y-4 max-h-[580px] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
+                    {feedbacks.length === 0 ? (
+                      <div className="p-12 text-center text-slate-500 bg-[#0b1120] rounded-3xl border border-slate-800">
+                        <div className="text-4xl mb-3">✍️</div>
+                        <p className="text-sm font-semibold text-slate-300">No reviews yet!</p>
+                        <p className="text-xs text-slate-500 mt-1">Be the first to share your experience on the right form.</p>
+                      </div>
+                    ) : (
+                      feedbacks.map((fb) => (
+                        <div
+                          key={fb.id}
+                          className="bg-[#0b1120] border border-slate-800 hover:border-amber-400/40 rounded-2xl p-5 shadow-lg flex flex-col justify-between transition-all duration-300 hover:-translate-y-0.5"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="font-bold text-white text-sm sm:text-base flex items-center gap-2">
+                                <span>👤</span> {fb.name}
+                              </h4>
+                              <span className="text-amber-400 text-xs sm:text-sm tracking-widest">
+                                {"★".repeat(Number(fb.rating || 5))}
+                              </span>
+                            </div>
+                            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed italic mt-2 bg-slate-900/40 p-3 rounded-xl border border-slate-800/80">
+                              "{fb.text}"
+                            </p>
+                          </div>
+                          <div className="mt-4 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                            <span className="text-emerald-400 font-semibold">✓ Verified Aspirant</span>
+                            <span>Any Time Library</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* RIGHT SIDE: REVIEW SUBMISSION FORM WITH PLAYSTORE STYLE CLICKABLE STARS */}
+                  <div className="lg:col-span-5 bg-gradient-to-br from-[#0e1629] to-[#0a101d] border border-amber-400/30 rounded-3xl p-6 sm:p-8 shadow-2xl lg:sticky lg:top-24">
+                    <div className="text-left mb-5">
+                      <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-400/10 text-amber-400 border border-amber-400/20 mb-2">
+                        Instant Live Rating
+                      </div>
+                      <h3 className="text-xl font-black text-white">Share Your Feedback</h3>
+                      <p className="text-xs text-slate-400 mt-1">Your review will immediately appear on this wall for other students.</p>
+                    </div>
+
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (!reviewerName.trim() || !reviewText.trim()) {
+                          alert("Please fill in both your name and review message.");
+                          return;
+                        }
+
+                        try {
+                          await addDoc(collection(db, "feedbacks"), {
+                            name: reviewerName.trim(),
+                            rating: reviewRating,
+                            text: reviewText.trim(),
+                            isApproved: false,
+                            createdAt: Date.now()
+                          });
+                          alert("🎉 Thank you! Your review is now live on the website.");
+                          setReviewerName("");
+                          setReviewText("");
+                          setReviewRating(5);
+                        } catch (err) {
+                          console.error("Review submit error:", err);
+                          alert("Review submit karne mein dikkat aayi.");
+                        }
+                      }}
+                      className="space-y-4"
+                    >
+                      <div>
+                        <label className="block text-xs font-bold text-slate-300 mb-1 uppercase tracking-wider">Your Full Name</label>
+                        <input
+                          type="text"
+                          value={reviewerName}
+                          onChange={(e) => setReviewerName(e.target.value)}
+                          placeholder="e.g., Aman Yashdeva"
+                          className="w-full bg-[#050811] border border-slate-700 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-amber-400 font-semibold"
+                          required
+                        />
+                      </div>
+
+                      {/* PLAY STORE STYLE CLICKABLE STARS */}
+                      <div>
+                        <label className="block text-xs font-bold text-slate-300 mb-1 uppercase tracking-wider">
+                          Select Star Rating
+                        </label>
+                        <div className="flex items-center gap-1.5 py-1 bg-[#050811] border border-slate-700/80 px-4 py-2.5 rounded-xl">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              type="button"
+                              key={star}
+                              onMouseEnter={() => setHoverRating(star)}
+                              onMouseLeave={() => setHoverRating(0)}
+                              onClick={() => setReviewRating(star)}
+                              className={`text-2xl sm:text-3xl transition-transform hover:scale-125 focus:outline-none cursor-pointer ${
+                                star <= (hoverRating || reviewRating)
+                                  ? "text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.7)]"
+                                  : "text-slate-600 hover:text-slate-400"
+                              }`}
+                            >
+                              ★
+                            </button>
+                          ))}
+                          <span className="text-xs font-mono font-black text-amber-400 ml-auto">
+                            {(hoverRating || reviewRating)} / 5 Star
+                          </span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-300 mb-1 uppercase tracking-wider">Your Experience</label>
+                        <textarea
+                          rows="4"
+                          value={reviewText}
+                          onChange={(e) => setReviewText(e.target.value)}
+                          placeholder="Share your experience about library facilities, silent environment, or staff support..."
+                          className="w-full bg-[#050811] border border-slate-700 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-amber-400 font-semibold resize-none"
+                          required
+                        ></textarea>
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="w-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:brightness-110 text-slate-950 py-3.5 rounded-xl font-black text-xs tracking-wider shadow-lg shadow-amber-400/20 transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        <span>🚀</span> Publish
+                      </button>
+                    </form>
+                  </div>
+
+                </div>
+              </div>
+            </section>
 
             {/* ================= RESOURCE HUB & UPDATES ================= */}
             <section id="features" className="relative bg-[#080d18] px-4 md:px-6 py-20 text-white border-t border-slate-800/80">
@@ -3276,7 +3937,7 @@ Please check and confirm my seat booking.
                     Resource Hub &amp; Student Updates
                   </h2>
                   
-                  {/* Resource Hub Subtitle (FIXED: 100% FORCED CENTER ON LAPTOP & MOBILE) */}
+                  {/* Resource Hub Subtitle */}
                   <p 
                     className="text-xs sm:text-sm text-slate-400 mt-1 max-w-lg mx-auto text-center !text-center w-full"
                     style={{ textAlign: "center", marginLeft: "auto", marginRight: "auto", display: "block" }}

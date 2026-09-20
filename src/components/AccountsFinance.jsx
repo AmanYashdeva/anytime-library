@@ -910,9 +910,15 @@ const AccountsFinance = ({
                 placeholder="e.g., 1200"
                 value={expAmount}
                 onChange={(e) => setExpAmount(e.target.value)}
+                onWheel={(e) => e.target.blur()}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                    e.preventDefault();
+                  }
+                }}
                 required
                 min="1"
-                className="w-full bg-[#080d16] border border-slate-700/80 rounded-xl px-3.5 py-2 text-sm font-black text-white outline-none focus:border-amber-400 placeholder-slate-500 font-mono"
+                className="w-full bg-[#080d16] border border-slate-700/80 rounded-xl px-3.5 py-2 text-sm font-black text-white outline-none focus:border-amber-400 placeholder-slate-500 font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
             </div>
 
