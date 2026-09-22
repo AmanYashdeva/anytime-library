@@ -1724,7 +1724,7 @@ Warm regards,
                               {/* Morning Shift */}
                               <div className={`border rounded-xl p-4 space-y-3 shadow-sm ${theme === 'light' ? 'bg-white/70 border-sky-200' : 'bg-slate-800/80 border-slate-700'}`}>
                                 <div className="flex justify-between items-center">
-                                  <h4 className="font-bold text-blue-600">🌤️ Morning Shift</h4>
+                                  <h4 className="font-bold text-orange-300">🌤️ Morning Shift</h4>
                                   <button
                                     type="button"
                                     onClick={() => renewSeatShift("morningFrom", "morningTo", "morningPayment")}
@@ -1863,7 +1863,7 @@ Warm regards,
                               {/* Afternoon Shift */}
                               <div className={`border rounded-xl p-4 space-y-3 shadow-sm ${theme === 'light' ? 'bg-white/70 border-sky-200' : 'bg-slate-800/80 border-slate-700'}`}>
                                 <div className="flex justify-between items-center">
-                                  <h4 className="font-bold text-blue-600">☀️ Afternoon Shift</h4>
+                                  <h4 className="font-bold text-orange-600">☀️ Afternoon Shift</h4>
                                   <button
                                     type="button"
                                     onClick={() => renewSeatShift("afternoonFrom", "afternoonTo", "afternoonPayment")}
@@ -2142,7 +2142,7 @@ Warm regards,
                               {/* Full Day Shift */}
                               <div className={`border rounded-xl p-4 space-y-3 shadow-sm ${theme === 'light' ? 'bg-white/70 border-sky-200' : 'bg-slate-800/80 border-slate-700'}`}>
                                 <div className="flex justify-between items-center">
-                                  <h5 className="font-bold text-blue-600">
+                                  <h5 className="font-bold text-orange-600">
                                     🌞 Full Day Shift
                                   </h5>
                                   <button
