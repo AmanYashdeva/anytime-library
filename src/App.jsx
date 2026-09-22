@@ -453,8 +453,8 @@ export default function App() {
   // ============================================================================
   // 📍 5. ADMIN LOGIN CREDENTIALS
   // ============================================================================
-  const adminUser = 'Anant Singh';
-  const adminPass = 'Kamlesh@123';
+  const adminUser = import.meta.env.VITE_ADMIN_USER;
+  const adminPass = import.meta.env.VITE_ADMIN_PASS;
 
   const handleLogin = () => {
     if (username === adminUser && password === adminPass) {
