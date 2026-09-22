@@ -2928,7 +2928,6 @@ Warm regards,
                     🔒
                   </div>
                   <h2 className="text-2xl font-black tracking-tight">Administrator Access</h2>
-                  <p className="text-xs text-slate-400 mt-1">Management Portal Verification</p>
                 </div>
                 <input
                   type="text"
@@ -2965,7 +2964,7 @@ Warm regards,
                       : 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-amber-400/20 hover:brightness-110'
                   }`}
                 >
-                  Authenticate &amp; Enter
+                  Login In
                 </button>
               </div>
             </div>
