@@ -881,6 +881,9 @@ ${req.address ? `• *Address:* ${req.address}\n` : ""}
 🔍 *Apni seat online live check karne ke liye visit karein:*
 👉 https://anytime-library-ruddy.vercel.app/
 
+And follow us on Instagram for updates and announcements:
+👉 https://www.instagram.com/anytime_library/
+
 Welcome to Any Time Library! Wishing you productive study hours ahead.
 
 Warm regards,  
@@ -1085,6 +1088,9 @@ Your library seat has been provisionally *RESERVED*, awaiting fee payment confir
 ${student.address ? `• *Address:* ${student.address}\n` : ""}
 🔍 *Check seat availability online:*
 👉 https://anytime-library-ruddy.vercel.app/
+
+And follow us on Instagram for updates and announcements:
+👉 https://www.instagram.com/anytime_library/
 
 Kindly complete your payment at the earliest to confirm your permanent seat allocation.
 

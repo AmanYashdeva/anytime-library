@@ -466,12 +466,18 @@ const Dashboard = ({ seats = [], onToggleSeatVisibility, onNavigateToAccounts, t
 
 Greetings from *ANY TIME LIBRARY*! 📚
 
-This is a gentle reminder that your monthly library seat subscription is due for renewal.
+This is a gentle reminder that your monthly library seat subscription is due for *pending fees*.
 
 📌 *Membership Details:*
 • *Seat Number:* Seat ${student.seat}
 • *Shift / Plan:* ${student.plan}
-• *Due Date:* ${student.toDate || "Expired"}
+• *Pending Fees:* ₹${student.amount || 0}
+
+🔍 *Apni seat online live check karne ke liye visit karein:*
+👉 https://anytime-library-ruddy.vercel.app/
+
+And don't forget to follow us on Instagram for the latest updates and offers:
+👉 https://www.instagram.com/anytime_library/
 
 To ensure your seat reservation continues without interruption, kindly complete your fee renewal at your earliest convenience.
 
