@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db } from "../firebase";
-import { collection, doc, updateDoc, deleteDoc, onSnapshot } from "firebase/firestore";
+import { collection, doc, updateDoc, deleteDoc, onSnapshot, setDoc } from "firebase/firestore";
 
 // =====================================================
 // 🔒 LOCKER SEAT NUMBERS
@@ -106,25 +106,87 @@ const Dashboard = ({ seats = [], onToggleSeatVisibility, onNavigateToAccounts, t
   // ⭐ REAL-TIME REVIEWS & TESTIMONIALS STATE
   // =====================================================
   const [dashboardFeedbacks, setDashboardFeedbacks] = useState([]);
+  const [feeHistoryList, setFeeHistoryList] = useState([]);
+
+  // ---> TEMP FORM STATES START (REMOVE LATER) <---
+  const [tempSeatId, setTempSeatId] = useState("");
+  const [tempStudentName, setTempStudentName] = useState("");
+  const [tempPlan, setTempPlan] = useState("Full Day Shift");
+  const [tempAmount, setTempAmount] = useState("");
+  const [tempPaidDate, setTempPaidDate] = useState("");
+  const [tempFromDate, setTempFromDate] = useState("");
+  const [tempToDate, setTempToDate] = useState("");
+  const [tempPhone, setTempPhone] = useState("");
+  const [tempEntryType, setTempEntryType] = useState("New Admission");
+  // ---> TEMP FORM STATES END <---
 
   useEffect(() => {
     try {
       const feedbackRef = collection(db, "feedbacks");
-      const unsubscribe = onSnapshot(feedbackRef, (snapshot) => {
+      const unsubscribeFB = onSnapshot(feedbackRef, (snapshot) => {
         const list = [];
         snapshot.forEach((docSnap) => {
           list.push({ id: docSnap.id, ...docSnap.data() });
         });
-        // Sort newest first
         list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
         setDashboardFeedbacks(list);
       });
 
-      return () => unsubscribe();
+      const historyRef = collection(db, "fee_history");
+      const unsubscribeHistory = onSnapshot(historyRef, (snapshot) => {
+        const hList = [];
+        snapshot.forEach((docSnap) => {
+          hList.push(docSnap.data());
+        });
+        setFeeHistoryList(hList);
+      });
+
+      return () => {
+        unsubscribeFB();
+        unsubscribeHistory();
+      };
     } catch (err) {
       console.error("Feedback fetch error:", err);
     }
   }, []);
+
+  // ---> TEMP FORM SUBMIT HANDLER START (REMOVE LATER) <---
+  const handleTempHistorySubmit = async (e) => {
+    e.preventDefault();
+    if (!tempSeatId || !tempStudentName || !tempPaidDate || !tempAmount || !tempFromDate || !tempToDate) {
+      alert("Please fill all required fields including From & To dates!");
+      return;
+    }
+    try {
+      const docId = `${tempSeatId}-${tempPlan}-${tempPaidDate}-${tempStudentName.replace(/\s+/g, '_')}`;
+      await setDoc(doc(db, "fee_history", docId), {
+        seatId: Number(tempSeatId),
+        studentName: tempStudentName,
+        plan: tempPlan,
+        amount: Number(tempAmount),
+        paidDate: tempPaidDate,
+        fromDate: tempFromDate,
+        toDate: tempToDate,
+        phone: tempPhone,
+        entryType: tempEntryType,
+        paymentMode: "Cash",
+        status: "Submitted",
+        archivedAt: Date.now()
+      });
+      alert("Purani/Current entry successfully fee_history mein add ho gayi!");
+      setTempSeatId("");
+      setTempStudentName("");
+      setTempAmount("");
+      setTempPaidDate("");
+      setTempFromDate("");
+      setTempToDate("");
+      setTempPhone("");
+    } catch (err) {
+      console.error("Error adding history:", err);
+      alert("Error saving history entry.");
+    }
+  };
+  // ---> TEMP FORM SUBMIT HANDLER END <---
 
   const handleToggleFeedbackLive = async (feedbackId, currentStatus) => {
     try {
@@ -234,80 +296,20 @@ const Dashboard = ({ seats = [], onToggleSeatVisibility, onNavigateToAccounts, t
   });
 
   // =====================================================
-  // ALL STUDENTS COLLECTION DATA (Submitted fees only)
+  // ALL STUDENTS COLLECTION DATA (From fee_history)
   // =====================================================
-  const allCollections = [];
-
-  visibleSeats.forEach((seat) => {
-    const addCollection = (name, plan, payment, amount, paidDate, fromDate, toDate, phone, entryType) => {
-      if (!name || payment !== "Submitted") return;
-
-      allCollections.push({
-        name,
-        seat: seat.id,
-        plan,
-        amount: Number(amount) || 0,
-        date: paidDate || fromDate || "",
-        fromDate: fromDate || "",
-        toDate: toDate || "",
-        phone: phone || "",
-        payment,
-        entryType: entryType || "New Admission",
-      });
-    };
-
-    // Morning Shift
-    addCollection(
-      seat.morningStudent,
-      "Morning",
-      seat.morningPayment,
-      seat.morningAmount || seat.morningFee,
-      seat.morningPaidDate,
-      seat.morningFrom,
-      seat.morningTo,
-      seat.morningPhone,
-      seat.morningEntryType
-    );
-
-    // Afternoon Shift
-    addCollection(
-      seat.afternoonStudent,
-      "Afternoon",
-      seat.afternoonPayment,
-      seat.afternoonAmount || seat.afternoonFee,
-      seat.afternoonPaidDate,
-      seat.afternoonFrom,
-      seat.afternoonTo,
-      seat.afternoonPhone,
-      seat.afternoonEntryType
-    );
-
-    // Night Shift & 24 Hours Plan
-    addCollection(
-      seat.nightStudent,
-      seat.status === "24 Hours" ? "24 Hours" : "Night",
-      seat.nightPayment,
-      seat.nightAmount || seat.nightFee,
-      seat.nightPaidDate,
-      seat.nightFrom,
-      seat.nightTo,
-      seat.nightPhone,
-      seat.nightEntryType
-    );
-
-    // Full Day Shift
-    addCollection(
-      seat.fullDayStudent,
-      "Full Day",
-      seat.fullDayPayment,
-      seat.fullDayAmount || seat.fullDayFee,
-      seat.fullDayPaidDate,
-      seat.fullDayFrom,
-      seat.fullDayTo,
-      seat.fullDayPhone,
-      seat.fullDayEntryType
-    );
-  });
+  const allCollections = feeHistoryList.map((item) => ({
+    name: item.studentName || "",
+    seat: item.seatId || 0,
+    plan: item.plan || "",
+    amount: Number(item.amount) || 0,
+    date: item.paidDate || item.fromDate || "",
+    fromDate: item.fromDate || "",
+    toDate: item.toDate || "",
+    phone: item.phone || "",
+    payment: item.status || "Submitted",
+    entryType: item.entryType || "New Admission",
+  })).filter((student) => student.name && student.payment === "Submitted");
 
   // STRICT FILTER: Current month collection
   const monthlyCollections = allCollections.filter((student) => {
@@ -337,9 +339,7 @@ const Dashboard = ({ seats = [], onToggleSeatVisibility, onNavigateToAccounts, t
     .map((month, monthIndex) => {
       const monthTotal = allCollections
         .filter((student) => {
-          if (!student.date) {
-            return monthIndex === currentMonthIndex;
-          }
+          if (!student.date) return false;
           const collectionDate = new Date(student.date);
           return (
             collectionDate.getMonth() === monthIndex &&
@@ -528,6 +528,102 @@ Warm regards,
           </p>
         </div>
       </div>
+
+      {/* ---> TEMP FORM UI START (REMOVE LATER) <--- */}
+      <div className={`p-6 rounded-3xl border ${isLight ? "bg-white/70 border-sky-300 shadow-md" : "bg-[#111827] border-amber-500/40 shadow-xl"}`}>
+        <h3 className={`font-black text-sm mb-3 ${isLight ? "text-slate-900" : "text-amber-400"}`}>
+          ⚡ Quick Fee History Entry Box (Purani/Current History Add Karein - With From/To Dates)
+        </h3>
+        <form onSubmit={handleTempHistorySubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <input 
+            type="number" 
+            placeholder="Seat No (e.g. 16)" 
+            value={tempSeatId} 
+            onChange={(e) => setTempSeatId(e.target.value)} 
+            className={`p-2.5 rounded-xl border text-xs outline-none ${isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-700 text-white"}`}
+            required 
+          />
+          <input 
+            type="text" 
+            placeholder="Student Name" 
+            value={tempStudentName} 
+            onChange={(e) => setTempStudentName(e.target.value)} 
+            className={`p-2.5 rounded-xl border text-xs outline-none ${isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-700 text-white"}`}
+            required 
+          />
+          <select 
+            value={tempPlan} 
+            onChange={(e) => setTempPlan(e.target.value)} 
+            className={`p-2.5 rounded-xl border text-xs outline-none ${isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-700 text-white"}`}
+          >
+            <option value="Morning">Morning Shift</option>
+            <option value="Afternoon">Afternoon Shift</option>
+            <option value="Night">Night Shift</option>
+            <option value="Full Day Shift">Full Day Shift</option>
+            <option value="24 Hours">24 Hours</option>
+          </select>
+          <input 
+            type="number" 
+            placeholder="Amount (₹)" 
+            value={tempAmount} 
+            onChange={(e) => setTempAmount(e.target.value)} 
+            className={`p-2.5 rounded-xl border text-xs outline-none ${isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-700 text-white"}`}
+            required 
+          />
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold text-slate-400">Paid Date:</span>
+            <input 
+              type="date" 
+              value={tempPaidDate} 
+              onChange={(e) => setTempPaidDate(e.target.value)} 
+              className={`p-2 rounded-xl border text-xs outline-none ${isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-700 text-white"}`}
+              required 
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold text-slate-400">From Date:</span>
+            <input 
+              type="date" 
+              value={tempFromDate} 
+              onChange={(e) => setTempFromDate(e.target.value)} 
+              className={`p-2 rounded-xl border text-xs outline-none ${isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-700 text-white"}`}
+              required 
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold text-slate-400">To Date:</span>
+            <input 
+              type="date" 
+              value={tempToDate} 
+              onChange={(e) => setTempToDate(e.target.value)} 
+              className={`p-2 rounded-xl border text-xs outline-none ${isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-700 text-white"}`}
+              required 
+            />
+          </div>
+          <input 
+            type="text" 
+            placeholder="Phone Number" 
+            value={tempPhone} 
+            onChange={(e) => setTempPhone(e.target.value)} 
+            className={`p-2.5 rounded-xl border text-xs outline-none ${isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-700 text-white"}`}
+          />
+          <select 
+            value={tempEntryType} 
+            onChange={(e) => setTempEntryType(e.target.value)} 
+            className={`p-2.5 rounded-xl border text-xs outline-none ${isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-700 text-white"}`}
+          >
+            <option value="New Admission">New Admission</option>
+            <option value="Renewal">Renewal</option>
+          </select>
+          <button 
+            type="submit" 
+            className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black p-2.5 rounded-xl text-xs uppercase cursor-pointer transition shadow-sm sm:col-span-2 lg:col-span-3"
+          >
+            + Save to History Ledger (With Dates)
+          </button>
+        </form>
+      </div>
+      {/* ---> TEMP FORM UI END <--- */}
 
       {/* ================================================= */}
       {/* MAIN SUMMARY CARDS (DYNAMIC SWEEP SHINE & GLOW) */}
@@ -1218,7 +1314,7 @@ Warm regards,
 
                 <button
                   onClick={() => setShowSeatMapModal(false)}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-xl font-bold text-slate-300 transition hover:bg-red-500 hover:text-white"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-xl font-bold text-slate-300 transition hover:bg-red-500 hover:text-white cursor-pointer"
                 >
                   ✕
                 </button>
