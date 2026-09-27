@@ -728,7 +728,7 @@ export default function App() {
   };
 
   // ============================================================================
-  // ⚡ 1-CLICK APPROVE BOOKING REQUEST (AIRTIGHT CONFLICT CHECK & ENGLISH ALERT)
+  // ⚡ 1-CLICK APPROVE BOOKING REQUEST (WITH FEE HISTORY ARCHIVE FIX)
   // ============================================================================
   const approveBookingRequest = async (req) => {
     const seatId = req.seat;
@@ -833,6 +833,7 @@ export default function App() {
     updatedSeat[fields.phone] = req.phone || "";
     updatedSeat[fields.email] = req.email || "";
     updatedSeat[fields.address] = req.address || "";
+    updatedSeat[fields.dob] = req.dob || "";
     updatedSeat[fields.amount] = req.amount || "";
     updatedSeat[fields.payment] = "Submitted";
     updatedSeat[fields.mode] = "Online (UPI)";
@@ -847,10 +848,39 @@ export default function App() {
     setSeats((prev) => prev.map((s) => (s.id === targetSeat.id ? updatedSeat : s)));
 
     try {
+      // 1. Save to bookings table
       await setDoc(doc(db, "bookings", `seat-${targetSeat.id}`), updatedSeat);
+
+      // 2. ⭐ AUTOMATICALLY SAVE TO FEE HISTORY PERMANENT ARCHIVE
+      const pKey = shiftType === "Morning" ? "morning" : shiftType === "Afternoon" ? "afternoon" : shiftType === "Full Day" ? "fullDay" : "night";
+      const historyDocId = `${targetSeat.id}-${pKey}-${todayStr}-${req.name.trim().replace(/\s+/g, '_')}`;
+
+      await setDoc(
+        doc(db, "fee_history", historyDocId),
+        {
+          seatId: targetSeat.id,
+          plan: planName,
+          studentName: req.name,
+          phone: req.phone || "",
+          email: req.email || "",
+          address: req.address || "",
+          dob: req.dob || "",
+          amount: Number(req.amount) || 0,
+          paidDate: todayStr,
+          fromDate: todayStr,
+          toDate: nextDateStr,
+          paymentMode: "Online (UPI)",
+          entryType: "New Admission",
+          status: "Submitted",
+          archivedAt: Date.now(),
+        },
+        { merge: true }
+      );
+
+      // 3. Remove request from pending queue
       await deleteDoc(doc(db, "booking_requests", req.id));
 
-      alert(`✅ Seat ${seatId} successfully assigned to ${req.name} (${shiftType})!`);
+      alert(`✅ Seat ${seatId} successfully assigned to ${req.name} (${shiftType}) and recorded in permanent fee history!`);
     } catch (error) {
       console.error("Approval error:", error);
       alert("Approval save karne mein error aayi.");
@@ -1111,6 +1141,33 @@ Warm regards,
     window.open(whatsappUrl, "_blank");
   };
 
+  // =====================================================
+  // 🎂 1-CLICK BIRTHDAY WISH WHATSAPP FUNCTION
+  // =====================================================
+  const sendBirthdayWhatsApp = (student) => {
+    let cleanPhone = (student.phone || "").replace(/\D/g, "");
+    if (cleanPhone.length === 10) cleanPhone = `91${cleanPhone}`;
+
+    if (!cleanPhone || cleanPhone.length < 10) {
+      alert(`Student (${student.name}) ka valid mobile number save nahi hai!`);
+      return;
+    }
+
+    const message = `🎉 *HAPPY BIRTHDAY, ${student.name.toUpperCase()}!* 🎂🎈
+
+Greetings from *ANY TIME LIBRARY*! 📚✨
+
+On behalf of the entire management and staff, Warmest birthday greetings from the entire team! 🎂 Wishing you exceptional health, unwavering strength, and immense success as you work hard toward your study and career milestones. Keep reaching for the stars! 🚀✨
+
+
+Warm regards,  
+*Management Team*  
+*Any Time Library*`;
+
+    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, "_blank");
+  };
+
   // =========================================================================
   // ⚡ 7. SAVE SEAT & PERMANENT FEE HISTORY ARCHIVE ENGINE (ROBUST & ERROR-FREE)
   // =========================================================================
@@ -1142,6 +1199,7 @@ Warm regards,
               phone: cleanData[`${p}Phone`] || "",
               email: cleanData[`${p}Email`] || "",
               address: cleanData[`${p}Address`] || "",
+              dob: cleanData[`${p}Dob`] || "",
               amount: amt,
               paidDate: pDate,
               fromDate: cleanData[`${p}From`] || "",
@@ -1239,15 +1297,34 @@ Warm regards,
   };
 
   // ============================================================================
+  // 🎂 BIRTHDAY CALCULATION
+  // ============================================================================
+  const todayMD = new Date().toISOString().slice(5, 10);
+  const birthdayStudents = [];
+
+  seats.forEach((seat) => {
+    const shifts = [
+      { name: seat.morningStudent, phone: seat.morningPhone, dob: seat.morningDob, shift: "Morning", seat: seat.id },
+      { name: seat.afternoonStudent, phone: seat.afternoonPhone, dob: seat.afternoonDob, shift: "Afternoon", seat: seat.id },
+      { name: seat.nightStudent, phone: seat.nightPhone, dob: seat.nightDob, shift: seat.status === "24 Hours" ? "24 Hours" : "Night", seat: seat.id },
+      { name: seat.fullDayStudent, phone: seat.fullDayPhone, dob: seat.fullDayDob, shift: "Full Day", seat: seat.id },
+    ];
+    shifts.forEach((s) => {
+      if (s.name && s.dob && s.dob.slice(5, 10) === todayMD) {
+        birthdayStudents.push(s);
+      }
+    });
+  });
+
+  // ============================================================================
   // 🛠️ 8. ADMIN PANEL UI
   // ============================================================================
   if (adminLoggedIn) {
     return (
-      <div className={`flex h-screen font-sans overflow-hidden transition-colors duration-500 ${
-        theme === 'light' 
-          ? 'bg-gradient-to-br from-[#c8e8fc] via-[#e2f3fe] to-[#c1e5fc] text-slate-800' 
-          : 'bg-[#f8fafc] text-gray-800'
-      }`}>
+      <div className={`flex h-screen font-sans overflow-hidden transition-colors duration-500 ${theme === 'light'
+        ? 'bg-gradient-to-br from-[#c8e8fc] via-[#e2f3fe] to-[#c1e5fc] text-slate-800'
+        : 'bg-[#f8fafc] text-gray-800'
+        }`}>
 
         {/* ---> ADMIN: LEFT SIDEBAR <--- */}
         <div
@@ -1284,8 +1361,8 @@ Warm regards,
             <button
               onClick={() => setActiveAdminSection("accounts")}
               className={`w-full text-left px-4 py-3 rounded-2xl font-bold text-sm tracking-wider transition-all duration-200 flex items-center gap-3 ${activeAdminSection === "accounts"
-                  ? "bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 font-black shadow-[0_0_20px_rgba(251,191,36,0.25)]"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                ? "bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 font-black shadow-[0_0_20px_rgba(251,191,36,0.25)]"
+                : "text-slate-400 hover:text-white hover:bg-slate-800/50"
                 }`}
             >
               <span className="text-sm">💰</span> Accounts & Expenses
@@ -1366,13 +1443,32 @@ Warm regards,
 
         {/* ---> ADMIN: MAIN CONTENT AREA <--- */}
         <div className="flex-1 flex flex-col h-screen overflow-hidden">
+          
+          {/* BIRTHDAY MARQUEE BANNER */}
+          {birthdayStudents.length > 0 && (
+            <div className="bg-amber-400 text-slate-950 font-black text-xs py-2 px-4 overflow-hidden whitespace-nowrap shadow-md flex items-center justify-between shrink-0">
+              <div className="inline-block animate-[marquee_15s_linear_infinite] tracking-wide flex items-center gap-6">
+                {birthdayStudents.map((student, idx) => (
+                  <div key={idx} className="inline-flex items-center gap-3">
+                    <span>🎉 BIRTHDAY ALERT: Today is {student.name}'s Birthday (Seat {student.seat} - {student.shift})! 🎂</span>
+                    <button
+                      type="button"
+                      onClick={() => sendBirthdayWhatsApp(student)}
+                      className="bg-[#25D366] hover:brightness-110 text-slate-950 font-black px-3 py-1 rounded-xl text-[10px] uppercase tracking-wider shadow transition-all active:scale-95 cursor-pointer inline-flex items-center gap-1"
+                    >
+                      <span>💬</span> Send B'day Wish
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* ---> ADMIN: TOP NAVBAR (WITH MACBOOK-STYLE NOTIFICATION DROPDOWN) <--- */}
-          <div className={`h-16 border-b px-6 flex items-center justify-between shrink-0 shadow-sm z-10 transition-colors ${
-            theme === 'light' 
-              ? 'bg-white/65 backdrop-blur-2xl border-white/80 shadow-[0_4px_25px_rgba(14,165,233,0.06)]' 
-              : 'bg-[#1e273c] border-slate-700'
-          }`}>
+          <div className={`h-16 border-b px-6 flex items-center justify-between shrink-0 shadow-sm z-10 transition-colors ${theme === 'light'
+            ? 'bg-white/65 backdrop-blur-2xl border-white/80 shadow-[0_4px_25px_rgba(14,165,233,0.06)]'
+            : 'bg-[#1e273c] border-slate-700'
+            }`}>
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className="p-2 rounded-lg hover:bg-gray-100/50 transition"
@@ -1380,7 +1476,7 @@ Warm regards,
               <MenuIcon className={`w-5 h-5 ${theme === 'light' ? 'text-slate-700' : 'text-gray-500'} hover:text-black transition`} />
             </button>
             <div className="flex items-center gap-6">
-              
+
               {/* MACBOOK STYLE BELL NOTIFICATION BUTTON & POPUP */}
               <div className="relative" ref={notifDropdownRef}>
                 <div
@@ -1398,12 +1494,11 @@ Warm regards,
 
                 {/* MACBOOK STYLE FLOATING POPUP MODAL */}
                 {showNotifPopup && (
-                  <div className={`absolute right-0 mt-3 w-80 sm:w-96 rounded-3xl backdrop-blur-3xl border p-4 z-50 animate-in fade-in zoom-in-95 duration-150 ${
-                    theme === 'light'
-                      ? 'bg-white/80 border-white/90 shadow-[0_20px_50px_rgba(14,165,233,0.18)] text-slate-800'
-                      : 'bg-[#0b1220]/95 border-slate-700/80 shadow-[0_20px_60px_rgba(0,0,0,0.85)] text-white'
-                  }`}>
-                    
+                  <div className={`absolute right-0 mt-3 w-80 sm:w-96 rounded-3xl backdrop-blur-3xl border p-4 z-50 animate-in fade-in zoom-in-95 duration-150 ${theme === 'light'
+                    ? 'bg-white/80 border-white/90 shadow-[0_20px_50px_rgba(14,165,233,0.18)] text-slate-800'
+                    : 'bg-[#0b1220]/95 border-slate-700/80 shadow-[0_20px_60px_rgba(0,0,0,0.85)] text-white'
+                    }`}>
+
                     {/* Pop-up Header */}
                     <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-700/60 mb-3">
                       <div className="flex items-center gap-2">
@@ -1419,7 +1514,7 @@ Warm regards,
 
                     {/* Pop-up Content Items */}
                     <div className="space-y-2.5">
-                      
+
                       {/* Item 1: Seat Booking Requests */}
                       <div
                         onClick={() => {
@@ -1430,11 +1525,10 @@ Warm regards,
                             if (reqSec) reqSec.scrollIntoView({ behavior: "smooth", block: "start" });
                           }, 100);
                         }}
-                        className={`group flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer ${
-                          theme === 'light'
-                            ? 'bg-white/70 backdrop-blur-md border-white/90 hover:border-sky-400 shadow-sm'
-                            : 'bg-slate-900/80 hover:bg-indigo-950/50 border-slate-800 hover:border-indigo-500/50'
-                        }`}
+                        className={`group flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer ${theme === 'light'
+                          ? 'bg-white/70 backdrop-blur-md border-white/90 hover:border-sky-400 shadow-sm'
+                          : 'bg-slate-900/80 hover:bg-indigo-950/50 border-slate-800 hover:border-indigo-500/50'
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-base shrink-0 group-hover:scale-110 transition-transform">
@@ -1467,11 +1561,10 @@ Warm regards,
                             window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
                           }, 150);
                         }}
-                        className={`group flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer ${
-                          theme === 'light'
-                            ? 'bg-white/70 backdrop-blur-md border-white/90 hover:border-amber-400 shadow-sm'
-                            : 'bg-slate-900/80 hover:bg-amber-950/40 border-slate-800 hover:border-amber-500/50'
-                        }`}
+                        className={`group flex items-center justify-between p-3 rounded-2xl border transition cursor-pointer ${theme === 'light'
+                          ? 'bg-white/70 backdrop-blur-md border-white/90 hover:border-amber-400 shadow-sm'
+                          : 'bg-slate-900/80 hover:bg-amber-950/40 border-slate-800 hover:border-amber-500/50'
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-base shrink-0 group-hover:scale-110 transition-transform">
@@ -1529,11 +1622,10 @@ Warm regards,
           </div>
 
           {/* ---> ADMIN: EDIT & PREVIEW CONTAINER <--- */}
-          <div className={`flex-1 overflow-y-auto p-6 transition-colors duration-500 ${
-            theme === 'light' 
-              ? 'bg-gradient-to-br from-[#c8e8fc]/40 via-[#e0f2fe]/70 to-[#bde3fc]/40 text-slate-800' 
-              : 'bg-[#0d1017] text-slate-100'
-          }`}>
+          <div className={`flex-1 overflow-y-auto p-6 transition-colors duration-500 ${theme === 'light'
+            ? 'bg-gradient-to-br from-[#c8e8fc]/40 via-[#e0f2fe]/70 to-[#bde3fc]/40 text-slate-800'
+            : 'bg-[#0d1017] text-slate-100'
+            }`}>
 
             {activeAdminSection === "dashboard" ? (
               <Dashboard
@@ -1557,12 +1649,11 @@ Warm regards,
 
                 {/* EDIT FORM & LIVE PREVIEW GRID */}
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
-{/* ---> ADMIN: EDIT FORM <--- */}
-                  <div className={`xl:col-span-2 rounded-3xl border p-8 transition-all duration-300 ${
-                    theme === 'light'
-                      ? 'bg-white/30 backdrop-blur-3xl border-sky-300/60 shadow-[0_20px_50px_rgba(14,165,233,0.12)] ring-2 ring-sky-400/30 text-slate-900'
-                      : 'bg-slate-800/80 backdrop-blur-3xl border-slate-500/40 shadow-2xl text-slate-100 ring-1 ring-white/10'
-                  }`}>
+                  {/* ---> ADMIN: EDIT FORM <--- */}
+                  <div className={`xl:col-span-2 rounded-3xl border p-8 transition-all duration-300 ${theme === 'light'
+                    ? 'bg-white/30 backdrop-blur-3xl border-sky-300/60 shadow-[0_20px_50px_rgba(14,165,233,0.12)] ring-2 ring-sky-400/30 text-slate-900'
+                    : 'bg-slate-800/80 backdrop-blur-3xl border-slate-500/40 shadow-2xl text-slate-100 ring-1 ring-white/10'
+                    }`}>
                     <h3 className={`text-2xl font-bold mb-6 ${theme === 'light' ? 'text-slate-900' : 'text-slate-100'}`}>Editing Seat {selectedSeat.id}</h3>
 
                     <div className="space-y-5">
@@ -1576,11 +1667,10 @@ Warm regards,
 
                       {/* 24 HOURS PLAN SECTION */}
                       {selectedSeat.status === "24 Hours" ? (
-                        <div className={`p-5 rounded-2xl border space-y-4 ${
-                          theme === 'light' 
-                            ? 'bg-white/40 backdrop-blur-md border-sky-200/80 shadow-sm text-slate-900' 
-                            : 'bg-slate-900/60 border-slate-600/50 text-slate-100 shadow-sm'
-                        }`}>
+                        <div className={`p-5 rounded-2xl border space-y-4 ${theme === 'light'
+                          ? 'bg-white/40 backdrop-blur-md border-sky-200/80 shadow-sm text-slate-900'
+                          : 'bg-slate-900/60 border-slate-600/50 text-slate-100 shadow-sm'
+                          }`}>
 
                           <div className="flex flex-wrap justify-between items-center gap-2">
                             <h4 className={`font-bold text-lg ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>24 Hours Student</h4>
@@ -1609,6 +1699,13 @@ Warm regards,
                             maxLength={10}
                             onChange={(e) => updateSeat("nightPhone", e.target.value.replace(/\D/g, '').slice(0, 10))}
                             placeholder="10-digit number"
+                          />
+                          <FormInput
+                            icon={<CalendarIcon className="w-4 h-4" />}
+                            label="Date of Birth (DOB)"
+                            type="date"
+                            value={selectedSeat.nightDob || ""}
+                            onChange={(e) => updateSeat("nightDob", e.target.value)}
                           />
 
                           <FormInput
@@ -1782,6 +1879,13 @@ Warm regards,
                                         onChange={(e) => updateSeat("morningPhone", e.target.value.replace(/\D/g, '').slice(0, 10))}
                                         placeholder="10-digit number"
                                       />
+                                      <FormInput
+                                        icon={<CalendarIcon className="w-4 h-4" />}
+                                        label="Date of Birth (DOB)"
+                                        type="date"
+                                        value={selectedSeat.morningDob || ""}
+                                        onChange={(e) => updateSeat("morningDob", e.target.value)}
+                                      />
 
                                       <FormInput
                                         icon={<CalendarIcon className="w-4 h-4" />}
@@ -1921,6 +2025,13 @@ Warm regards,
                                         onChange={(e) => updateSeat("afternoonPhone", e.target.value.replace(/\D/g, '').slice(0, 10))}
                                         placeholder="10-digit number"
                                       />
+                                      <FormInput
+                                        icon={<CalendarIcon className="w-4 h-4" />}
+                                        label="Date of Birth (DOB)"
+                                        type="date"
+                                        value={selectedSeat.afternoonDob || ""}
+                                        onChange={(e) => updateSeat("afternoonDob", e.target.value)}
+                                      />
 
                                       <FormInput
                                         icon={<CalendarIcon className="w-4 h-4" />}
@@ -2058,6 +2169,13 @@ Warm regards,
                                         onChange={(e) => updateSeat("nightPhone", e.target.value.replace(/\D/g, '').slice(0, 10))}
                                         placeholder="10-digit number"
                                       />
+                                      <FormInput
+                                        icon={<CalendarIcon className="w-4 h-4" />}
+                                        label="Date of Birth (DOB)"
+                                        type="date"
+                                        value={selectedSeat.nightDob || ""}
+                                        onChange={(e) => updateSeat("nightDob", e.target.value)}
+                                      />
 
                                       <FormInput
                                         icon={<CalendarIcon className="w-4 h-4" />}
@@ -2165,8 +2283,24 @@ Warm regards,
                                     </span>
                                   )}
                                 </div>
+                                
 
                                 <div className="grid md:grid-cols-2 gap-4">
+
+                                  <FormSelect
+                                    label="Fees Status"
+                                    value={selectedSeat.fullDayPayment || "Available"}
+                                    onChange={(e) => updateSeat("fullDayPayment", e.target.value)}
+                                    options={isDateExpired(selectedSeat.fullDayTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
+                                    disabled={isDateExpired(selectedSeat.fullDayTo)}
+                                  />
+
+                                  <FormSelect
+                                    label="Payment Mode"
+                                    value={selectedSeat.fullDayPaymentMode || "Cash"}
+                                    onChange={(e) => updateSeat("fullDayPaymentMode", e.target.value)}
+                                    options={["Cash", "Online (UPI)"]}
+                                  />
                                   <FormInput
                                     icon={<UserIcon className="w-4 h-4" />}
                                     label="Student Name"
@@ -2181,6 +2315,13 @@ Warm regards,
                                     maxLength={10}
                                     onChange={(e) => updateSeat("fullDayPhone", e.target.value.replace(/\D/g, '').slice(0, 10))}
                                     placeholder="10-digit number"
+                                  />
+                                  <FormInput
+                                    icon={<CalendarIcon className="w-4 h-4" />}
+                                    label="Date of Birth (DOB)"
+                                    type="date"
+                                    value={selectedSeat.fullDayDob || ""}
+                                    onChange={(e) => updateSeat("fullDayDob", e.target.value)}
                                   />
 
                                   <FormInput
@@ -2206,20 +2347,9 @@ Warm regards,
                                     onChange={(e) => updateSeat("fullDayAmount", e.target.value)}
                                   />
 
-                                  <FormSelect
-                                    label="Fees Status"
-                                    value={selectedSeat.fullDayPayment || "Available"}
-                                    onChange={(e) => updateSeat("fullDayPayment", e.target.value)}
-                                    options={isDateExpired(selectedSeat.fullDayTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
-                                    disabled={isDateExpired(selectedSeat.fullDayTo)}
-                                  />
+                                  
 
-                                  <FormSelect
-                                    label="Payment Mode"
-                                    value={selectedSeat.fullDayPaymentMode || "Cash"}
-                                    onChange={(e) => updateSeat("fullDayPaymentMode", e.target.value)}
-                                    options={["Cash", "Online (UPI)"]}
-                                  />
+                                  
 
                                   <FormInput
                                     icon={<CalendarIcon className="w-4 h-4" />}
@@ -2300,6 +2430,20 @@ Warm regards,
                                 </div>
 
                                 <div className="grid md:grid-cols-2 gap-4">
+                                  <FormSelect
+                                    label="Fees Status"
+                                    value={selectedSeat.nightPayment || "Available"}
+                                    onChange={(e) => updateSeat("nightPayment", e.target.value)}
+                                    options={isDateExpired(selectedSeat.nightTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
+                                    disabled={isDateExpired(selectedSeat.nightTo)}
+                                  />
+
+                                   <FormSelect
+                                    label="Payment Mode"
+                                    value={selectedSeat.nightPaymentMode || "Cash"}
+                                    onChange={(e) => updateSeat("nightPaymentMode", e.target.value)}
+                                    options={["Cash", "Online (UPI)"]}
+                                  />
                                   <FormInput
                                     icon={<UserIcon className="w-4 h-4" />}
                                     label="Student Name"
@@ -2314,6 +2458,13 @@ Warm regards,
                                     maxLength={10}
                                     onChange={(e) => updateSeat("nightPhone", e.target.value.replace(/\D/g, '').slice(0, 10))}
                                     placeholder="10-digit number"
+                                  />
+                                  <FormInput
+                                    icon={<CalendarIcon className="w-4 h-4" />}
+                                    label="Date of Birth (DOB)"
+                                    type="date"
+                                    value={selectedSeat.fullDayDob || ""}
+                                    onChange={(e) => updateSeat("fullDayDob", e.target.value)}
                                   />
 
                                   <FormInput
@@ -2339,20 +2490,9 @@ Warm regards,
                                     onChange={(e) => updateSeat("nightAmount", e.target.value)}
                                   />
 
-                                  <FormSelect
-                                    label="Fees Status"
-                                    value={selectedSeat.nightPayment || "Available"}
-                                    onChange={(e) => updateSeat("nightPayment", e.target.value)}
-                                    options={isDateExpired(selectedSeat.nightTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
-                                    disabled={isDateExpired(selectedSeat.nightTo)}
-                                  />
+                                  
 
-                                  <FormSelect
-                                    label="Payment Mode"
-                                    value={selectedSeat.nightPaymentMode || "Cash"}
-                                    onChange={(e) => updateSeat("nightPaymentMode", e.target.value)}
-                                    options={["Cash", "Online (UPI)"]}
-                                  />
+                                 
 
                                   <FormInput
                                     icon={<CalendarIcon className="w-4 h-4" />}
@@ -2463,7 +2603,7 @@ Warm regards,
                   </div>
 
                   {/* ---> ADMIN: LIVE PREVIEW CARD <--- */}
-                 <div className={`rounded-3xl p-6 border transition-all duration-300 xl:sticky xl:top-6 ${
+                  <div className={`rounded-3xl p-6 border transition-all duration-300 xl:sticky xl:top-6 ${
   theme === 'light'
     ? 'bg-white/70 backdrop-blur-3xl text-slate-900 border-white/90 shadow-[0_15px_40px_rgba(14,165,233,0.12)]'
     : 'bg-[#0f172a] shadow-xl text-white border-gray-800'
@@ -2609,14 +2749,12 @@ Warm regards,
 </div>                </div>
 
                 {/* ---> INCOMING PUBLIC SEAT BOOKING REQUESTS (ALWAYS VISIBLE AT BOTTOM) <--- */}
-                <div id="incoming-requests-section" className={`rounded-3xl p-7 transition-all duration-300 border ${
-                  theme === 'light'
-                    ? 'bg-white/55 backdrop-blur-3xl border-white/90 shadow-[0_20px_50px_rgba(14,165,233,0.12)] ring-1 ring-sky-300/30'
-                    : 'bg-[#1e293b] border-amber-400/40 shadow-2xl'
-                }`}>
-                  <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5 border-b pb-4 ${
-                    theme === 'light' ? 'border-sky-200/50' : 'border-slate-700/80'
+                <div id="incoming-requests-section" className={`rounded-3xl p-7 transition-all duration-300 border ${theme === 'light'
+                  ? 'bg-white/55 backdrop-blur-3xl border-white/90 shadow-[0_20px_50px_rgba(14,165,233,0.12)] ring-1 ring-sky-300/30'
+                  : 'bg-[#1e293b] border-amber-400/40 shadow-2xl'
                   }`}>
+                  <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5 border-b pb-4 ${theme === 'light' ? 'border-sky-200/50' : 'border-slate-700/80'
+                    }`}>
                     <div className="flex items-center gap-2.5">
                       <span className="text-2xl">🔔</span>
                       <div>
@@ -2632,11 +2770,10 @@ Warm regards,
                   </div>
 
                   {bookingRequests.length === 0 ? (
-                    <div className={`text-center py-8 rounded-2xl border ${
-                      theme === 'light' 
-                        ? 'bg-white/40 border-white/80 text-slate-500' 
-                        : 'bg-[#0b1220] border-slate-800 text-slate-400'
-                    }`}>
+                    <div className={`text-center py-8 rounded-2xl border ${theme === 'light'
+                      ? 'bg-white/40 border-white/80 text-slate-500'
+                      : 'bg-[#0b1220] border-slate-800 text-slate-400'
+                      }`}>
                       <span className="text-3xl opacity-60">📭</span>
                       <p className="text-xs font-bold mt-2">No pending seat booking requests right now.</p>
                       <p className="text-[11px] text-slate-400 mt-0.5">When students submit the booking form from the website, their requests appear here instantly.</p>
@@ -2644,11 +2781,10 @@ Warm regards,
                   ) : (
                     <div className="grid gap-4 md:grid-cols-2">
                       {bookingRequests.map((req) => (
-                        <div key={req.id} className={`border rounded-2xl p-5 flex flex-col justify-between gap-4 shadow-lg transition ${
-                          theme === 'light'
-                            ? 'bg-white/70 backdrop-blur-xl border-white/90 hover:border-sky-400 shadow-[0_4px_20px_rgba(14,165,233,0.06)]'
-                            : 'bg-[#0b1220] border-slate-700/90 hover:border-amber-400/40'
-                        }`}>
+                        <div key={req.id} className={`border rounded-2xl p-5 flex flex-col justify-between gap-4 shadow-lg transition ${theme === 'light'
+                          ? 'bg-white/70 backdrop-blur-xl border-white/90 hover:border-sky-400 shadow-[0_4px_20px_rgba(14,165,233,0.06)]'
+                          : 'bg-[#0b1220] border-slate-700/90 hover:border-amber-400/40'
+                          }`}>
                           <div>
                             <div className="flex justify-between items-start">
                               <div>
@@ -2658,11 +2794,10 @@ Warm regards,
                               <span className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-xl border border-emerald-500/30">₹{req.amount}</span>
                             </div>
 
-                            <div className={`mt-3 text-xs space-y-1.5 font-medium p-3 rounded-xl border ${
-                              theme === 'light'
-                                ? 'bg-sky-50/60 text-slate-700 border-sky-100'
-                                : 'bg-slate-900/50 text-slate-300 border-slate-800'
-                            }`}>
+                            <div className={`mt-3 text-xs space-y-1.5 font-medium p-3 rounded-xl border ${theme === 'light'
+                              ? 'bg-sky-50/60 text-slate-700 border-sky-100'
+                              : 'bg-slate-900/50 text-slate-300 border-slate-800'
+                              }`}>
                               <p>📱 Phone: <a href={`tel:${req.phone}`} className="text-sky-600 underline">{req.phone}</a></p>
                               <p>⏰ Timing: {req.timing}</p>
                               <p>🔐 Locker: {req.locker}</p>
@@ -2849,25 +2984,6 @@ Warm regards,
           </div>
         </div>
 
-        {/*  APPLE iOS AQUA GLASS PURE SWITCH (BOTTOM-LEFT) */}
-        {/* <div
-          onClick={toggleTheme}
-          role="button"
-          tabIndex={0}
-          title={`Switch to ${theme === "dark" ? "Aqua Light" : "Dark"} Mode`}
-          className="fixed bottom-5 left-5 z-50 flex items-center w-14 h-8 p-1 rounded-full cursor-pointer transition-all duration-300 bg-slate-800/90 border border-slate-700/80 shadow-[0_10px_25px_rgba(0,0,0,0.5)] backdrop-blur-xl hover:scale-105 active:scale-95"
-        >
-          <div
-            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-md transition-all duration-300 transform ${
-              theme === "dark"
-                ? "translate-x-0 bg-slate-950 text-amber-400"
-                : "translate-x-6 bg-white text-sky-500 shadow-sky-500/40"
-            }`}
-          >
-            {theme === "dark" ? "🌙" : "💧"}
-          </div>
-        </div> */}
-
       </div>
     );
   }
@@ -2883,22 +2999,18 @@ Warm regards,
           onLogout={() => setStudentUser(null)}
         />
       ) : (
-        <div className={`relative min-h-screen font-sans selection:bg-sky-400 selection:text-black overflow-x-hidden transition-colors duration-700 ${
-          theme === 'light' 
-            ? 'bg-gradient-to-br from-[#c8e8fc] via-[#e2f3fe] to-[#bde3fc] text-slate-800' 
-            : 'bg-[#050811] text-slate-100'
-        }`}>
+        <div className={`relative min-h-screen font-sans selection:bg-sky-400 selection:text-black overflow-x-hidden transition-colors duration-700 ${theme === 'light'
+          ? 'bg-gradient-to-br from-[#c8e8fc] via-[#e2f3fe] to-[#c1e5fc] text-slate-800'
+          : 'bg-[#050811] text-slate-100'
+          }`}>
 
           {/* 🌊 DEEP OCEAN WATER LIQUID GLOW ACCENTS */}
-          <div className={`pointer-events-none fixed -top-40 -left-40 w-[600px] h-[600px] rounded-full blur-[140px] z-0 transition-colors duration-700 ${
-            theme === 'light' ? 'bg-[#38bdf8]/40' : 'bg-indigo-600/10'
-          }`}></div>
-          <div className={`pointer-events-none fixed top-1/3 -right-40 w-[600px] h-[600px] rounded-full blur-[140px] z-0 transition-colors duration-700 ${
-            theme === 'light' ? 'bg-[#7dd3fc]/50' : 'bg-amber-500/10'
-          }`}></div>
-          <div className={`pointer-events-none fixed bottom-10 left-1/3 w-[550px] h-[550px] rounded-full blur-[140px] z-0 transition-colors duration-700 ${
-            theme === 'light' ? 'bg-[#0ea5e9]/30' : 'bg-emerald-500/10'
-          }`}></div>
+          <div className={`pointer-events-none fixed -top-40 -left-40 w-[600px] h-[600px] rounded-full blur-[140px] z-0 transition-colors duration-700 ${theme === 'light' ? 'bg-[#38bdf8]/40' : 'bg-indigo-600/10'
+            }`}></div>
+          <div className={`pointer-events-none fixed top-1/3 -right-40 w-[600px] h-[600px] rounded-full blur-[140px] z-0 transition-colors duration-700 ${theme === 'light' ? 'bg-[#7dd3fc]/50' : 'bg-amber-500/10'
+            }`}></div>
+          <div className={`pointer-events-none fixed bottom-10 left-1/3 w-[550px] h-[550px] rounded-full blur-[140px] z-0 transition-colors duration-700 ${theme === 'light' ? 'bg-[#0ea5e9]/30' : 'bg-emerald-500/10'
+            }`}></div>
 
           <div className="relative z-10">
             {/* ---> PUBLIC: MAIN HEADER <--- */}
@@ -2917,16 +3029,14 @@ Warm regards,
 
             {/* ---> PUBLIC: ADMIN LOGIN POPUP MODAL <--- */}
             <div id="adminLoginPanel" className="hidden fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[150] p-4">
-              <div className={`border p-8 rounded-3xl w-full max-w-md relative transition-all ${
-                theme === 'light'
-                  ? 'bg-white/80 backdrop-blur-3xl border-white/90 shadow-[0_25px_80px_rgba(14,165,233,0.25)] text-slate-900 ring-1 ring-sky-300/40'
-                  : 'bg-[#0b1220] border-slate-700/80 shadow-[0_20px_80px_rgba(0,0,0,0.9)] text-white'
-              }`}>
+              <div className={`border p-8 rounded-3xl w-full max-w-md relative transition-all ${theme === 'light'
+                ? 'bg-white/80 backdrop-blur-3xl border-white/90 shadow-[0_25px_80px_rgba(14,165,233,0.25)] text-slate-900 ring-1 ring-sky-300/40'
+                : 'bg-[#0b1220] border-slate-700/80 shadow-[0_20px_80px_rgba(0,0,0,0.9)] text-white'
+                }`}>
                 <button
                   onClick={() => document.getElementById('adminLoginPanel')?.classList.add('hidden')}
-                  className={`absolute top-5 right-5 text-xl font-bold transition w-9 h-9 rounded-xl flex items-center justify-center ${
-                    theme === 'light' ? 'bg-sky-50 text-slate-500 hover:text-black' : 'bg-white/5 text-gray-400 hover:text-white'
-                  }`}
+                  className={`absolute top-5 right-5 text-xl font-bold transition w-9 h-9 rounded-xl flex items-center justify-center ${theme === 'light' ? 'bg-sky-50 text-slate-500 hover:text-black' : 'bg-white/5 text-gray-400 hover:text-white'
+                    }`}
                 >
                   ✕
                 </button>
@@ -2941,22 +3051,20 @@ Warm regards,
                   placeholder="Admin Username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className={`w-full border p-3.5 rounded-xl mb-3.5 text-sm focus:outline-none focus:ring-2 font-semibold ${
-                    theme === 'light'
-                      ? 'bg-white/70 border-white/90 text-slate-900 focus:border-sky-500 focus:ring-sky-400/50'
-                      : 'bg-[#070b14] border-slate-700 text-white focus:border-amber-400 focus:ring-amber-400'
-                  }`}
+                  className={`w-full border p-3.5 rounded-xl mb-3.5 text-sm focus:outline-none focus:ring-2 font-semibold ${theme === 'light'
+                    ? 'bg-white/70 border-white/90 text-slate-900 focus:border-sky-500 focus:ring-sky-400/50'
+                    : 'bg-[#070b14] border-slate-700 text-white focus:border-amber-400 focus:ring-amber-400'
+                    }`}
                 />
                 <input
                   type="password"
                   placeholder="Master Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className={`w-full border p-3.5 rounded-xl mb-5 text-sm focus:outline-none focus:ring-2 font-semibold ${
-                    theme === 'light'
-                      ? 'bg-white/70 border-white/90 text-slate-900 focus:border-sky-500 focus:ring-sky-400/50'
-                      : 'bg-[#070b14] border-slate-700 text-white focus:border-amber-400 focus:ring-amber-400'
-                  }`}
+                  className={`w-full border p-3.5 rounded-xl mb-5 text-sm focus:outline-none focus:ring-2 font-semibold ${theme === 'light'
+                    ? 'bg-white/70 border-white/90 text-slate-900 focus:border-sky-500 focus:ring-sky-400/50'
+                    : 'bg-[#070b14] border-slate-700 text-white focus:border-amber-400 focus:ring-amber-400'
+                    }`}
                 />
                 <button
                   onClick={() => {
@@ -2965,11 +3073,10 @@ Warm regards,
                       document.getElementById('adminLoginPanel')?.classList.add('hidden');
                     }
                   }}
-                  className={`w-full py-3.5 rounded-xl font-black text-sm uppercase tracking-wider transition active:scale-95 shadow-lg ${
-                    theme === 'light'
-                      ? 'bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 text-white shadow-sky-500/30 hover:brightness-110'
-                      : 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-amber-400/20 hover:brightness-110'
-                  }`}
+                  className={`w-full py-3.5 rounded-xl font-black text-sm uppercase tracking-wider transition active:scale-95 shadow-lg ${theme === 'light'
+                    ? 'bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 text-white shadow-sky-500/30 hover:brightness-110'
+                    : 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-amber-400/20 hover:brightness-110'
+                    }`}
                 >
                   Login In
                 </button>
@@ -2978,45 +3085,39 @@ Warm regards,
 
             {/* ---> PUBLIC: HERO SECTION (AQUACORE LIQUID GLASS) <--- */}
             <section className="max-w-6xl mx-auto px-4 md:px-6 py-10 md:py-14">
-              <div className={`relative overflow-hidden rounded-[36px] border p-6 sm:p-10 md:p-14 text-center transition-all duration-500 ${
-                theme === 'light'
-                  ? 'bg-white/45 backdrop-blur-3xl border-white/90 shadow-[0_20px_60px_rgba(14,165,233,0.18)] ring-1 ring-sky-300/40'
-                  : 'border-slate-800/90 bg-gradient-to-b from-[#0e1629] via-[#090f1d] to-[#070c18] shadow-[0_20px_80px_rgba(0,0,0,0.75)]'
-              }`}>
+              <div className={`relative overflow-hidden rounded-[36px] border p-6 sm:p-10 md:p-14 text-center transition-all duration-500 ${theme === 'light'
+                ? 'bg-white/45 backdrop-blur-3xl border-white/90 shadow-[0_20px_60px_rgba(14,165,233,0.18)] ring-1 ring-sky-300/40'
+                : 'border-slate-800/90 bg-gradient-to-b from-[#0e1629] via-[#090f1d] to-[#070c18] shadow-[0_20px_80px_rgba(0,0,0,0.75)]'
+                }`}>
 
                 {/* Golden/Aqua Beam Top Accent */}
-                <div className={`pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent ${
-                  theme === 'light' ? 'via-sky-400' : 'via-amber-400'
-                } to-transparent`}></div>
+                <div className={`pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent ${theme === 'light' ? 'via-sky-400' : 'via-amber-400'
+                  } to-transparent`}></div>
 
                 {/* Floating Status Pill */}
-                <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] sm:text-[11px] font-black uppercase tracking-[0.25em] mb-5 animate-pulse ${
-                  theme === 'light'
-                    ? 'bg-sky-500/20 text-sky-800 border border-sky-400/40 shadow-[0_0_20px_rgba(14,165,233,0.25)]'
-                    : 'bg-amber-400/10 text-amber-400 border border-amber-400/30 shadow-[0_0_20px_rgba(251,191,36,0.15)]'
-                }`}>
+                <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] sm:text-[11px] font-black uppercase tracking-[0.25em] mb-5 animate-pulse ${theme === 'light'
+                  ? 'bg-sky-500/20 text-sky-800 border border-sky-400/40 shadow-[0_0_20px_rgba(14,165,233,0.25)]'
+                  : 'bg-amber-400/10 text-amber-400 border border-amber-400/30 shadow-[0_0_20px_rgba(251,191,36,0.15)]'
+                  }`}>
                   <span>✨</span> Bachhrawan's Premier Smart Library
                 </div>
 
                 {/* Main Heading */}
-                <h2 className={`text-3xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.15] ${
-                  theme === 'light' ? 'text-slate-900' : 'text-white'
-                }`}>
-                  Premium Digital{" "}
-                  <span className={`text-transparent bg-clip-text ${
-                    theme === 'light' 
-                      ? 'bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600' 
-                      : 'bg-gradient-to-r from-amber-400 via-yellow-300 to-emerald-400'
+                <h2 className={`text-3xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.15] ${theme === 'light' ? 'text-slate-900' : 'text-white'
                   }`}>
+                  Premium Digital{" "}
+                  <span className={`text-transparent bg-clip-text ${theme === 'light'
+                    ? 'bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600'
+                    : 'bg-gradient-to-r from-amber-400 via-yellow-300 to-emerald-400'
+                    }`}>
                     Study Lounge
                   </span>
                 </h2>
 
                 {/* Subtitle description */}
                 <p
-                  className={`mt-4 text-sm sm:text-base md:text-lg leading-relaxed max-w-2xl mx-auto font-medium text-center !text-center w-full ${
-                    theme === 'light' ? 'text-slate-700' : 'text-slate-300'
-                  }`}
+                  className={`mt-4 text-sm sm:text-base md:text-lg leading-relaxed max-w-2xl mx-auto font-medium text-center !text-center w-full ${theme === 'light' ? 'text-slate-700' : 'text-slate-300'
+                    }`}
                   style={{ textAlign: "center", marginLeft: "auto", marginRight: "auto", display: "block" }}
                 >
                   Smart seat tracking, peaceful study environment, high-speed WiFi, CCTV security, and dedicated silent monitoring for competitive aspirants.
@@ -3026,84 +3127,74 @@ Warm regards,
                 <div className={`border-t mt-10 pt-8 ${theme === 'light' ? 'border-sky-200/50' : 'border-slate-800/90'}`}>
                   <div className="inline-flex items-center gap-2 mb-6">
                     <span className="text-amber-400 text-lg">⭐</span>
-                    <h2 className={`text-base sm:text-lg font-black uppercase tracking-wider ${
-                      theme === 'light' ? 'text-slate-900' : 'text-slate-200'
-                    }`}>
+                    <h2 className={`text-base sm:text-lg font-black uppercase tracking-wider ${theme === 'light' ? 'text-slate-900' : 'text-slate-200'
+                      }`}>
                       Standard Library Facilities
                     </h2>
                   </div>
 
-                  <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3.5 max-w-4xl mx-auto text-xs sm:text-sm font-bold ${
-                    theme === 'light' ? 'text-slate-800' : 'text-slate-200'
-                  }`}>
-                    <div className={`p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1 ${
-                      theme === 'light'
-                        ? 'bg-white/60 backdrop-blur-xl border-white/90 shadow-[0_4px_20px_rgba(14,165,233,0.08)] hover:border-sky-400'
-                        : 'bg-[#080e1a]/90 border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a]'
+                  <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3.5 max-w-4xl mx-auto text-xs sm:text-sm font-bold ${theme === 'light' ? 'text-slate-800' : 'text-slate-200'
                     }`}>
+                    <div className={`p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1 ${theme === 'light'
+                      ? 'bg-white/60 backdrop-blur-xl border-white/90 shadow-[0_4px_20px_rgba(14,165,233,0.08)] hover:border-sky-400'
+                      : 'bg-[#080e1a]/90 border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a]'
+                      }`}>
                       <span className="text-base">🔒</span>
                       <span>Personal Locker</span>
                     </div>
 
-                    <div className={`p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1 ${
-                      theme === 'light'
-                        ? 'bg-white/60 backdrop-blur-xl border-white/90 shadow-[0_4px_20px_rgba(14,165,233,0.08)] hover:border-sky-400'
-                        : 'bg-[#080e1a]/90 border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a]'
-                    }`}>
+                    <div className={`p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1 ${theme === 'light'
+                      ? 'bg-white/60 backdrop-blur-xl border-white/90 shadow-[0_4px_20px_rgba(14,165,233,0.08)] hover:border-sky-400'
+                      : 'bg-[#080e1a]/90 border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a]'
+                      }`}>
                       <span className="text-base">📶</span>
                       <span>Free WiFi</span>
                     </div>
 
-                    <div className={`p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1 ${
-                      theme === 'light'
-                        ? 'bg-white/60 backdrop-blur-xl border-white/90 shadow-[0_4px_20px_rgba(14,165,233,0.08)] hover:border-sky-400'
-                        : 'bg-[#080e1a]/90 border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a]'
-                    }`}>
+                    <div className={`p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1 ${theme === 'light'
+                      ? 'bg-white/60 backdrop-blur-xl border-white/90 shadow-[0_4px_20px_rgba(14,165,233,0.08)] hover:border-sky-400'
+                      : 'bg-[#080e1a]/90 border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a]'
+                      }`}>
                       <span className="text-base">❄️</span>
                       <span>Air Conditioned</span>
                     </div>
 
-                    <div className={`p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1 ${
-                      theme === 'light'
-                        ? 'bg-white/60 backdrop-blur-xl border-white/90 shadow-[0_4px_20px_rgba(14,165,233,0.08)] hover:border-sky-400'
-                        : 'bg-[#080e1a]/90 border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a]'
-                    }`}>
+                    <div className={`p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1 ${theme === 'light'
+                      ? 'bg-white/60 backdrop-blur-xl border-white/90 shadow-[0_4px_20px_rgba(14,165,233,0.08)] hover:border-sky-400'
+                      : 'bg-[#080e1a]/90 border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a]'
+                      }`}>
                       <span className="text-base">💧</span>
                       <span>RO Water</span>
                     </div>
 
-                    <div className={`p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1 ${
-                      theme === 'light'
-                        ? 'bg-white/60 backdrop-blur-xl border-white/90 shadow-[0_4px_20px_rgba(14,165,233,0.08)] hover:border-sky-400'
-                        : 'bg-[#080e1a]/90 border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a]'
-                    }`}>
+                    <div className={`p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1 ${theme === 'light'
+                      ? 'bg-white/60 backdrop-blur-xl border-white/90 shadow-[0_4px_20px_rgba(14,165,233,0.08)] hover:border-sky-400'
+                      : 'bg-[#080e1a]/90 border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a]'
+                      }`}>
                       <span className="text-base">🎥</span>
                       <span>CCTV Security</span>
                     </div>
 
-                    <div className={`p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1 ${
-                      theme === 'light'
-                        ? 'bg-white/60 backdrop-blur-xl border-white/90 shadow-[0_4px_20px_rgba(14,165,233,0.08)] hover:border-sky-400'
-                        : 'bg-[#080e1a]/90 border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a]'
-                    }`}>
+                    <div className={`p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1 ${theme === 'light'
+                      ? 'bg-white/60 backdrop-blur-xl border-white/90 shadow-[0_4px_20px_rgba(14,165,233,0.08)] hover:border-sky-400'
+                      : 'bg-[#080e1a]/90 border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a]'
+                      }`}>
                       <span className="text-base">🔋</span>
                       <span>Power Backup</span>
                     </div>
 
-                    <div className={`p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1 ${
-                      theme === 'light'
-                        ? 'bg-white/60 backdrop-blur-xl border-white/90 shadow-[0_4px_20px_rgba(14,165,233,0.08)] hover:border-sky-400'
-                        : 'bg-[#080e1a]/90 border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a]'
-                    }`}>
+                    <div className={`p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1 ${theme === 'light'
+                      ? 'bg-white/60 backdrop-blur-xl border-white/90 shadow-[0_4px_20px_rgba(14,165,233,0.08)] hover:border-sky-400'
+                      : 'bg-[#080e1a]/90 border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a]'
+                      }`}>
                       <span className="text-base">🤫</span>
                       <span>Silent Study Zone</span>
                     </div>
 
-                    <div className={`p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1 ${
-                      theme === 'light'
-                        ? 'bg-white/60 backdrop-blur-xl border-white/90 shadow-[0_4px_20px_rgba(14,165,233,0.08)] hover:border-sky-400'
-                        : 'bg-[#080e1a]/90 border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a]'
-                    }`}>
+                    <div className={`p-3.5 rounded-2xl border transition-all duration-300 flex items-center justify-center gap-2.5 shadow-sm hover:-translate-y-1 ${theme === 'light'
+                      ? 'bg-white/60 backdrop-blur-xl border-white/90 shadow-[0_4px_20px_rgba(14,165,233,0.08)] hover:border-sky-400'
+                      : 'bg-[#080e1a]/90 border-slate-800/90 hover:border-amber-400/40 hover:bg-[#0e172a]'
+                      }`}>
                       <span className="text-base">🪑</span>
                       <span>Comfortable Seating</span>
                     </div>
@@ -3116,9 +3207,8 @@ Warm regards,
             {/* ---> PUBLIC: LIVE SEAT AVAILABILITY SECTION <--- */}
             <section className="max-w-7xl mx-auto px-4 md:px-6 pb-16">
 
-              <div className={`flex flex-col md:flex-row items-center justify-between gap-6 mb-10 pb-6 border-b ${
-                theme === 'light' ? 'border-sky-200/50' : 'border-slate-800/80'
-              }`}>
+              <div className={`flex flex-col md:flex-row items-center justify-between gap-6 mb-10 pb-6 border-b ${theme === 'light' ? 'border-sky-200/50' : 'border-slate-800/80'
+                }`}>
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
@@ -3126,9 +3216,8 @@ Warm regards,
                       Live Occupancy Radar
                     </span>
                   </div>
-                  <h2 className={`text-2xl sm:text-4xl font-black tracking-tight ${
-                    theme === 'light' ? 'text-slate-900' : 'text-white'
-                  }`}>
+                  <h2 className={`text-2xl sm:text-4xl font-black tracking-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'
+                    }`}>
                     LIVE SMART SEAT AVAILABILITY
                   </h2>
                   <p className={`text-xs sm:text-sm mt-1 ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
@@ -3394,22 +3483,19 @@ Warm regards,
               )}
 
               {/* ---> PUBLIC: DETAILED SMART SEAT MAP (AQUACORE LIQUID GLASS) <--- */}
-              <div className={`relative overflow-hidden rounded-[38px] border p-6 sm:p-10 transition-all duration-500 ${
-                theme === 'light'
-                  ? 'bg-white/45 backdrop-blur-3xl border-white/90 shadow-[0_20px_60px_rgba(14,165,233,0.18)] ring-1 ring-sky-300/40'
-                  : 'border-slate-800/90 bg-gradient-to-br from-[#0c1322] via-[#070b14] to-[#090f1d] shadow-[0_20px_80px_rgba(0,0,0,0.85)]'
-              }`}>
+              <div className={`relative overflow-hidden rounded-[38px] border p-6 sm:p-10 transition-all duration-500 ${theme === 'light'
+                ? 'bg-white/45 backdrop-blur-3xl border-white/90 shadow-[0_20px_60px_rgba(14,165,233,0.18)] ring-1 ring-sky-300/40'
+                : 'border-slate-800/90 bg-gradient-to-br from-[#0c1322] via-[#070b14] to-[#090f1d] shadow-[0_20px_80px_rgba(0,0,0,0.85)]'
+                }`}>
 
                 {/* Ambient Top Glow */}
-                <div className={`pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent ${
-                  theme === 'light' ? 'via-sky-400/60' : 'via-amber-400/60'
-                } to-transparent`}></div>
+                <div className={`pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent ${theme === 'light' ? 'via-sky-400/60' : 'via-amber-400/60'
+                  } to-transparent`}></div>
 
                 <div className="flex items-center justify-between flex-wrap gap-4 mb-8 relative z-10">
                   <div>
-                    <h3 className={`text-2xl sm:text-3xl font-black tracking-[3px] flex items-center gap-2.5 ${
-                      theme === 'light' ? 'text-sky-800' : 'text-amber-400'
-                    }`}>
+                    <h3 className={`text-2xl sm:text-3xl font-black tracking-[3px] flex items-center gap-2.5 ${theme === 'light' ? 'text-sky-800' : 'text-amber-400'
+                      }`}>
                       <span>💺</span> SMART SEAT MAP
                     </h3>
                     <p className={`mt-1 text-xs sm:text-sm ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>Real-time intelligent seat monitoring &amp; validity dashboard</p>
@@ -3562,22 +3648,21 @@ Warm regards,
                 </div>
 
                 {/* ---> PUBLIC: BOTTOM PAGINATION (FLOATING AQUA GLASS BAR) <--- */}
-                <div className={`sticky bottom-6 z-40 flex flex-wrap justify-center gap-3.5 mt-10 backdrop-blur-3xl p-3.5 rounded-3xl border transition-all duration-300 max-w-fit mx-auto ${
-                  theme === 'light'
-                    ? 'bg-white/50 border-white/90 shadow-[0_15px_40px_rgba(14,165,233,0.25)] ring-1 ring-sky-300/40'
-                    : 'bg-[#070b14]/90 border-amber-400/30 shadow-[0_15px_50px_rgba(0,0,0,0.85)]'
-                }`}>
+                <div className={`sticky bottom-6 z-40 flex flex-wrap justify-center gap-3.5 mt-10 backdrop-blur-3xl p-3.5 rounded-3xl border transition-all duration-300 max-w-fit mx-auto ${theme === 'light'
+                  ? 'bg-white/50 border-white/90 shadow-[0_15px_40px_rgba(14,165,233,0.25)] ring-1 ring-sky-300/40'
+                  : 'bg-[#070b14]/90 border-amber-400/30 shadow-[0_15px_50px_rgba(0,0,0,0.85)]'
+                  }`}>
                   {Array.from({ length: totalPages }, (_, i) => (
                     <button
                       key={i + 1}
                       onClick={() => setCurrentPage(i + 1)}
                       className={`${currentPage === i + 1
-                          ? theme === 'light'
-                            ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white font-black scale-105 shadow-[0_0_20px_rgba(14,165,233,0.5)]"
-                            : "bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 font-black scale-105 shadow-[0_0_20px_rgba(251,191,36,0.35)]"
-                          : theme === 'light'
-                            ? "bg-white/70 text-slate-800 border border-white/90 hover:bg-sky-50"
-                            : "bg-slate-900/90 text-slate-300 border border-slate-800 hover:border-slate-700 hover:text-white"
+                        ? theme === 'light'
+                          ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white font-black scale-105 shadow-[0_0_20px_rgba(14,165,233,0.5)]"
+                          : "bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 font-black scale-105 shadow-[0_0_20px_rgba(251,191,36,0.35)]"
+                        : theme === 'light'
+                          ? "bg-white/70 text-slate-800 border border-white/90 hover:bg-sky-50"
+                          : "bg-slate-900/90 text-slate-300 border border-slate-800 hover:border-slate-700 hover:text-white"
                         } min-w-[170px] px-6 py-3.5 rounded-2xl transition-all duration-300 hover:scale-105 active:scale-95`}
                     >
                       <p className="text-[10px] uppercase tracking-[2px] opacity-80 font-bold">Explore Seats</p>
@@ -3632,7 +3717,7 @@ Warm regards,
                       <input
                         type="text"
                         id="bookingName"
-                        placeholder="Aman Yashdeva"
+                        placeholder="Avinash Singh"
                         className="w-full rounded-xl border border-white/90 bg-white/70 px-4 py-3 text-sm font-semibold text-gray-900 outline-none focus:border-sky-500 focus:bg-white transition shadow-sm"
                       />
                     </div>
@@ -3649,6 +3734,15 @@ Warm regards,
                         }}
                         placeholder="10-digit mobile number"
                         className="w-full rounded-xl border border-white/90 bg-white/70 px-4 py-3 text-sm font-semibold text-gray-900 outline-none focus:border-sky-500 focus:bg-white transition shadow-sm"
+                      />
+                    </div>
+                    <div className="mt-4">
+                      <label className="mb-1.5 block text-xs font-bold text-gray-700 uppercase tracking-wider">Date of Birth (DOB)</label>
+                      <input
+                        type="date"
+                        id="bookingDob"
+                        className="w-full rounded-xl border border-white/90 bg-white/70 px-4 py-3 text-sm font-semibold text-gray-900 outline-none focus:border-sky-500 focus:bg-white transition shadow-sm cursor-pointer"
+                        required
                       />
                     </div>
 
@@ -3864,6 +3958,7 @@ Warm regards,
                       const phone = document.getElementById("bookingPhone")?.value.trim() || "";
                       const email = document.getElementById("bookingEmail")?.value.trim() || "";
                       const address = document.getElementById("bookingAddress")?.value.trim() || "";
+                      const dob = document.getElementById("bookingDob")?.value.trim() || "";
                       const seat = document.getElementById("bookingSeat")?.value.trim() || "";
 
                       if (
@@ -3871,6 +3966,7 @@ Warm regards,
                         !phone ||
                         !email ||
                         !address ||
+                        !dob ||
                         !seat ||
                         !selectedPlan ||
                         !selectedTiming ||
@@ -3900,6 +3996,7 @@ Warm regards,
                           phone,
                           email,
                           address,
+                          dob,
                           seat: Number(seat),
                           plan: selectedPlan,
                           timing: selectedTiming,
@@ -3920,6 +4017,7 @@ Warm regards,
 📱 *WhatsApp Number:* ${phone}
 📧 *Email:* ${email}
 🏠 *Address:* ${address}
+🎂 *DOB:* ${dob}
 
 💺 *Seat Number:* ${seat}
 
@@ -3952,18 +4050,16 @@ Please check and confirm my seat booking.
             )}
 
             {/* ================= TESTIMONIALS & REVIEWS SECTION (AQUACORE LIQUID GLASS EDITION) ================= */}
-            <section className={`relative px-4 md:px-6 py-20 border-t transition-colors duration-500 ${
-              theme === 'light' 
-                ? 'bg-white/20 backdrop-blur-3xl border-sky-200/40 text-slate-900' 
-                : 'bg-[#070b16] text-white border-slate-800/80'
-            }`}>
+            <section className={`relative px-4 md:px-6 py-20 border-t transition-colors duration-500 ${theme === 'light'
+              ? 'bg-white/20 backdrop-blur-3xl border-sky-200/40 text-slate-900'
+              : 'bg-[#070b16] text-white border-slate-800/80'
+              }`}>
               <div className="mx-auto max-w-7xl">
                 <div className="mb-12 text-center">
-                  <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-3 ${
-                    theme === 'light' 
-                      ? 'bg-sky-500/20 text-sky-800 border border-sky-400/40 shadow-sm' 
-                      : 'bg-amber-400/10 text-amber-400 border border-amber-400/20'
-                  }`}>
+                  <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-3 ${theme === 'light'
+                    ? 'bg-sky-500/20 text-sky-800 border border-sky-400/40 shadow-sm'
+                    : 'bg-amber-400/10 text-amber-400 border border-amber-400/20'
+                    }`}>
                     Student Wall of Love
                   </div>
                   <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
@@ -3976,15 +4072,14 @@ Please check and confirm my seat booking.
 
                 {/* LIQUID WATER GLASS CONTAINER (PERFECT BALANCED WIDTH) */}
                 <div className="flex flex-col lg:flex-row gap-8 items-start justify-between w-full">
-                  
+
                   {/* LEFT SIDE: LIVE REVIEWS WALL (FLEX EXPANDS PROPERLY) */}
                   <div className="flex-1 w-full space-y-4 max-h-[580px] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-sky-400/50 [&::-webkit-scrollbar-thumb]:rounded-full">
                     {feedbacks.length === 0 ? (
-                      <div className={`p-12 text-center rounded-3xl border ${
-                        theme === 'light' 
-                          ? 'bg-white/40 backdrop-blur-3xl text-slate-600 border-white/80 shadow-[0_10px_30px_rgba(14,165,233,0.08)]' 
-                          : 'bg-[#0b1120] text-slate-500 border-slate-800'
-                      }`}>
+                      <div className={`p-12 text-center rounded-3xl border ${theme === 'light'
+                        ? 'bg-white/40 backdrop-blur-3xl text-slate-600 border-white/80 shadow-[0_10px_30px_rgba(14,165,233,0.08)]'
+                        : 'bg-[#0b1120] text-slate-500 border-slate-800'
+                        }`}>
                         <div className="text-4xl mb-3">✍️</div>
                         <p className="text-sm font-semibold">No reviews yet!</p>
                         <p className="text-xs text-slate-400 mt-1">Be the first to share your experience on the right form.</p>
@@ -3993,11 +4088,10 @@ Please check and confirm my seat booking.
                       feedbacks.map((fb) => (
                         <div
                           key={fb.id}
-                          className={`border rounded-2xl p-5 shadow-lg flex flex-col justify-between transition-all duration-300 hover:-translate-y-0.5 ${
-                            theme === 'light'
-                              ? 'bg-white/45 backdrop-blur-3xl border-white/90 shadow-[0_10px_30px_rgba(14,165,233,0.12)] hover:border-sky-400 ring-1 ring-white/50'
-                              : 'bg-[#0b1120] border-slate-800 hover:border-amber-400/40'
-                          }`}
+                          className={`border rounded-2xl p-5 shadow-lg flex flex-col justify-between transition-all duration-300 hover:-translate-y-0.5 ${theme === 'light'
+                            ? 'bg-white/45 backdrop-blur-3xl border-white/90 shadow-[0_10px_30px_rgba(14,165,233,0.12)] hover:border-sky-400 ring-1 ring-white/50'
+                            : 'bg-[#0b1120] border-slate-800 hover:border-amber-400/40'
+                            }`}
                         >
                           <div>
                             <div className="flex items-center justify-between mb-2">
@@ -4008,17 +4102,15 @@ Please check and confirm my seat booking.
                                 {"★".repeat(Number(fb.rating || 5))}
                               </span>
                             </div>
-                            <p className={`text-xs sm:text-sm leading-relaxed italic mt-2 p-3.5 rounded-xl border ${
-                              theme === 'light'
-                                ? 'bg-white/50 backdrop-blur-md text-slate-700 border-white/80 shadow-sm'
-                                : 'bg-slate-900/40 text-slate-300 border-slate-800/80'
-                            }`}>
+                            <p className={`text-xs sm:text-sm leading-relaxed italic mt-2 p-3.5 rounded-xl border ${theme === 'light'
+                              ? 'bg-white/50 backdrop-blur-md text-slate-700 border-white/80 shadow-sm'
+                              : 'bg-slate-900/40 text-slate-300 border-slate-800/80'
+                              }`}>
                               "{fb.text}"
                             </p>
                           </div>
-                          <div className={`mt-4 pt-2.5 border-t flex items-center justify-between text-[10px] font-mono ${
-                            theme === 'light' ? 'border-sky-200/40 text-slate-500' : 'border-slate-800/80 text-slate-500'
-                          }`}>
+                          <div className={`mt-4 pt-2.5 border-t flex items-center justify-between text-[10px] font-mono ${theme === 'light' ? 'border-sky-200/40 text-slate-500' : 'border-slate-800/80 text-slate-500'
+                            }`}>
                             <span className="text-emerald-700 dark:text-emerald-400 font-semibold">✓ Verified Aspirant</span>
                             <span>Any Time Library</span>
                           </div>
@@ -4028,17 +4120,15 @@ Please check and confirm my seat booking.
                   </div>
 
                   {/* RIGHT SIDE: REVIEW SUBMISSION FORM (AQUACORE LIQUID GLASS CARD) */}
-                  <div className={`w-full lg:w-[420px] shrink-0 border rounded-3xl p-6 sm:p-8 shadow-2xl lg:sticky lg:top-24 transition-all duration-500 ${
-                    theme === 'light'
-                      ? 'bg-white/45 backdrop-blur-3xl border-white/90 shadow-[0_20px_60px_rgba(14,165,233,0.18)] ring-1 ring-sky-300/40'
-                      : 'bg-gradient-to-br from-[#0e1629] to-[#0a101d] border-amber-400/30'
-                  }`}>
+                  <div className={`w-full lg:w-[420px] shrink-0 border rounded-3xl p-6 sm:p-8 shadow-2xl lg:sticky lg:top-24 transition-all duration-500 ${theme === 'light'
+                    ? 'bg-white/45 backdrop-blur-3xl border-white/90 shadow-[0_20px_60px_rgba(14,165,233,0.18)] ring-1 ring-sky-300/40'
+                    : 'bg-gradient-to-br from-[#0e1629] to-[#0a101d] border-amber-400/30'
+                    }`}>
                     <div className="text-left mb-5">
-                      <div className={`inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider mb-2 ${
-                        theme === 'light'
-                          ? 'bg-sky-500/20 text-sky-800 border border-sky-400/40'
-                          : 'bg-amber-400/10 text-amber-400 border border-amber-400/20'
-                      }`}>
+                      <div className={`inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider mb-2 ${theme === 'light'
+                        ? 'bg-sky-500/20 text-sky-800 border border-sky-400/40'
+                        : 'bg-amber-400/10 text-amber-400 border border-amber-400/20'
+                        }`}>
                         Instant Live Rating
                       </div>
                       <h3 className={`text-xl font-black ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>Share Your Feedback</h3>
@@ -4078,12 +4168,11 @@ Please check and confirm my seat booking.
                           type="text"
                           value={reviewerName}
                           onChange={(e) => setReviewerName(e.target.value)}
-                          placeholder="e.g., Aman Yashdeva"
-                          className={`w-full border rounded-xl px-4 py-3 text-sm outline-none font-semibold transition shadow-sm ${
-                            theme === 'light'
-                              ? 'bg-white/70 backdrop-blur-md border-white/90 text-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-400/40'
-                              : 'bg-[#050811] border-slate-700 text-white focus:border-amber-400'
-                          }`}
+                          placeholder="Avinash Singh"
+                          className={`w-full border rounded-xl px-4 py-3 text-sm outline-none font-semibold transition shadow-sm ${theme === 'light'
+                            ? 'bg-white/70 backdrop-blur-md border-white/90 text-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-400/40'
+                            : 'bg-[#050811] border-slate-700 text-white focus:border-amber-400'
+                            }`}
                           required
                         />
                       </div>
@@ -4093,9 +4182,8 @@ Please check and confirm my seat booking.
                         <label className={`block text-xs font-bold mb-1 uppercase tracking-wider ${theme === 'light' ? 'text-slate-800' : 'text-slate-300'}`}>
                           Select Star Rating
                         </label>
-                        <div className={`flex items-center gap-1.5 py-1 border px-4 py-2.5 rounded-xl shadow-sm ${
-                          theme === 'light' ? 'bg-white/70 backdrop-blur-md border-white/90' : 'bg-[#050811] border-slate-700/80'
-                        }`}>
+                        <div className={`flex items-center gap-1.5 py-1 border px-4 py-2.5 rounded-xl shadow-sm ${theme === 'light' ? 'bg-white/70 backdrop-blur-md border-white/90' : 'bg-[#050811] border-slate-700/80'
+                          }`}>
                           {[1, 2, 3, 4, 5].map((star) => (
                             <button
                               type="button"
@@ -4103,11 +4191,10 @@ Please check and confirm my seat booking.
                               onMouseEnter={() => setHoverRating(star)}
                               onMouseLeave={() => setHoverRating(0)}
                               onClick={() => setReviewRating(star)}
-                              className={`text-2xl sm:text-3xl transition-transform hover:scale-125 focus:outline-none cursor-pointer ${
-                                star <= (hoverRating || reviewRating)
-                                  ? "text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.7)]"
-                                  : "text-slate-300 dark:text-slate-600 hover:text-slate-400"
-                              }`}
+                              className={`text-2xl sm:text-3xl transition-transform hover:scale-125 focus:outline-none cursor-pointer ${star <= (hoverRating || reviewRating)
+                                ? "text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.7)]"
+                                : "text-slate-300 dark:text-slate-600 hover:text-slate-400"
+                                }`}
                             >
                               ★
                             </button>
@@ -4125,22 +4212,20 @@ Please check and confirm my seat booking.
                           value={reviewText}
                           onChange={(e) => setReviewText(e.target.value)}
                           placeholder="Share your experience about library facilities, silent environment, or staff support..."
-                          className={`w-full border rounded-xl px-4 py-3 text-sm outline-none font-semibold resize-none transition shadow-sm ${
-                            theme === 'light'
-                              ? 'bg-white/70 backdrop-blur-md border-white/90 text-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-400/40'
-                              : 'bg-[#050811] border-slate-700 text-white focus:border-amber-400'
-                          }`}
+                          className={`w-full border rounded-xl px-4 py-3 text-sm outline-none font-semibold resize-none transition shadow-sm ${theme === 'light'
+                            ? 'bg-white/70 backdrop-blur-md border-white/90 text-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-400/40'
+                            : 'bg-[#050811] border-slate-700 text-white focus:border-amber-400'
+                            }`}
                           required
                         ></textarea>
                       </div>
 
                       <button
                         type="submit"
-                        className={`w-full py-3.5 rounded-xl font-black text-xs tracking-wider transition active:scale-95 cursor-pointer flex items-center justify-center gap-2 shadow-lg ${
-                          theme === 'light'
-                            ? 'bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:brightness-110 text-white shadow-sky-500/40'
-                            : 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:brightness-110 text-slate-950 shadow-amber-400/20'
-                        }`}
+                        className={`w-full py-3.5 rounded-xl font-black text-xs tracking-wider transition active:scale-95 cursor-pointer flex items-center justify-center gap-2 shadow-lg ${theme === 'light'
+                          ? 'bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:brightness-110 text-white shadow-sky-500/40'
+                          : 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:brightness-110 text-slate-950 shadow-amber-400/20'
+                          }`}
                       >
                         <span>🚀</span> Publish
                       </button>
@@ -4152,29 +4237,26 @@ Please check and confirm my seat booking.
             </section>
 
             {/* ================= RESOURCE HUB & UPDATES ================= */}
-            <section id="features" className={`relative px-4 md:px-6 py-20 border-t transition-colors duration-500 ${
-              theme === 'light'
-                ? 'bg-white/20 backdrop-blur-3xl text-slate-800 border-sky-200/40'
-                : 'bg-[#080d18] text-white border-slate-800/80'
-            }`}>
+            <section id="features" className={`relative px-4 md:px-6 py-20 border-t transition-colors duration-500 ${theme === 'light'
+              ? 'bg-white/20 backdrop-blur-3xl text-slate-800 border-sky-200/40'
+              : 'bg-[#080d18] text-white border-slate-800/80'
+              }`}>
               <div className="mx-auto max-w-5xl">
                 <div className="mb-12 text-center">
-                  <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-3 ${
-                    theme === 'light' 
-                      ? 'bg-sky-500/20 text-sky-800 border border-sky-400/40 shadow-sm' 
-                      : 'bg-amber-400/10 text-amber-500 dark:text-amber-400 border border-amber-400/20'
-                  }`}>
+                  <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-3 ${theme === 'light'
+                    ? 'bg-sky-500/20 text-sky-800 border border-sky-400/40 shadow-sm'
+                    : 'bg-amber-400/10 text-amber-500 dark:text-amber-400 border border-amber-400/20'
+                    }`}>
                     Curated Materials
                   </div>
                   <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
                     Resource Hub &amp; Student Updates
                   </h2>
-                  
+
                   {/* Resource Hub Subtitle */}
-                  <p 
-                    className={`text-xs sm:text-sm mt-1 max-w-lg mx-auto text-center !text-center w-full ${
-                      theme === 'light' ? 'text-slate-700 font-medium' : 'text-slate-400'
-                    }`}
+                  <p
+                    className={`text-xs sm:text-sm mt-1 max-w-lg mx-auto text-center !text-center w-full ${theme === 'light' ? 'text-slate-700 font-medium' : 'text-slate-400'
+                      }`}
                     style={{ textAlign: "center", marginLeft: "auto", marginRight: "auto", display: "block" }}
                   >
                     Direct access to official examination portals, daily current affairs, and archival knowledge.
@@ -4187,11 +4269,10 @@ Please check and confirm my seat booking.
                     href="https://visionias.in/current-affairs/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`group rounded-2xl border p-7 shadow-lg transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between ${
-                      theme === 'light'
-                        ? 'bg-white/50 backdrop-blur-2xl border-white/90 hover:border-sky-400 shadow-[0_10px_30px_rgba(14,165,233,0.1)]'
-                        : 'bg-[#0c1424] border-slate-800 hover:border-blue-500/50 hover:bg-[#111b30]'
-                    }`}
+                    className={`group rounded-2xl border p-7 shadow-lg transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between ${theme === 'light'
+                      ? 'bg-white/50 backdrop-blur-2xl border-white/90 hover:border-sky-400 shadow-[0_10px_30px_rgba(14,165,233,0.1)]'
+                      : 'bg-[#0c1424] border-slate-800 hover:border-blue-500/50 hover:bg-[#111b30]'
+                      }`}
                   >
                     <div>
                       <div className="mb-4 text-4xl group-hover:scale-110 transition-transform inline-block">📰</div>
@@ -4206,11 +4287,10 @@ Please check and confirm my seat booking.
                     href="https://employmentnews.gov.in/NewEmp/Home.aspx"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`group rounded-2xl border p-7 shadow-lg transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between ${
-                      theme === 'light'
-                        ? 'bg-white/50 backdrop-blur-2xl border-white/90 hover:border-purple-400 shadow-[0_10px_30px_rgba(168,85,247,0.1)]'
-                        : 'bg-[#0c1424] border-slate-800 hover:border-purple-500/50 hover:bg-[#111b30]'
-                    }`}
+                    className={`group rounded-2xl border p-7 shadow-lg transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between ${theme === 'light'
+                      ? 'bg-white/50 backdrop-blur-2xl border-white/90 hover:border-purple-400 shadow-[0_10px_30px_rgba(168,85,247,0.1)]'
+                      : 'bg-[#0c1424] border-slate-800 hover:border-purple-500/50 hover:bg-[#111b30]'
+                      }`}
                   >
                     <div>
                       <div className="mb-4 text-4xl group-hover:scale-110 transition-transform inline-block">🗞️</div>
@@ -4225,11 +4305,10 @@ Please check and confirm my seat booking.
                     href="https://sarkariresult.com.cm/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`group rounded-2xl border p-7 shadow-lg transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between ${
-                      theme === 'light'
-                        ? 'bg-white/50 backdrop-blur-2xl border-white/90 hover:border-pink-400 shadow-[0_10px_30px_rgba(236,72,153,0.1)]'
-                        : 'bg-[#0c1424] border-slate-800 hover:border-pink-500/50 hover:bg-[#111b30]'
-                    }`}
+                    className={`group rounded-2xl border p-7 shadow-lg transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between ${theme === 'light'
+                      ? 'bg-white/50 backdrop-blur-2xl border-white/90 hover:border-pink-400 shadow-[0_10px_30px_rgba(236,72,153,0.1)]'
+                      : 'bg-[#0c1424] border-slate-800 hover:border-pink-500/50 hover:bg-[#111b30]'
+                      }`}
                   >
                     <div>
                       <div className="mb-4 text-4xl group-hover:scale-110 transition-transform inline-block">💼</div>
@@ -4244,11 +4323,10 @@ Please check and confirm my seat booking.
                     href="https://www.pdfnotes.co/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`group rounded-2xl border p-7 shadow-lg transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between ${
-                      theme === 'light'
-                        ? 'bg-white/50 backdrop-blur-2xl border-white/90 hover:border-emerald-400 shadow-[0_10px_30px_rgba(16,185,129,0.1)]'
-                        : 'bg-[#0c1424] border-slate-800 hover:border-emerald-500/50 hover:bg-[#111b30]'
-                    }`}
+                    className={`group rounded-2xl border p-7 shadow-lg transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between ${theme === 'light'
+                      ? 'bg-white/50 backdrop-blur-2xl border-white/90 hover:border-emerald-400 shadow-[0_10px_30px_rgba(16,185,129,0.1)]'
+                      : 'bg-[#0c1424] border-slate-800 hover:border-emerald-500/50 hover:bg-[#111b30]'
+                      }`}
                   >
                     <div>
                       <div className="mb-4 text-4xl group-hover:scale-110 transition-transform inline-block">📄</div>
@@ -4263,11 +4341,10 @@ Please check and confirm my seat booking.
                     href="https://www.upsc.gov.in/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`group rounded-2xl border p-7 shadow-lg transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between ${
-                      theme === 'light'
-                        ? 'bg-white/50 backdrop-blur-2xl border-white/90 hover:border-amber-400 shadow-[0_10px_30px_rgba(245,158,11,0.1)]'
-                        : 'bg-[#0c1424] border-slate-800 hover:border-amber-400/50 hover:bg-[#111b30]'
-                    }`}
+                    className={`group rounded-2xl border p-7 shadow-lg transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between ${theme === 'light'
+                      ? 'bg-white/50 backdrop-blur-2xl border-white/90 hover:border-amber-400 shadow-[0_10px_30px_rgba(245,158,11,0.1)]'
+                      : 'bg-[#0c1424] border-slate-800 hover:border-amber-400/50 hover:bg-[#111b30]'
+                      }`}
                   >
                     <div>
                       <div className="mb-4 text-4xl group-hover:scale-110 transition-transform inline-block">📋</div>
@@ -4282,11 +4359,10 @@ Please check and confirm my seat booking.
                     href="https://archive.org/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`group rounded-2xl border p-7 shadow-lg transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between ${
-                      theme === 'light'
-                        ? 'bg-white/50 backdrop-blur-2xl border-white/90 hover:border-indigo-400 shadow-[0_10px_30px_rgba(99,102,241,0.1)]'
-                        : 'bg-[#0c1424] border-slate-800 hover:border-indigo-500/50 hover:bg-[#111b30]'
-                    }`}
+                    className={`group rounded-2xl border p-7 shadow-lg transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between ${theme === 'light'
+                      ? 'bg-white/50 backdrop-blur-2xl border-white/90 hover:border-indigo-400 shadow-[0_10px_30px_rgba(99,102,241,0.1)]'
+                      : 'bg-[#0c1424] border-slate-800 hover:border-indigo-500/50 hover:bg-[#111b30]'
+                      }`}
                   >
                     <div>
                       <div className="mb-4 text-4xl group-hover:scale-110 transition-transform inline-block">🗃️</div>
@@ -4303,54 +4379,30 @@ Please check and confirm my seat booking.
             <Footer />
 
             {/* FLOATING WHATSAPP INQUIRY BUTTON */}
-           <a
-  href="https://wa.me/9161310909?text=Hi%20Anytime%20Library%2C%20I%20want%20to%20know%20more%20about%20the%20library."
-  target="_blank"
-  rel="noopener noreferrer"
-  className={`fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 sm:bottom-6 sm:right-6 ${
-    theme === 'light'
-      ? 'bg-white/35 backdrop-blur-2xl border-white/80 shadow-[0_12px_40px_rgba(14,165,233,0.22)] ring-1 ring-white/60 text-slate-900 hover:bg-white/50'
-      : 'bg-[#0b1220]/95 backdrop-blur-md border-emerald-400/40 shadow-[0_10px_35px_rgba(0,0,0,0.8)] text-white'
-  }`}
->
-  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#25D366] shadow-lg shadow-emerald-500/30">
-    <svg
-      viewBox="0 0 32 32"
-      className="h-6 w-6 fill-white"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path d="M16 3C8.83 3 3 8.83 3 16c0 2.3.6 4.55 1.74 6.53L3 29l6.67-1.7A12.94 12.94 0 0 0 16 29c7.17 0 13-5.83 13-13S23.17 3 16 3Zm0 23.64c-2.04 0-4.03-.55-5.77-1.59l-.41-.24-3.96 1.01 1.06-3.86-.27-.4A10.6 10.6 0 0 1 5.36 16C5.36 10.12 10.12 5.36 16 5.36S26.64 10.12 26.64 16 21.88 26.64 16 26.64Zm5.83-7.94c-.32-.16-1.89-.93-2.18-1.04-.29-.11-.5-.16-.71.16-.21.32-.82 1.04-1 1.25-.18.21-.37.24-.68.08-1.89-.94-3.13-1.68-4.38-3.81-.33-.57.33-.53.94-1.76.1-.21.05-.4-.03-.56-.08-.16-.71-1.71-.97-2.34-.26-.62-.52-.54-.71-.55h-.61c-.21 0-.55.08-.84.4-.29.32-1.1 1.08-1.1 2.63s1.13 3.05 1.29 3.26c.16.21 2.22 3.39 5.38 4.76.75.32 1.34.51 1.8.65.76.24 1.45.21 2 .13.61-.09 1.89-.77 2.15-1.52.27-.75.27-1.39.19-1.52-.08-.13-.29-.21-.61-.37Z" />
-    </svg>
-  </div>
-
-  <div className="hidden pr-1 sm:block text-left">
-    <p className={`text-[10px] font-bold uppercase tracking-wider ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>Direct WhatsApp</p>
-    <p className={`text-xs font-black ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>Anytime Inquiry</p>
-  </div>
-</a>
-
-            
-            {/* <div
-              onClick={toggleTheme}
-              role="button"
-              tabIndex={0}
-              title={`Switch to ${theme === "dark" ? "Aqua Light" : "Dark"} Mode`}
-              className={`fixed bottom-5 left-5 z-50 flex items-center w-14 h-8 p-1 rounded-full cursor-pointer transition-all duration-300 backdrop-blur-3xl shadow-[0_10px_25px_rgba(0,0,0,0.4)] hover:scale-105 active:scale-95 ${
-                theme === 'light'
-                  ? 'bg-sky-400/30 border border-white/90 shadow-[0_10px_25px_rgba(14,165,233,0.3)]'
-                  : 'bg-slate-800/90 border border-slate-700/80'
-              }`}
-            >
-              <div
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-md transition-all duration-300 transform ${
-                  theme === "dark"
-                    ? "translate-x-0 bg-slate-950 text-amber-400"
-                    : "translate-x-6 bg-white text-sky-500 shadow-sky-500/40"
+            <a
+              href="https://wa.me/9161310909?text=Hi%20Anytime%20Library%2C%20I%20want%20to%20know%20more%20about%20the%20library."
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 sm:bottom-6 sm:right-6 ${theme === 'light'
+                ? 'bg-white/35 backdrop-blur-2xl border-white/80 shadow-[0_12px_40px_rgba(14,165,233,0.22)] ring-1 ring-white/60 text-slate-900 hover:bg-white/50'
+                : 'bg-[#0b1220]/95 backdrop-blur-md border-emerald-400/40 shadow-[0_10px_35px_rgba(0,0,0,0.8)] text-white'
                 }`}
-              >
-                {theme === "dark" ? "🌙" : "💧"}
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#25D366] shadow-lg shadow-emerald-500/30">
+                <svg
+                  viewBox="0 0 32 32"
+                  className="h-6 w-6 fill-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path d="M16 3C8.83 3 3 8.83 3 16c0 2.3.6 4.55 1.74 6.53L3 29l6.67-1.7A12.94 12.94 0 0 0 16 29c7.17 0 13-5.83 13-13S23.17 3 16 3Zm0 23.64c-2.04 0-4.03-.55-5.77-1.59l-.41-.24-3.96 1.01 1.06-3.86-.27-.4A10.6 10.6 0 0 1 5.36 16C5.36 10.12 10.12 5.36 16 5.36S26.64 10.12 26.64 16 21.88 26.64 16 26.64Zm5.83-7.94c-.32-.16-1.89-.93-2.18-1.04-.29-.11-.5-.16-.71.16-.21.32-.82 1.04-1 1.25-.18.21-.37.24-.68.08-1.89-.94-3.13-1.68-4.38-3.81-.33-.57.33-.53.94-1.76.1-.21.05-.4-.03-.56-.08-.16-.71-1.71-.97-2.34-.26-.62-.52-.54-.71-.55h-.61c-.21 0-.55.08-.84.4-.29.32-1.1 1.08-1.1 2.63s1.13 3.05 1.29 3.26c.16.21 2.22 3.39 5.38 4.76.75.32 1.34.51 1.8.65.76.24 1.45.21 2 .13.61-.09 1.89-.77 2.15-1.52.27-.75.27-1.39.19-1.52-.08-.13-.29-.21-.61-.37Z" />
+                </svg>
               </div>
-            </div> */}
+
+              <div className="hidden pr-1 sm:block text-left">
+                <p className={`text-[10px] font-bold uppercase tracking-wider ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>Direct WhatsApp</p>
+                <p className={`text-xs font-black ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>Anytime Inquiry</p>
+              </div>
+            </a>
 
           </div>
 

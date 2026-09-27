@@ -52,26 +52,25 @@ const AccountsFinance = ({
   // 📝 2. EXPENSE FORM STATE
   // ==========================================
   const [expDate, setExpDate] = useState(getTodayDateString());
-  // FIXED: Default category "Electricity Bill" set ki hai taaki rent na aaye
   const [expCategory, setExpCategory] = useState("Electricity Bill");
   const [expDescription, setExpDescription] = useState("");
   const [expAmount, setExpAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Single Pie view mode: "flow" (Monthly Combined Flow) OR "detailed" (Annual All Heads)
   const [pieMode, setPieMode] = useState("flow");
   const [hoveredSliceIndex, setHoveredSliceIndex] = useState(null);
   const [studentSearch, setStudentSearch] = useState("");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("ALL");
 
   // ==========================================
-  // ⚡ 3. FIREBASE LIVE EXPENSES SYNC
+  // ⚡ 3. FIREBASE LIVE EXPENSES & FEE HISTORY SYNC
   // ==========================================
   const [expensesList, setExpensesList] = useState([]);
+  const [feeHistoryList, setFeeHistoryList] = useState([]);
 
   useEffect(() => {
     const expensesRef = collection(db, "expenses");
-    const unsubscribe = onSnapshot(
+    const unsubscribeExp = onSnapshot(
       expensesRef,
       (snapshot) => {
         const list = [];
@@ -86,7 +85,25 @@ const AccountsFinance = ({
       }
     );
 
-    return () => unsubscribe();
+    const historyRef = collection(db, "fee_history");
+    const unsubscribeHistory = onSnapshot(
+      historyRef,
+      (snapshot) => {
+        const hList = [];
+        snapshot.forEach((docSnap) => {
+          hList.push(docSnap.data());
+        });
+        setFeeHistoryList(hList);
+      },
+      (error) => {
+        console.error("Fee history sync error:", error);
+      }
+    );
+
+    return () => {
+      unsubscribeExp();
+      unsubscribeHistory();
+    };
   }, []);
 
   const handleAddExpense = async (e) => {
@@ -128,14 +145,13 @@ const AccountsFinance = ({
   };
 
   // ==========================================
-  // 💰 4. STUDENT REVENUE AGGREGATION
+  // 💰 4. STUDENT REVENUE AGGREGATION (COMBINED: LIVE + FEE HISTORY)
   // ==========================================
-  const allCollections = [];
-
+  const liveCollections = [];
   visibleSeats.forEach((seat) => {
     const addCol = (name, plan, payment, amount, paidDate, fromDate, toDate, phone, entryType, mode) => {
       if (!name || payment !== "Submitted") return;
-      allCollections.push({
+      liveCollections.push({
         name,
         seat: seat.id,
         plan,
@@ -155,6 +171,28 @@ const AccountsFinance = ({
     addCol(seat.nightStudent, seat.status === "24 Hours" ? "24 Hours" : "Night", seat.nightPayment, seat.nightAmount, seat.nightPaidDate, seat.nightFrom, seat.nightTo, seat.nightPhone, seat.nightEntryType, seat.nightPaymentMode);
     addCol(seat.fullDayStudent, "Full Day", seat.fullDayPayment, seat.fullDayAmount, seat.fullDayPaidDate, seat.fullDayFrom, seat.fullDayTo, seat.fullDayPhone, seat.fullDayEntryType, seat.fullDayPaymentMode);
   });
+
+  const historyCollections = feeHistoryList.map((item) => ({
+    name: item.studentName || "",
+    seat: item.seatId || 0,
+    plan: item.plan || "",
+    amount: Number(item.amount) || 0,
+    paidDate: item.paidDate || item.fromDate || "",
+    fromDate: item.fromDate || "",
+    toDate: item.toDate || "",
+    phone: item.phone || "",
+    payment: item.status || "Submitted",
+    entryType: item.entryType || "New Admission",
+    paymentMode: item.paymentMode || "Cash",
+  })).filter((student) => student.name && student.payment === "Submitted");
+
+  // Merge both without duplicates
+  const combinedMap = new Map();
+  [...historyCollections, ...liveCollections].forEach((item) => {
+    const key = `${item.seat}-${item.name}-${item.paidDate}-${item.amount}`;
+    combinedMap.set(key, item);
+  });
+  const allCollections = Array.from(combinedMap.values());
 
   // Selected Month Revenue
   const selectedMonthCollections = allCollections.filter((s) => {
@@ -228,14 +266,12 @@ const AccountsFinance = ({
     "Other / General": "#64748b",
   };
 
-  // 1. COMBINED FLOW: Monthly breakdown (Selected Month)
   const flowItems = [
     { label: "Cash in Hand", value: totalCashCollected, color: "#10b981", type: "inflow" },
     { label: "Online UPI", value: totalOnlineCollected, color: "#0ea5e9", type: "inflow" },
     { label: "Expenses Deducted", value: totalExpensesLogged, color: "#f43f5e", type: "outflow" },
   ].filter((item) => item.value > 0);
 
-  // 2. ALL HEADS: Full Year Breakdown
   const annualCategoryTotals = {};
   currentYearExpenses.forEach((e) => {
     const cat = e.category || "General / Miscellaneous";
@@ -254,7 +290,6 @@ const AccountsFinance = ({
     })),
   ].filter((item) => item.value > 0);
 
-  // Mode Selection
   const activeChartItems = pieMode === "flow" ? flowItems : detailedItems;
   const activePieTotal = activeChartItems.reduce((acc, curr) => acc + curr.value, 0);
 
@@ -291,7 +326,6 @@ const AccountsFinance = ({
     return `M ${x1} ${y1} A ${rOut} ${rOut} 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A ${rIn} ${rIn} 0 ${largeArc} 0 ${x4} ${y4} Z`;
   };
 
-  // Filtered lists
   const displayedExpenses = selectedMonthExpenses.filter((e) => {
     if (selectedCategoryFilter === "ALL") return true;
     return e.category === selectedCategoryFilter;
@@ -303,7 +337,6 @@ const AccountsFinance = ({
     return s.name.toLowerCase().includes(q) || String(s.seat).includes(q);
   });
 
-  // Real-time listener for archived summaries
   const [archivedYears, setArchivedYears] = useState([]);
 
   useEffect(() => {
@@ -324,81 +357,6 @@ const AccountsFinance = ({
     );
     return () => unsub();
   }, []);
-
-  // =========================================================================
-  // ⚡ 100% AUTOMATIC PAST YEAR ARCHIVING
-  // =========================================================================
-  useEffect(() => {
-    if (allCollections.length === 0 && expensesList.length === 0) return;
-
-    const autoArchivePastYears = async () => {
-      const pastYearsWithData = new Set();
-
-      allCollections.forEach((item) => {
-        if (item.paidDate && item.paidDate !== "0-0-0") {
-          const y = new Date(item.paidDate).getFullYear();
-          if (y < currentYear) pastYearsWithData.add(y);
-        }
-      });
-
-      expensesList.forEach((item) => {
-        if (item.date) {
-          const y = new Date(item.date).getFullYear();
-          if (y < currentYear) pastYearsWithData.add(y);
-        }
-      });
-
-      for (const pastYear of pastYearsWithData) {
-        const yearStr = String(pastYear);
-
-        const pastYearColls = allCollections.filter((s) => {
-          if (!s.paidDate || s.paidDate === "0-0-0") return false;
-          return new Date(s.paidDate).getFullYear() === pastYear;
-        });
-
-        const pastYearExps = expensesList.filter((e) => {
-          if (!e.date) return false;
-          return new Date(e.date).getFullYear() === pastYear;
-        });
-
-        const totalFees = pastYearColls.reduce((acc, curr) => acc + curr.amount, 0);
-        const cashTotal = pastYearColls.filter(s => s.paymentMode === "Cash").reduce((acc, curr) => acc + curr.amount, 0);
-        const onlineTotal = pastYearColls.filter(s => s.paymentMode !== "Cash").reduce((acc, curr) => acc + curr.amount, 0);
-        const totalExpenses = pastYearExps.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
-        const netProfitCalc = totalFees - totalExpenses;
-
-        const existingRecord = archivedYears.find((r) => String(r.year) === yearStr);
-
-        if (
-          !existingRecord ||
-          existingRecord.totalFees !== totalFees ||
-          existingRecord.totalExpenses !== totalExpenses
-        ) {
-          try {
-            await setDoc(
-              doc(db, "yearly_summary", yearStr),
-              {
-                year: pastYear,
-                totalFees,
-                totalExpenses,
-                netProfit: netProfitCalc,
-                cashTotal,
-                onlineTotal,
-                totalAdmissions: pastYearColls.length,
-                status: "Auto-Archived",
-                savedAt: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-              },
-              { merge: true }
-            );
-          } catch (err) {
-            console.error("Auto archive error for year:", pastYear, err);
-          }
-        }
-      }
-    };
-
-    autoArchivePastYears();
-  }, [allCollections.length, expensesList.length, archivedYears, currentYear]);
 
   // ==========================================
   // 🖨 7. PRINT REPORT

@@ -173,7 +173,7 @@ const Dashboard = ({ seats = [], onToggleSeatVisibility, onNavigateToAccounts, t
         status: "Submitted",
         archivedAt: Date.now()
       });
-      alert("Purani/Current entry successfully fee_history mein add ho gayi!");
+      alert("Purani entry successfully fee_history mein add ho gayi!");
       setTempSeatId("");
       setTempStudentName("");
       setTempAmount("");
@@ -296,9 +296,33 @@ const Dashboard = ({ seats = [], onToggleSeatVisibility, onNavigateToAccounts, t
   });
 
   // =====================================================
-  // ALL STUDENTS COLLECTION DATA (From fee_history)
+  // COLLECTIONS DATA HANDLING (LIVE FOR CURRENT MONTH, HISTORY FOR PAST)
   // =====================================================
-  const allCollections = feeHistoryList.map((item) => ({
+  const liveCollections = [];
+  visibleSeats.forEach((seat) => {
+    const addLiveCol = (name, plan, payment, amount, paidDate, fromDate, toDate, phone, entryType) => {
+      if (!name || payment !== "Submitted") return;
+      liveCollections.push({
+        name,
+        seat: seat.id,
+        plan,
+        amount: Number(amount) || 0,
+        date: paidDate || fromDate || "",
+        fromDate: fromDate || "",
+        toDate: toDate || "",
+        phone: phone || "",
+        payment,
+        entryType: entryType || "New Admission",
+      });
+    };
+
+    addLiveCol(seat.morningStudent, "Morning", seat.morningPayment, seat.morningAmount || seat.morningFee, seat.morningPaidDate, seat.morningFrom, seat.morningTo, seat.morningPhone, seat.morningEntryType);
+    addLiveCol(seat.afternoonStudent, "Afternoon", seat.afternoonPayment, seat.afternoonAmount || seat.afternoonFee, seat.afternoonPaidDate, seat.afternoonFrom, seat.afternoonTo, seat.afternoonPhone, seat.afternoonEntryType);
+    addLiveCol(seat.nightStudent, seat.status === "24 Hours" ? "24 Hours" : "Night", seat.nightPayment, seat.nightAmount || seat.nightFee, seat.nightPaidDate, seat.nightFrom, seat.nightTo, seat.nightPhone, seat.nightEntryType);
+    addLiveCol(seat.fullDayStudent, "Full Day", seat.fullDayPayment, seat.fullDayAmount || seat.fullDayFee, seat.fullDayPaidDate, seat.fullDayFrom, seat.fullDayTo, seat.fullDayPhone, seat.fullDayEntryType);
+  });
+
+  const historyCollections = feeHistoryList.map((item) => ({
     name: item.studentName || "",
     seat: item.seatId || 0,
     plan: item.plan || "",
@@ -311,10 +335,9 @@ const Dashboard = ({ seats = [], onToggleSeatVisibility, onNavigateToAccounts, t
     entryType: item.entryType || "New Admission",
   })).filter((student) => student.name && student.payment === "Submitted");
 
-  // STRICT FILTER: Current month collection
-  const monthlyCollections = allCollections.filter((student) => {
+  // Monthly collection strictly current month live seats se
+  const monthlyCollections = liveCollections.filter((student) => {
     if (!student.date || student.date === "0-0-0") return false;
-
     const collectionDate = new Date(student.date);
     return (
       collectionDate.getMonth() === currentMonthIndex &&
@@ -337,16 +360,30 @@ const Dashboard = ({ seats = [], onToggleSeatVisibility, onNavigateToAccounts, t
 
   const yearlyCollections = monthNames
     .map((month, monthIndex) => {
-      const monthTotal = allCollections
-        .filter((student) => {
-          if (!student.date) return false;
-          const collectionDate = new Date(student.date);
-          return (
-            collectionDate.getMonth() === monthIndex &&
-            collectionDate.getFullYear() === currentYear
-          );
-        })
-        .reduce((total, student) => total + student.amount, 0);
+      let monthTotal = 0;
+      if (monthIndex === currentMonthIndex) {
+        monthTotal = liveCollections
+          .filter((student) => {
+            if (!student.date) return false;
+            const collectionDate = new Date(student.date);
+            return (
+              collectionDate.getMonth() === monthIndex &&
+              collectionDate.getFullYear() === currentYear
+            );
+          })
+          .reduce((total, student) => total + student.amount, 0);
+      } else {
+        monthTotal = historyCollections
+          .filter((student) => {
+            if (!student.date) return false;
+            const collectionDate = new Date(student.date);
+            return (
+              collectionDate.getMonth() === monthIndex &&
+              collectionDate.getFullYear() === currentYear
+            );
+          })
+          .reduce((total, student) => total + student.amount, 0);
+      }
 
       const monthYear = `${month} ${currentYear}`;
       return {
