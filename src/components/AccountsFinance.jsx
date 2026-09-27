@@ -359,7 +359,7 @@ const AccountsFinance = ({
   }, []);
 
   // ==========================================
-  // 🖨 7. PRINT REPORT
+  // 🖨 7. PRINT REPORT (UPDATED WITH FROM - TO DATE)
   // ==========================================
   const printFinancialReport = () => {
     const studentRows = selectedMonthCollections
@@ -368,9 +368,9 @@ const AccountsFinance = ({
       <tr>
         <td>${idx + 1}</td>
         <td><strong>${s.name}</strong></td>
-        <td>Seat ${s.seat}</td>
+        <td>${s.seat}</td>
         <td>${s.plan}</td>
-        <td>${s.paidDate}</td>
+        <td>${s.fromDate || "-"} to ${s.toDate || "-"}</td>
         <td><span style="font-weight:bold; color:${s.paymentMode === "Cash" ? "#059669" : "#0284c7"}">${s.paymentMode}</span></td>
         <td>₹${s.amount.toLocaleString("en-IN")}</td>
       </tr>
@@ -448,7 +448,7 @@ const AccountsFinance = ({
 
           <h3>1. Fee Collections (${monthNames[selectedMonth]})</h3>
           <table>
-            <thead><tr><th>#</th><th>Student Name</th><th>Seat</th><th>Shift</th><th>Payment Date</th><th>Mode</th><th>Amount</th></tr></thead>
+            <thead><tr><th>#</th><th>Student Name</th><th>Seat</th><th>Shift</th><th>From - To Date</th><th>Mode</th><th>Amount</th></tr></thead>
             <tbody>${studentRows || "<tr><td colspan='7' style='text-align:center;'>No revenue recorded.</td></tr>"}</tbody>
           </table>
 
@@ -1195,17 +1195,7 @@ const AccountsFinance = ({
           </div>
 
           <div className="flex items-center gap-3">
-            <input
-              type="text"
-              placeholder="Search by student or seat..."
-              value={studentSearch}
-              onChange={(e) => setStudentSearch(e.target.value)}
-              className={`border rounded-xl px-3 py-1.5 text-xs outline-none shadow-sm transition ${
-                isLight 
-                  ? "bg-white/60 backdrop-blur-md border-white/90 text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:bg-white" 
-                  : "bg-[#080d16] border-slate-700 text-white placeholder-slate-500 focus:border-amber-400"
-              }`}
-            />
+            <p><span className={`text-xs font-black ${isLight ? "text-slate-900" : "text-white"}`}>{selectedMonthCollections.length} Total Submissions</span></p>
             <span className={`text-xs font-black px-3 py-1.5 rounded-xl border font-mono ${
               isLight ? "text-emerald-800 bg-emerald-500/15 border-emerald-300/60" : "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
             }`}>

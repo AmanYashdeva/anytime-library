@@ -567,7 +567,7 @@ Warm regards,
       </div>
 
       {/* ---> TEMP FORM UI START (REMOVE LATER) <--- */}
-      <div className={`p-6 rounded-3xl border ${isLight ? "bg-white/70 border-sky-300 shadow-md" : "bg-[#111827] border-amber-500/40 shadow-xl"}`}>
+      {/* <div className={`p-6 rounded-3xl border ${isLight ? "bg-white/70 border-sky-300 shadow-md" : "bg-[#111827] border-amber-500/40 shadow-xl"}`}>
         <h3 className={`font-black text-sm mb-3 ${isLight ? "text-slate-900" : "text-amber-400"}`}>
           ⚡ Quick Fee History Entry Box (Purani/Current History Add Karein - With From/To Dates)
         </h3>
@@ -659,7 +659,7 @@ Warm regards,
             + Save to History Ledger (With Dates)
           </button>
         </form>
-      </div>
+      </div> */}
       {/* ---> TEMP FORM UI END <--- */}
 
       {/* ================================================= */}
