@@ -240,6 +240,7 @@ export default function App() {
   // MACBOOK STYLE NOTIFICATION PANEL STATE
   const [showNotifPopup, setShowNotifPopup] = useState(false);
   const notifDropdownRef = useRef(null);
+  const saveTimeoutRef = useRef(null);
 
   // PENDING FEEDBACK COUNT (ONLY UNAPPROVED REVIEWS)
   const pendingFeedbacksCount = feedbacks.filter((f) => !f.isApproved).length;
@@ -562,7 +563,10 @@ export default function App() {
     const nextSeatState = { ...selectedSeat, ...autoUpdates };
     setSeats((prev) => prev.map((seat) => (seat.id === selectedSeat.id ? nextSeatState : seat)));
     setSelectedSeat(nextSeatState);
-    setTimeout(() => saveSeatToFirebase(nextSeatState), 100);
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      saveSeatToFirebase(nextSeatState);
+    }, 20000);
   };
 
   const toggleSeatVisibility = async (seatId) => {
@@ -1215,6 +1219,7 @@ Warm regards,
       }
 
       console.log("Saved and permanent fee history updated successfully");
+      alert("✅ Seat Details Saved Successfully");
     } catch (error) {
       console.error("Firebase save error:", error);
       alert("Error saving data to Firebase. Please check console.");
@@ -4403,6 +4408,27 @@ Please check and confirm my seat booking.
                 <p className={`text-xs font-black ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>Anytime Inquiry</p>
               </div>
             </a>
+              <div
+              onClick={toggleTheme}
+              role="button"
+              tabIndex={0}
+              title={`Switch to ${theme === "dark" ? "Aqua Light" : "Dark"} Mode`}
+              className={`fixed bottom-5 left-5 z-50 flex items-center w-14 h-8 p-1 rounded-full cursor-pointer transition-all duration-300 backdrop-blur-3xl shadow-[0_10px_25px_rgba(0,0,0,0.4)] hover:scale-105 active:scale-95 ${
+                theme === 'light'
+                  ? 'bg-sky-400/30 border border-white/90 shadow-[0_10px_25px_rgba(14,165,233,0.3)]'
+                  : 'bg-slate-800/90 border border-slate-700/80'
+              }`}
+            >
+              <div
+                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-md transition-all duration-300 transform ${
+                  theme === "dark"
+                    ? "translate-x-0 bg-slate-950 text-amber-400"
+                    : "translate-x-6 bg-white text-sky-500 shadow-sky-500/40"
+                }`}
+              >
+                {theme === "dark" ? "🌙" : "💧"}
+              </div>
+            </div>
 
           </div>
 
