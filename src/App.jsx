@@ -1624,7 +1624,29 @@ Warm regards,
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-500 group-hover:bg-white animate-pulse transition-colors"></span>
               </button>
             </div>
+            
           </div>
+          <div
+              onClick={toggleTheme}
+              role="button"
+              tabIndex={0}
+              title={`Switch to ${theme === "dark" ? "Aqua Light" : "Dark"} Mode`}
+              className={`fixed bottom-5 left-5 z-50 flex items-center w-14 h-8 p-1 rounded-full cursor-pointer transition-all duration-300 backdrop-blur-3xl shadow-[0_10px_25px_rgba(0,0,0,0.4)] hover:scale-105 active:scale-95 ${
+                theme === 'light'
+                  ? 'bg-sky-400/30 border border-white/90 shadow-[0_10px_25px_rgba(14,165,233,0.3)]'
+                  : 'bg-slate-800/90 border border-slate-700/80'
+              }`}
+            >
+              <div
+                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-md transition-all duration-300 transform ${
+                  theme === "dark"
+                    ? "translate-x-0 bg-slate-950 text-amber-400"
+                    : "translate-x-6 bg-white text-sky-500 shadow-sky-500/40"
+                }`}
+              >
+                {theme === "dark" ? "🌙" : "☀️"}
+              </div>
+            </div>
 
           {/* ---> ADMIN: EDIT & PREVIEW CONTAINER <--- */}
           <div className={`flex-1 overflow-y-auto p-6 transition-colors duration-500 ${theme === 'light'
@@ -3277,11 +3299,9 @@ Warm regards,
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <h4 className="text-xl font-black tracking-tight text-amber-400 sm:text-2xl flex items-center gap-2">
-                            <span>🗺️</span> Live Hall Seat Occupancy Map
+                             Live Hall Seat Occupancy Map
                           </h4>
-                          <p className="text-xs text-slate-400 mt-1 font-mono">
-                            Interactive visual seating architecture • Bachhrawan Library
-                          </p>
+                          
                         </div>
 
                         <button
@@ -4426,7 +4446,7 @@ Please check and confirm my seat booking.
                     : "translate-x-6 bg-white text-sky-500 shadow-sky-500/40"
                 }`}
               >
-                {theme === "dark" ? "🌙" : "💧"}
+                {theme === "dark" ? "🌙" : "☀️"}
               </div>
             </div>
 

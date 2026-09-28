@@ -1341,12 +1341,11 @@ Warm regards,
             <div className="shrink-0 border-b border-white/10 bg-white/5 backdrop-blur-xl px-4 py-4 sm:px-7 sm:py-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h4 className="text-xl font-black tracking-tight text-white sm:text-2xl flex items-center gap-2">
-                    <span>🗺️</span> Live Hall Seat Occupancy Map
-                  </h4>
-                  <p className="text-xs text-slate-300 mt-1 font-mono">
-                    {occupiedSeats} of {totalSeats} seats occupied • {availableSeats} available
-                  </p>
+                  <h3 className={`font-black text-base tracking-tight flex items-center gap-2 ${
+                    isLight ? "text-slate-900" : "text-white"
+                  }`}>
+                    <span>🗺️</span>
+                  </h3>
                 </div>
 
                 <button
