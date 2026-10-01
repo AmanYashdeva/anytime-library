@@ -839,7 +839,7 @@ export default function App() {
     updatedSeat[fields.address] = req.address || "";
     updatedSeat[fields.dob] = req.dob || "";
     updatedSeat[fields.amount] = req.amount || "";
-    updatedSeat[fields.payment] = "Submitted";
+    updatedSeat[fields.payment] = "Pending";
     updatedSeat[fields.mode] = "Online (UPI)";
     updatedSeat[fields.from] = todayStr;
     updatedSeat[fields.to] = nextDateStr;
@@ -875,7 +875,7 @@ export default function App() {
           toDate: nextDateStr,
           paymentMode: "Online (UPI)",
           entryType: "New Admission",
-          status: "Submitted",
+          status: "Pending",
           archivedAt: Date.now(),
         },
         { merge: true }
