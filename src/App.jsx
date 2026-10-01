@@ -566,7 +566,7 @@ export default function App() {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
       saveSeatToFirebase(nextSeatState);
-    }, 20000);
+    }, 10000);
   };
 
   const toggleSeatVisibility = async (seatId) => {
@@ -601,11 +601,11 @@ export default function App() {
     if (!fromSeat || !toSeat) return;
 
     const shiftMap = {
-      Morning: { student: "morningStudent", phone: "morningPhone", email: "morningEmail", address: "morningAddress", from: "morningFrom", to: "morningTo", payment: "morningPayment", amount: "morningAmount", mode: "morningPaymentMode" },
-      Afternoon: { student: "afternoonStudent", phone: "afternoonPhone", email: "afternoonEmail", address: "afternoonAddress", from: "afternoonFrom", to: "afternoonTo", payment: "afternoonPayment", amount: "afternoonAmount", mode: "afternoonPaymentMode" },
-      Night: { student: "nightStudent", phone: "nightPhone", email: "nightEmail", address: "nightAddress", from: "nightFrom", to: "nightTo", payment: "nightPayment", amount: "nightAmount", mode: "nightPaymentMode" },
-      "Full Day": { student: "fullDayStudent", phone: "fullDayPhone", email: "fullDayEmail", address: "fullDayAddress", from: "fullDayFrom", to: "fullDayTo", payment: "fullDayPayment", amount: "fullDayAmount", mode: "fullDayPaymentMode" },
-      "24 Hours": { student: "nightStudent", phone: "nightPhone", email: "nightEmail", address: "nightAddress", from: "nightFrom", to: "nightTo", payment: "nightPayment", amount: "nightAmount", mode: "nightPaymentMode" },
+      Morning: { student: "morningStudent", phone: "morningPhone", dob: "morningDob", email: "morningEmail", address: "morningAddress", from: "morningFrom", to: "morningTo", payment: "morningPayment", amount: "morningAmount", mode: "morningPaymentMode" },
+      Afternoon: { student: "afternoonStudent", phone: "afternoonPhone", dob: "afternoonDob", email: "afternoonEmail", address: "afternoonAddress", from: "afternoonFrom", to: "afternoonTo", payment: "afternoonPayment", amount: "afternoonAmount", mode: "afternoonPaymentMode" },
+      Night: { student: "nightStudent", phone: "nightPhone", dob: "nightDob", email: "nightEmail", address: "nightAddress", from: "nightFrom", to: "nightTo", payment: "nightPayment", amount: "nightAmount", mode: "nightPaymentMode" },
+      "Full Day": { student: "fullDayStudent", phone: "fullDayPhone", dob: "fullDayDob", email: "fullDayEmail", address: "fullDayAddress", from: "fullDayFrom", to: "fullDayTo", payment: "fullDayPayment", amount: "fullDayAmount", mode: "fullDayPaymentMode" },
+      "24 Hours": { student: "nightStudent", phone: "nightPhone", dob: "nightDob", email: "nightEmail", address: "nightAddress", from: "nightFrom", to: "nightTo", payment: "nightPayment", amount: "nightAmount", mode: "nightPaymentMode" },
     };
 
     const fromFields = shiftMap[fromShiftType];
@@ -634,6 +634,7 @@ export default function App() {
       const tempToData = {
         student: toSeat[toFields.student] || "",
         phone: toSeat[toFields.phone] || "",
+        dob: toSeat[toFields.dob] || "",
         email: toSeat[toFields.email] || "",
         address: toSeat[toFields.address] || "",
         from: toFields.from ? toSeat[toFields.from] || "" : "",
@@ -645,6 +646,7 @@ export default function App() {
 
       updatedToSeat[toFields.student] = tempFromData.student;
       updatedToSeat[toFields.phone] = tempFromData.phone;
+      updatedToSeat[toFields.dob] = tempFromData.dob;
       updatedToSeat[toFields.email] = tempFromData.email;
       updatedToSeat[toFields.address] = tempFromData.address;
       updatedToSeat[toFields.from] = tempFromData.from;
@@ -655,6 +657,7 @@ export default function App() {
 
       updatedFromSeat[fromFields.student] = tempToData.student;
       updatedFromSeat[fromFields.phone] = tempToData.phone;
+      updatedFromSeat[fromFields.dob] = tempToData.dob;
       updatedFromSeat[fromFields.email] = tempToData.email;
       updatedFromSeat[fromFields.address] = tempToData.address;
       updatedFromSeat[fromFields.from] = tempToData.from;
@@ -665,6 +668,7 @@ export default function App() {
     } else {
       updatedToSeat[toFields.student] = fromSeat[fromFields.student] || "";
       updatedToSeat[toFields.phone] = fromSeat[fromFields.phone] || "";
+      updatedToSeat[toFields.dob] = fromSeat[fromFields.dob] || "";
       updatedToSeat[toFields.email] = fromSeat[fromFields.email] || "";
       updatedToSeat[toFields.address] = fromSeat[fromFields.address] || "";
       updatedToSeat[toFields.from] = fromSeat[fromFields.from] || "";
@@ -687,6 +691,7 @@ export default function App() {
 
       updatedFromSeat[fromFields.student] = "";
       updatedFromSeat[fromFields.phone] = "";
+      updatedFromSeat[fromFields.dob] = "";
       updatedFromSeat[fromFields.email] = "";
       updatedFromSeat[fromFields.address] = "";
       updatedFromSeat[fromFields.from] = "";
@@ -835,12 +840,13 @@ export default function App() {
 
     updatedSeat[fields.student] = req.name || "";
     updatedSeat[fields.phone] = req.phone || "";
+    updatedSeat[fields.dob] = req.dob || "";
     updatedSeat[fields.email] = req.email || "";
     updatedSeat[fields.address] = req.address || "";
     updatedSeat[fields.dob] = req.dob || "";
     updatedSeat[fields.amount] = req.amount || "";
     updatedSeat[fields.payment] = "Pending";
-    updatedSeat[fields.mode] = "Online (UPI)";
+    updatedSeat[fields.mode] = "";
     updatedSeat[fields.from] = todayStr;
     updatedSeat[fields.to] = nextDateStr;
 
@@ -873,9 +879,9 @@ export default function App() {
           paidDate: todayStr,
           fromDate: todayStr,
           toDate: nextDateStr,
-          paymentMode: "Online (UPI)",
+          paymentMode: "",
           entryType: "New Admission",
-          status: "Pending",
+          status: "",
           archivedAt: Date.now(),
         },
         { merge: true }
@@ -897,7 +903,7 @@ export default function App() {
     if (cleanPhone.length === 10) cleanPhone = `91${cleanPhone}`;
 
     if (!cleanPhone || cleanPhone.length < 10) {
-      alert(`Student (${req.name}) ka valid mobile number nahi mila!`);
+      alert(`Student invalid phone number: ${req.phone}. Please check the request details.`);
       return;
     }
 
