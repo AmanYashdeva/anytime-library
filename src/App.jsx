@@ -283,7 +283,7 @@ export default function App() {
   const uploadSeatsToFirebase = async () => {
     try {
       for (const seat of initialSeats) {
-        await setDoc(doc(db, "seats", String(seat.id)), seat);
+        await setDoc(doc(db, "bookings", `seat-${seat.id}`), seat);
       }
       alert("All seats uploaded to Firebase successfully!");
     } catch (error) {
@@ -576,7 +576,7 @@ export default function App() {
     const newVisibility = seat.isVisible === false;
 
     try {
-      const seatRef = doc(db, "bookings", seat.firebaseDocId);
+      const seatRef = doc(db, "bookings", `seat-${seatId}`);
       await updateDoc(seatRef, { isVisible: newVisibility });
 
       setSeats((prevSeats) =>
@@ -2496,8 +2496,8 @@ Warm regards,
                                     icon={<CalendarIcon className="w-4 h-4" />}
                                     label="Date of Birth (DOB)"
                                     type="date"
-                                    value={selectedSeat.fullDayDob || ""}
-                                    onChange={(e) => updateSeat("fullDayDob", e.target.value)}
+                                    value={selectedSeat.nightDob || ""}
+                                    onChange={(e) => updateSeat("nightDob", e.target.value)}
                                   />
 
                                   <FormInput
@@ -4083,7 +4083,7 @@ Please check and confirm my seat booking.
             {/* ================= TESTIMONIALS & REVIEWS SECTION (AQUACORE LIQUID GLASS EDITION) ================= */}
             <section className={`relative px-4 md:px-6 py-20 border-t transition-colors duration-500 ${theme === 'light'
               ? 'bg-white/20 backdrop-blur-3xl border-sky-200/40 text-slate-900'
-              : 'bg-[#070b16] text-white border-slate-800/80'
+              : 'bg-transparent text-white border-slate-800/80'
               }`}>
               <div className="mx-auto max-w-7xl">
                 <div className="mb-12 text-center">
@@ -4151,7 +4151,7 @@ Please check and confirm my seat booking.
                   </div>
 
                   {/* RIGHT SIDE: REVIEW SUBMISSION FORM (AQUACORE LIQUID GLASS CARD) */}
-                  <div className={`w-full lg:w-[420px] shrink-0 border rounded-3xl p-6 sm:p-8 shadow-2xl lg:sticky lg:top-24 transition-all duration-500 ${theme === 'light'
+                  <div className={`w-full lg:w-[550px] shrink-0 border rounded-3xl p-6 sm:p-8 shadow-2xl lg:sticky lg:top-24 transition-all duration-500 ${theme === 'light'
                     ? 'bg-white/45 backdrop-blur-3xl border-white/90 shadow-[0_20px_60px_rgba(14,165,233,0.18)] ring-1 ring-sky-300/40'
                     : 'bg-gradient-to-br from-[#0e1629] to-[#0a101d] border-amber-400/30'
                     }`}>
@@ -4270,7 +4270,7 @@ Please check and confirm my seat booking.
             {/* ================= RESOURCE HUB & UPDATES ================= */}
             <section id="features" className={`relative px-4 md:px-6 py-20 border-t transition-colors duration-500 ${theme === 'light'
               ? 'bg-white/20 backdrop-blur-3xl text-slate-800 border-sky-200/40'
-              : 'bg-[#080d18] text-white border-slate-800/80'
+              : 'bg-transparent text-white border-slate-800/80'
               }`}>
               <div className="mx-auto max-w-5xl">
                 <div className="mb-12 text-center">

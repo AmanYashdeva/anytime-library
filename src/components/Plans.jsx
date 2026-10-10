@@ -56,7 +56,7 @@ Interested Plan: ${plan}
       className={`min-h-screen py-16 px-6 transition-colors duration-500 ${
         isLight
           ? "bg-transparent text-slate-900"
-          : "bg-[#202b3b] text-white"
+          : "bg-transparent text-white"
       }`}
     >
 
