@@ -115,8 +115,8 @@ Interested Plan: ${plan}
 
               <div className={`border-t-8 rounded-2xl p-6 min-h-[180px] shadow-xl hover:-translate-y-1 transition ${
                 isLight
-                  ? "bg-white/40 backdrop-blur-2xl border border-white/80 border-t-gray-500 text-slate-900 shadow-[0_8px_32px_rgba(0,140,255,0.08)]"
-                  : "bg-[#3b4759] border-gray-500 text-white"
+                  ? "bg-white/40 backdrop-blur-2xl border border-white/80 border-t-emerald-500 text-slate-900 shadow-[0_8px_32px_rgba(16,185,129,0.08)]"
+                  : "bg-[#3b4759] border-emerald-500 text-white"
               }`}>
 
                 <h4 className="text-xl font-bold">
@@ -201,7 +201,7 @@ Interested Plan: ${plan}
                   ₹100 only
 
                 </p>
-                <p className={`font-semibold ${isLight ? "text-emerald-700" : "text-green-300"}`}>
+                <p className="text-orange-300  text-xs">
 
                   Per Month
 

@@ -4082,8 +4082,8 @@ Please check and confirm my seat booking.
 
             {/* ================= TESTIMONIALS & REVIEWS SECTION (AQUACORE LIQUID GLASS EDITION) ================= */}
             <section className={`relative px-4 md:px-6 py-20 border-t transition-colors duration-500 ${theme === 'light'
-              ? 'bg-white/20 backdrop-blur-3xl border-sky-200/40 text-slate-900'
-              : 'bg-transparent text-white border-slate-800/80'
+              ? 'bg-transparent backdrop-blur-3xl border-sky-200/40 text-slate-900'
+              : 'bg-transparent text-white border-transparent'
               }`}>
               <div className="mx-auto max-w-7xl">
                 <div className="mb-12 text-center">
@@ -4269,8 +4269,8 @@ Please check and confirm my seat booking.
 
             {/* ================= RESOURCE HUB & UPDATES ================= */}
             <section id="features" className={`relative px-4 md:px-6 py-20 border-t transition-colors duration-500 ${theme === 'light'
-              ? 'bg-white/20 backdrop-blur-3xl text-slate-800 border-sky-200/40'
-              : 'bg-transparent text-white border-slate-800/80'
+              ? 'bg-transparent backdrop-blur-3xl text-slate-800 border-transparent'
+              : 'bg-transparent text-white border-transparent'
               }`}>
               <div className="mx-auto max-w-5xl">
                 <div className="mb-12 text-center">
