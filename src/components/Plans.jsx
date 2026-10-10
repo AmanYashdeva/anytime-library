@@ -201,6 +201,11 @@ Interested Plan: ${plan}
                   ₹100 only
 
                 </p>
+                <p className={`font-semibold ${isLight ? "text-emerald-700" : "text-green-300"}`}>
+
+                  Per Month
+
+                </p>
 
               </div>
 
