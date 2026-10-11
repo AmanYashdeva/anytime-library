@@ -429,14 +429,19 @@ export default function App() {
         let changed = false;
 
         paymentFields.forEach(([paymentField, dateField]) => {
+          const studentField = paymentField.replace("Payment", "Student");
+          
+          // Agar student baitha hai aur date nikal chuki hai
           if (
-            updatedSeat[paymentField] === "Submitted" &&
-            updatedSeat[dateField]
+            updatedSeat[studentField] &&
+            updatedSeat[dateField] &&
+            updatedSeat[dateField] !== "0-0-0"
           ) {
             const endDate = new Date(updatedSeat[dateField]);
             endDate.setHours(0, 0, 0, 0);
 
-            if (today >= endDate) {
+            // Chahe status Submitted ho ya Available, date nikalte hi Pending ho jayega
+            if (today >= endDate && updatedSeat[paymentField] !== "Pending") {
               updatedSeat[paymentField] = "Pending";
               changed = true;
             }
@@ -1870,7 +1875,7 @@ Warm regards,
                                     ⚡️ Renew (+30 Days)
                                   </button>
 
-                                  {selectedSeat.morningPayment !== "Available" && (
+                                  {(selectedSeat.morningStudent || selectedSeat.morningPayment !== "Available") && (
                                     <span className="text-sm font-semibold text-red-500">
                                       {getDueStatus(selectedSeat.morningTo)}
                                     </span>
@@ -2016,7 +2021,7 @@ Warm regards,
                                     ⚡️ Renew (+30 Days)
                                   </button>
 
-                                  {selectedSeat.afternoonPayment !== "Available" && (
+                                  {(selectedSeat.afternoonStudent || selectedSeat.afternoonPayment !== "Available") && (
                                     <span className="text-sm font-semibold text-red-500">
                                       {getDueStatus(selectedSeat.afternoonTo)}
                                     </span>
@@ -2160,7 +2165,7 @@ Warm regards,
                                     ⚡️ Renew (+30 Days)
                                   </button>
 
-                                  {selectedSeat.nightPayment !== "Available" && (
+                                  {(selectedSeat.nightStudent || selectedSeat.nightPayment !== "Available") && (
                                     <span className="text-sm font-semibold text-red-500">
                                       {getDueStatus(selectedSeat.nightTo)}
                                     </span>
@@ -2310,7 +2315,7 @@ Warm regards,
                                   >
                                     ⚡️ Renew (+30 Days)
                                   </button>
-                                  {selectedSeat.fullDayPayment !== "Available" && (
+                                  {(selectedSeat.fullDayStudent || selectedSeat.fullDayPayment !== "Available") && (
                                     <span className="text-sm font-semibold text-red-500">
                                       {getDueStatus(selectedSeat.fullDayTo)}
                                     </span>
