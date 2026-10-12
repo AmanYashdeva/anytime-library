@@ -606,11 +606,11 @@ export default function App() {
     if (!fromSeat || !toSeat) return;
 
     const shiftMap = {
-      Morning: { student: "morningStudent", phone: "morningPhone", dob: "morningDob", email: "morningEmail", address: "morningAddress", from: "morningFrom", to: "morningTo", payment: "morningPayment", amount: "morningAmount", mode: "morningPaymentMode" },
-      Afternoon: { student: "afternoonStudent", phone: "afternoonPhone", dob: "afternoonDob", email: "afternoonEmail", address: "afternoonAddress", from: "afternoonFrom", to: "afternoonTo", payment: "afternoonPayment", amount: "afternoonAmount", mode: "afternoonPaymentMode" },
-      Night: { student: "nightStudent", phone: "nightPhone", dob: "nightDob", email: "nightEmail", address: "nightAddress", from: "nightFrom", to: "nightTo", payment: "nightPayment", amount: "nightAmount", mode: "nightPaymentMode" },
-      "Full Day": { student: "fullDayStudent", phone: "fullDayPhone", dob: "fullDayDob", email: "fullDayEmail", address: "fullDayAddress", from: "fullDayFrom", to: "fullDayTo", payment: "fullDayPayment", amount: "fullDayAmount", mode: "fullDayPaymentMode" },
-      "24 Hours": { student: "nightStudent", phone: "nightPhone", dob: "nightDob", email: "nightEmail", address: "nightAddress", from: "nightFrom", to: "nightTo", payment: "nightPayment", amount: "nightAmount", mode: "nightPaymentMode" },
+      Morning: { student: "morningStudent", phone: "morningPhone", dob: "morningDob", email: "morningEmail", address: "morningAddress", from: "morningFrom", to: "morningTo", payment: "morningPayment", amount: "morningAmount", mode: "morningPaymentMode", paidDate: "morningPaidDate", entryType: "morningEntryType" },
+      Afternoon: { student: "afternoonStudent", phone: "afternoonPhone", dob: "afternoonDob", email: "afternoonEmail", address: "afternoonAddress", from: "afternoonFrom", to: "afternoonTo", payment: "afternoonPayment", amount: "afternoonAmount", mode: "afternoonPaymentMode", paidDate: "afternoonPaidDate", entryType: "afternoonEntryType" },
+      Night: { student: "nightStudent", phone: "nightPhone", dob: "nightDob", email: "nightEmail", address: "nightAddress", from: "nightFrom", to: "nightTo", payment: "nightPayment", amount: "nightAmount", mode: "nightPaymentMode", paidDate: "nightPaidDate", entryType: "nightEntryType" },
+      "Full Day": { student: "fullDayStudent", phone: "fullDayPhone", dob: "fullDayDob", email: "fullDayEmail", address: "fullDayAddress", from: "fullDayFrom", to: "fullDayTo", payment: "fullDayPayment", amount: "fullDayAmount", mode: "fullDayPaymentMode", paidDate: "fullDayPaidDate", entryType: "fullDayEntryType" },
+      "24 Hours": { student: "nightStudent", phone: "nightPhone", dob: "nightDob", email: "nightEmail", address: "nightAddress", from: "nightFrom", to: "nightTo", payment: "nightPayment", amount: "nightAmount", mode: "nightPaymentMode", paidDate: "nightPaidDate", entryType: "nightEntryType" },
     };
 
     const fromFields = shiftMap[fromShiftType];
@@ -627,6 +627,7 @@ export default function App() {
       const tempFromData = {
         student: fromSeat[fromFields.student] || "",
         phone: fromSeat[fromFields.phone] || "",
+        dob: fromSeat[fromFields.dob] || "",
         email: fromSeat[fromFields.email] || "",
         address: fromSeat[fromFields.address] || "",
         from: fromSeat[fromFields.from] || "",
@@ -634,6 +635,8 @@ export default function App() {
         payment: fromSeat[fromFields.payment] || "Available",
         amount: fromSeat[fromFields.amount] || "",
         mode: fromSeat[fromFields.mode] || "Cash",
+        paidDate: fromSeat[fromFields.paidDate] || "",
+        entryType: fromSeat[fromFields.entryType] || "",
       };
 
       const tempToData = {
@@ -642,11 +645,13 @@ export default function App() {
         dob: toSeat[toFields.dob] || "",
         email: toSeat[toFields.email] || "",
         address: toSeat[toFields.address] || "",
-        from: toFields.from ? toSeat[toFields.from] || "" : "",
-        to: toFields.to ? toSeat[toFields.to] || "" : "",
+        from: toSeat[toFields.from] || "",
+        to: toSeat[toFields.to] || "",
         payment: toSeat[toFields.payment] || "Available",
         amount: toSeat[toFields.amount] || "",
         mode: toSeat[toFields.mode] || "Cash",
+        paidDate: toSeat[toFields.paidDate] || "",
+        entryType: toSeat[toFields.entryType] || "",
       };
 
       updatedToSeat[toFields.student] = tempFromData.student;
@@ -659,6 +664,8 @@ export default function App() {
       updatedToSeat[toFields.payment] = tempFromData.payment;
       updatedToSeat[toFields.amount] = tempFromData.amount;
       updatedToSeat[toFields.mode] = tempFromData.mode;
+      updatedToSeat[toFields.paidDate] = tempFromData.paidDate;
+      updatedToSeat[toFields.entryType] = tempFromData.entryType;
 
       updatedFromSeat[fromFields.student] = tempToData.student;
       updatedFromSeat[fromFields.phone] = tempToData.phone;
@@ -670,6 +677,8 @@ export default function App() {
       updatedFromSeat[fromFields.payment] = tempToData.payment;
       updatedFromSeat[fromFields.amount] = tempToData.amount;
       updatedFromSeat[fromFields.mode] = tempToData.mode;
+      updatedFromSeat[fromFields.paidDate] = tempToData.paidDate;
+      updatedFromSeat[fromFields.entryType] = tempToData.entryType;
     } else {
       updatedToSeat[toFields.student] = fromSeat[fromFields.student] || "";
       updatedToSeat[toFields.phone] = fromSeat[fromFields.phone] || "";
@@ -678,9 +687,11 @@ export default function App() {
       updatedToSeat[toFields.address] = fromSeat[fromFields.address] || "";
       updatedToSeat[toFields.from] = fromSeat[fromFields.from] || "";
       updatedToSeat[toFields.to] = fromSeat[fromFields.to] || "";
-      updatedToSeat[toFields.payment] = fromSeat[fromFields.payment] || "Submitted";
+      updatedToSeat[toFields.payment] = fromSeat[fromFields.payment] || "Available";
       updatedToSeat[toFields.amount] = fromSeat[fromFields.amount] || "";
       updatedToSeat[toFields.mode] = fromSeat[fromFields.mode] || "Cash";
+      updatedToSeat[toFields.paidDate] = fromSeat[fromFields.paidDate] || "";
+      updatedToSeat[toFields.entryType] = fromSeat[fromFields.entryType] || "";
 
       if (updatedToSeat.status === "Available") {
         if (toShiftType === "Full Day") {
@@ -704,6 +715,8 @@ export default function App() {
       updatedFromSeat[fromFields.payment] = "Available";
       updatedFromSeat[fromFields.amount] = "";
       updatedFromSeat[fromFields.mode] = "";
+      updatedFromSeat[fromFields.paidDate] = "";
+      updatedFromSeat[fromFields.entryType] = "";
 
       const hasStudents = [
         updatedFromSeat.morningStudent,
@@ -760,11 +773,11 @@ export default function App() {
     else if (req.timing?.includes("Night")) shiftType = "Night";
 
     const shiftMap = {
-      Morning: { student: "morningStudent", phone: "morningPhone", email: "morningEmail", address: "morningAddress", from: "morningFrom", to: "morningTo", payment: "morningPayment", amount: "morningAmount", mode: "morningPaymentMode" },
-      Afternoon: { student: "afternoonStudent", phone: "afternoonPhone", email: "afternoonEmail", address: "afternoonAddress", from: "afternoonFrom", to: "afternoonTo", payment: "afternoonPayment", amount: "afternoonAmount", mode: "afternoonPaymentMode" },
-      Night: { student: "nightStudent", phone: "nightPhone", email: "nightEmail", address: "nightAddress", from: "nightFrom", to: "nightTo", payment: "nightPayment", amount: "nightAmount", mode: "nightPaymentMode" },
-      "Full Day": { student: "fullDayStudent", phone: "fullDayPhone", email: "fullDayEmail", address: "fullDayAddress", from: "fullDayFrom", to: "fullDayTo", payment: "fullDayPayment", amount: "fullDayAmount", mode: "fullDayPaymentMode" },
-      "24 Hours": { student: "nightStudent", phone: "nightPhone", email: "nightEmail", address: "nightAddress", from: "nightFrom", to: "nightTo", payment: "nightPayment", amount: "nightAmount", mode: "nightPaymentMode" },
+      Morning: { student: "morningStudent", phone: "morningPhone", email: "morningEmail", dob: "morningDob", address: "morningAddress", from: "morningFrom", to: "morningTo", payment: "morningPayment", amount: "morningAmount", mode: "morningPaymentMode" },
+      Afternoon: { student: "afternoonStudent", phone: "afternoonPhone", email: "afternoonEmail", dob: "afternoonDob", address: "afternoonAddress", from: "afternoonFrom", to: "afternoonTo", payment: "afternoonPayment", amount: "afternoonAmount", mode: "afternoonPaymentMode" },
+      Night: { student: "nightStudent", phone: "nightPhone", email: "nightEmail", dob: "nightDob", address: "nightAddress", from: "nightFrom", to: "nightTo", payment: "nightPayment", amount: "nightAmount", mode: "nightPaymentMode" },
+      "Full Day": { student: "fullDayStudent", phone: "fullDayPhone", email: "fullDayEmail", dob: "fullDayDob", address: "fullDayAddress", from: "fullDayFrom", to: "fullDayTo", payment: "fullDayPayment", amount: "fullDayAmount", mode: "fullDayPaymentMode" },
+      "24 Hours": { student: "nightStudent", phone: "nightPhone", email: "nightEmail", dob: "nightDob", address: "nightAddress", from: "nightFrom", to: "nightTo", payment: "nightPayment", amount: "nightAmount", mode: "nightPaymentMode" },
     };
 
     const fields = shiftMap[shiftType];
@@ -848,7 +861,6 @@ export default function App() {
     updatedSeat[fields.dob] = req.dob || "";
     updatedSeat[fields.email] = req.email || "";
     updatedSeat[fields.address] = req.address || "";
-    updatedSeat[fields.dob] = req.dob || "";
     updatedSeat[fields.amount] = req.amount || "";
     updatedSeat[fields.payment] = "Pending";
     updatedSeat[fields.mode] = "";
@@ -1280,9 +1292,9 @@ Warm regards,
     }
 
     if (seat.status === "Full Day") {
-      const fullDayOk =
-        seat.morningPayment === "Submitted" &&
-        seat.nightPayment === "Submitted";
+      const fullDayOk = seat.fullDayPayment === "Submitted";
+      const nightPaid = !seat.nightStudent || seat.nightPayment === "Submitted";
+        
 
       return fullDayOk ? (
         <span className="text-green-500 text-xl">✅</span>
@@ -2595,7 +2607,7 @@ Warm regards,
                       ) : null}
 
                       <button
-                        onClick={saveSeatToFirebase}
+                        onClick={() => saveSeatToFirebase(selectedSeat)}
                         className="w-full bg-[#10b981] hover:bg-[#059669] text-white py-3.5 rounded-xl font-bold shadow-md shadow-green-500/20 transition-all flex items-center justify-center gap-2 mt-4 cursor-pointer"
                       >
                         <CalendarIcon className="w-5 h-5" /> SAVE SEAT DETAILS
