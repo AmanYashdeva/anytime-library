@@ -216,7 +216,7 @@ const Footer = ({ theme }) => {
           <p className="text-xs text-slate-400">
             Developer:{" "}
             <a
-              href="https://www.linkedin.com/in/aman-yashdeva-62ba12334"
+              href="https://www.instagram.com/aman_yashdeva/"
               target="_blank"
               rel="noopener noreferrer"
               className={`font-bold hover:underline transition cursor-pointer ${

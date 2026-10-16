@@ -612,7 +612,7 @@ const AccountsFinance = ({
             ₹{totalFeesRealized.toLocaleString("en-IN")}
           </h3>
           <p className={`text-[11px] mt-1 ${isLight ? "text-slate-600 font-medium" : "text-slate-400"}`}>
-            {selectedMonthCollections.length} Verified Subscriptions
+            {selectedMonthCollections.length} Subscriptions
           </p>
         </div>
 
@@ -849,9 +849,7 @@ const AccountsFinance = ({
                 }`}>
                 <span>📈</span> Capital Realization
               </h3>
-              <p className={`text-xs mt-0.5 ${isLight ? "text-slate-600 font-medium" : "text-slate-400"}`}>
-                Summary of physical vs digital inflow and operating margin.
-              </p>
+              
             </div>
 
             <div className="py-5 space-y-3">
@@ -943,7 +941,7 @@ const AccountsFinance = ({
             }`}>
             <div>
               <h3 className={`font-black text-sm uppercase tracking-wider ${isLight ? "text-slate-900" : "text-white"}`}>Record Expense</h3>
-              <p className={`text-xs mt-0.5 ${isLight ? "text-slate-600 font-medium" : "text-slate-400"}`}>Log operational expense with reason.</p>
+              
             </div>
             <span className={`text-[10px] font-mono px-2.5 py-0.5 rounded-full border font-bold ${isLight ? "text-sky-900 bg-sky-400/20 border-sky-400/40" : "text-amber-400 bg-amber-400/10 border-amber-400/20"
               }`}>
@@ -1163,7 +1161,7 @@ const AccountsFinance = ({
 
           <div className={`pt-3 mt-3 border-t flex justify-between items-center text-xs font-mono ${isLight ? "border-white/40 text-slate-700" : "border-slate-800 text-slate-400"
             }`}>
-            <span>Filtered Total:</span>
+            <span>Total:</span>
             <span className={`font-black ${isLight ? "text-slate-900" : "text-white"}`}>
               ₹{displayedExpenses.reduce((acc, curr) => acc + Number(curr.amount || 0), 0).toLocaleString("en-IN")}
             </span>
@@ -1186,9 +1184,6 @@ const AccountsFinance = ({
               }`}>
               <span>🎓</span> Fee Collections Roster
             </h3>
-            <p className={`text-xs mt-0.5 ${isLight ? "text-slate-600 font-medium" : "text-slate-400"}`}>
-              Itemized student fee submissions with payment dates and verified modes.
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -1262,7 +1257,6 @@ const AccountsFinance = ({
                   <p className={`font-black text-sm ${isLight ? "text-emerald-800" : "text-emerald-400"}`}>
                     +₹{student.amount.toLocaleString("en-IN")}
                   </p>
-                  <span className={`text-[9px] uppercase font-bold tracking-wider ${isLight ? "text-emerald-700" : "text-emerald-500/80"}`}>Verified</span>
                 </div>
               </div>
             ))
@@ -1283,7 +1277,7 @@ const AccountsFinance = ({
                   }`}>
                   Cash in Hand
                 </span>
-                <p className={`text-xs mt-0.5 ${isLight ? "text-slate-600 font-medium" : "text-slate-400"}`}>Physical cash collected</p>
+               
               </div>
             </div>
             <div className="text-right">
@@ -1305,9 +1299,8 @@ const AccountsFinance = ({
               <div>
                 <span className={`text-[10px] font-black uppercase tracking-wider block ${isLight ? "text-sky-800" : "text-sky-400"
                   }`}>
-                  Online Payments (UPI)
+                  Online Payments
                 </span>
-                <p className={`text-xs mt-0.5 ${isLight ? "text-slate-600 font-medium" : "text-slate-400"}`}>Direct bank transfers</p>
               </div>
             </div>
             <div className="text-right">

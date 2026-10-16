@@ -1519,9 +1519,7 @@ Warm regards,
                     <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-700/60 mb-3">
                       <div className="flex items-center gap-2">
                         <span className="text-base">🔔</span>
-                        <h4 className={`text-xs font-black uppercase tracking-wider ${theme === 'light' ? 'text-slate-700' : 'text-slate-200'}`}>
-                          Notification Center
-                        </h4>
+                        
                       </div>
                       <span className="text-[10px] font-mono font-bold text-amber-500 bg-amber-400/15 px-2 py-0.5 rounded-full border border-amber-400/30">
                         {totalNotifications} New
@@ -1608,7 +1606,7 @@ Warm regards,
 
                     {/* Pop-up Footer */}
                     <div className="mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 font-medium">
-                      <span>macOS notification center</span>
+                      <span></span>
                       <button
                         onClick={() => setShowNotifPopup(false)}
                         className="text-sky-600 hover:underline cursor-pointer"
@@ -2626,17 +2624,7 @@ Warm regards,
                         🔄 TRANSFER THIS SEAT / SHIFT
                       </button>
 
-                      <div className="bg-blue-50 text-blue-800 p-4 rounded-xl flex gap-3 text-sm mt-4 border border-blue-100">
-                        <InfoIcon className="w-5 h-5 shrink-0 text-blue-500 mt-0.5" />
-                        <div>
-                          <p className="font-bold mb-1">Note:</p>
-                          <p className="opacity-90 leading-relaxed">
-                            {selectedSeat.status === '24 Hours'
-                              ? 'In 24 Hours booking, only one student will be assigned for the full 24 hours.'
-                              : 'Ensure student timings do not overlap. Update fee status accurately upon payment.'}
-                          </p>
-                        </div>
-                      </div>
+                      
                     </div>
                   </div>
 
@@ -2647,16 +2635,8 @@ Warm regards,
     : 'bg-[#0f172a] shadow-xl text-white border-gray-800'
 }`}>
   <div className={`flex items-center justify-between mb-6 border-b pb-4 ${theme === 'light' ? 'border-sky-200/60' : 'border-gray-800'}`}>
-    <h3 className={`text-xl font-black ${theme === 'light' ? 'text-sky-700' : 'text-yellow-400'}`}>Live Seat Preview</h3>
-    <div className={`mt-3 rounded-xl border px-3 py-2 ${theme === 'light' ? 'bg-sky-50/80 border-sky-200' : 'bg-black/20 border-yellow-500/20'}`}>
-      <p className={`text-[10px] uppercase tracking-wider ${theme === 'light' ? 'text-slate-500 font-bold' : 'text-gray-400'}`}>
-        Fees Due Status
-      </p>
-
-      <p className={`text-sm font-bold mt-1 ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
-        {getOverallSeatStatus(selectedSeat)}
-      </p>
-    </div>
+    <h3 className={`text-xl font-black ${theme === 'light' ? 'text-sky-700' : 'text-yellow-400'}`}>Seat Preview</h3>
+    
   </div>
   <div className="space-y-4">
     <div className={`rounded-xl p-4 border ${theme === 'light' ? 'bg-white/90 border-sky-100 text-slate-900 shadow-sm' : 'bg-[#1e293b] border-gray-800 text-white'}`}>
@@ -2799,7 +2779,6 @@ Warm regards,
                         <h3 className={`text-lg font-black tracking-tight ${theme === 'light' ? 'text-slate-900' : 'text-amber-400'}`}>
                           Incoming Public Seat Booking Requests ({bookingRequests.length})
                         </h3>
-                        <p className={`text-xs mt-0.5 ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>Approve to auto-fill seat details. Use WhatsApp button to send confirmation.</p>
                       </div>
                     </div>
                     <span className="bg-amber-400/10 text-amber-600 dark:text-amber-300 border border-amber-400/30 text-[10px] font-black uppercase px-3 py-1 rounded-full w-fit">
@@ -2814,7 +2793,6 @@ Warm regards,
                       }`}>
                       <span className="text-3xl opacity-60">📭</span>
                       <p className="text-xs font-bold mt-2">No pending seat booking requests right now.</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">When students submit the booking form from the website, their requests appear here instantly.</p>
                     </div>
                   ) : (
                     <div className="grid gap-4 md:grid-cols-2">
@@ -3790,7 +3768,7 @@ Warm regards,
                       <input
                         type="text"
                         id="bookingName"
-                        placeholder="Avinash Singh"
+                        placeholder="Aman Yashdeva"
                         className="w-full rounded-xl border border-white/90 bg-white/70 px-4 py-3 text-sm font-semibold text-gray-900 outline-none focus:border-sky-500 focus:bg-white transition shadow-sm"
                       />
                     </div>
@@ -3824,7 +3802,7 @@ Warm regards,
                       <input
                         type="email"
                         id="bookingEmail"
-                        placeholder="yourname@gmail.com"
+                        placeholder="xyz@gmail.com"
                         className="w-full rounded-xl border border-white/90 bg-white/70 px-4 py-3 text-sm font-semibold text-gray-900 outline-none focus:border-sky-500 focus:bg-white transition shadow-sm"
                       />
                     </div>
@@ -4183,8 +4161,7 @@ Please check and confirm my seat booking.
                             </p>
                           </div>
                           <div className={`mt-4 pt-2.5 border-t flex items-center justify-between text-[10px] font-mono ${theme === 'light' ? 'border-sky-200/40 text-slate-500' : 'border-slate-800/80 text-slate-500'
-                            }`}>
-                            <span className="text-emerald-700 dark:text-emerald-400 font-semibold">✓ Verified Aspirant</span>
+                            }`}> <span></span>
                             <span>Any Time Library</span>
                           </div>
                         </div>

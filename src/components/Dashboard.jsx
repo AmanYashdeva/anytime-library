@@ -887,12 +887,6 @@ Warm regards,
                   {currentMonthName} {currentYear} Collection
                 </p>
               </div>
-
-              <span className={`rounded-2xl border px-3 py-1 text-xs font-black font-mono ${
-                isLight ? "bg-emerald-500/15 border-emerald-400/40 text-emerald-800 backdrop-blur-md" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-              }`}>
-                ₹{monthlyTotal.toLocaleString("en-IN")}
-              </span>
             </div>
 
             {/* MONTHLY STUDENT LIST */}
@@ -942,9 +936,6 @@ Warm regards,
                       <p className={`font-black text-sm ${isLight ? "text-emerald-800" : "text-emerald-400"}`}>
                         ₹{student.amount.toLocaleString("en-IN")}
                       </p>
-                      <span className={`inline-block text-[9px] uppercase font-bold tracking-wider ${isLight ? "text-emerald-700 font-bold" : "text-emerald-500/80"}`}>
-                        Verified
-                      </span>
                     </div>
                   </div>
                 ))
@@ -998,12 +989,6 @@ Warm regards,
                   Month-wise Collection • {currentYear} (Click to open in Accounts)
                 </p>
               </div>
-
-              <span className={`rounded-2xl border px-3 py-1 text-xs font-black font-mono ${
-                isLight ? "bg-sky-500/15 border-sky-300/60 text-sky-800 backdrop-blur-md" : "border-sky-500/30 bg-sky-500/10 text-sky-400"
-              }`}>
-                ₹{yearlyTotal.toLocaleString("en-IN")}
-              </span>
             </div>
 
             {/* YEARLY MONTH-WISE LIST */}
@@ -1073,10 +1058,6 @@ Warm regards,
                   ₹{yearlyTotal.toLocaleString("en-IN")}
                 </p>
               </div>
-
-              <span className={`text-[11px] font-mono font-bold ${isLight ? "text-slate-600" : "text-slate-500"}`}>
-                Total: ₹{totalYearlyCollection.toLocaleString("en-IN")}
-              </span>
             </div>
           </div>
         </div>
@@ -1103,15 +1084,12 @@ Warm regards,
                 Pending Fee Students
               </h3>
             </div>
-            <p className={`mt-0.5 text-xs ${isLight ? "text-slate-600 font-medium" : "text-slate-400"}`}>
-              Students whose payment is still pending.
-            </p>
           </div>
 
           <span className={`rounded-2xl border px-3.5 py-1 text-xs font-black font-mono shadow-sm ${
             isLight ? "bg-amber-500/15 text-amber-900 border-amber-300/60 backdrop-blur-md" : "border-amber-400/30 bg-amber-400/10 text-amber-400"
           }`}>
-            {pendingStudents.length}
+            {pendingStudents.length} Students
           </span>
         </div>
 
@@ -1189,11 +1167,11 @@ Warm regards,
                   <button
                     type="button"
                     onClick={() => sendWhatsAppReminder(student)}
-                    className="group/btn relative overflow-hidden flex items-center gap-1.5 bg-[#25D366] hover:brightness-110 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xs uppercase tracking-wider shadow-[0_4px_14px_rgba(37,211,102,0.35)] transition-all duration-200 active:scale-95 cursor-pointer"
+                    className="group/btn relative overflow-hidden flex items-center gap-1.5 bg-[#25D366] hover:brightness-110 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xs tracking-wider shadow-[0_4px_14px_rgba(37,211,102,0.35)] transition-all duration-200 active:scale-95 cursor-pointer"
                     title="Send WhatsApp payment reminder"
                   >
-                    <span className="text-sm transition-transform duration-200 group-hover/btn:scale-110">💬</span>
-                    <span>Reminder</span>
+                    <span className="text-xs transition-transform duration-200 group-hover/btn:scale-110">💬</span>
+                    <span>Remainder</span>
                   </button>
                 </div>
               </div>
@@ -1219,7 +1197,7 @@ Warm regards,
               </h3>
             </div>
             <p className={`mt-0.5 text-xs ${isLight ? "text-slate-600 font-medium" : "text-slate-400"}`}>
-              Control which reviews are live on the public website homepage.
+              Control reviews visibility on the public website homepage.
             </p>
           </div>
 
