@@ -495,6 +495,7 @@ export default function App() {
         timing: 'Available',
         morningStudent: '', afternoonStudent: '', nightStudent: '', fullDayStudent: '',
         morningPhone: '', afternoonPhone: '', nightPhone: '', fullDayPhone: '',
+        morningDob: '', afternoonDob: '', nightDob: '', fullDayDob: '',
         morningEmail: '', afternoonEmail: '', nightEmail: '', fullDayEmail: '',
         morningAddress: '', afternoonAddress: '', nightAddress: '', fullDayAddress: '',
         morningPayment: '', afternoonPayment: '', nightPayment: '', fullDayPayment: '',
@@ -557,6 +558,7 @@ export default function App() {
       const prefix = field.replace("Payment", "");
       autoUpdates[`${prefix}Student`] = "";
       autoUpdates[`${prefix}Phone`] = "";
+      autoUpdates[`${prefix}Dob`] = "";
       autoUpdates[`${prefix}Email`] = "";
       autoUpdates[`${prefix}Address`] = "";
       autoUpdates[`${prefix}Amount`] = "";
@@ -760,6 +762,18 @@ export default function App() {
   const approveBookingRequest = async (req) => {
     const seatId = req.seat;
     const targetSeat = seats.find((s) => s.id === Number(seatId));
+
+    const confirmApprove = window.confirm(
+      `⚠️ SEAT BOOKING APPROVE CONFIRMATION\n\nKya aap ${req.name} ki booking approve karna chahte hain?\n\n📌 Details:\n• Student: ${req.name}\n• Seat Number: Seat ${req.seat}\n• Plan: ${req.plan}\n• Fees: ₹${req.amount || 0}\n\n• Approve karne ke liye 'OK' dabayein.\n• Rokne ke liye 'Cancel' dabayein.`
+    );
+
+    // Agar Cancel dabaya toh yahi ruk jayega
+    if (!confirmApprove) {
+      return;
+    }
+    
+
+    
     if (!targetSeat) {
       alert(`Seat ${seatId} not found!`);
       return;
@@ -877,32 +891,6 @@ export default function App() {
     try {
       // 1. Save to bookings table
       await setDoc(doc(db, "bookings", `seat-${targetSeat.id}`), updatedSeat);
-
-      // 2. ⭐ AUTOMATICALLY SAVE TO FEE HISTORY PERMANENT ARCHIVE
-      const pKey = shiftType === "Morning" ? "morning" : shiftType === "Afternoon" ? "afternoon" : shiftType === "Full Day" ? "fullDay" : "night";
-      const historyDocId = `${targetSeat.id}-${pKey}-${todayStr}-${req.name.trim().replace(/\s+/g, '_')}`;
-
-      await setDoc(
-        doc(db, "fee_history", historyDocId),
-        {
-          seatId: targetSeat.id,
-          plan: planName,
-          studentName: req.name,
-          phone: req.phone || "",
-          email: req.email || "",
-          address: req.address || "",
-          dob: req.dob || "",
-          amount: Number(req.amount) || 0,
-          paidDate: todayStr,
-          fromDate: todayStr,
-          toDate: nextDateStr,
-          paymentMode: "",
-          entryType: "New Admission",
-          status: "",
-          archivedAt: Date.now(),
-        },
-        { merge: true }
-      );
 
       // 3. Remove request from pending queue
       await deleteDoc(doc(db, "booking_requests", req.id));
@@ -2897,23 +2885,29 @@ Warm regards,
 
             {/* ---> SEAT TRANSFER & SWAP MODAL POPUP <--- */}
             {showTransferModal && selectedSeat && (
-              <div className="fixed inset-0 z-[250] bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
-                <div className="bg-white/95 backdrop-blur-3xl rounded-3xl max-w-lg w-full p-7 shadow-2xl relative border border-white/90">
+              <div className="fixed inset-0 z-[250] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+                <div className={`rounded-3xl max-w-lg w-full p-7 shadow-2xl relative border transition-all duration-300 ${
+                  theme === 'light'
+                    ? 'bg-white/95 backdrop-blur-3xl border-white/90 text-slate-900'
+                    : 'bg-[#0f172a] backdrop-blur-3xl border-slate-700 text-white shadow-[0_20px_60px_rgba(0,0,0,0.85)]'
+                }`}>
 
                   <button
                     type="button"
                     onClick={() => setShowTransferModal(false)}
-                    className="absolute top-5 right-5 text-gray-400 hover:text-black text-xl font-bold"
+                    className={`absolute top-5 right-5 text-xl font-bold transition ${
+                      theme === 'light' ? 'text-gray-400 hover:text-black' : 'text-gray-400 hover:text-white'
+                    }`}
                   >
                     ✕
                   </button>
 
-                  <h3 className="text-xl font-black text-gray-900 mb-1">
+                  <h3 className={`text-xl font-black mb-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
                     Transfer / Swap Seat {selectedSeat.id}
                   </h3>
 
                   <div className="mb-4">
-                    <label className="text-xs font-bold text-gray-700 block mb-1">
+                    <label className={`text-xs font-bold block mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-slate-300'}`}>
                       1. Student to Move (From Seat {selectedSeat.id})
                     </label>
                     <select
@@ -2922,7 +2916,11 @@ Warm regards,
                         setTransferShift(e.target.value);
                         setTargetShift(e.target.value);
                       }}
-                      className="w-full border border-gray-200 rounded-xl p-3 text-sm bg-gray-50 outline-none focus:border-blue-500 font-semibold cursor-pointer"
+                      className={`w-full border rounded-xl p-3 text-sm outline-none focus:border-blue-500 font-semibold cursor-pointer transition ${
+                        theme === 'light'
+                          ? 'border-gray-200 bg-gray-50 text-gray-900'
+                          : 'border-slate-700 bg-slate-800 text-white [&>option]:bg-slate-800 [&>option]:text-white'
+                      }`}
                     >
                       {selectedSeat.status === "Half Day" && (
                         <>
@@ -2955,13 +2953,17 @@ Warm regards,
 
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     <div>
-                      <label className="text-xs font-bold text-gray-700 block mb-1">
+                      <label className={`text-xs font-bold block mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-slate-300'}`}>
                         2. Target Seat
                       </label>
                       <select
                         value={targetSeatId}
                         onChange={(e) => setTargetSeatId(e.target.value)}
-                        className="w-full border border-gray-200 rounded-xl p-3 text-sm bg-gray-50 outline-none focus:border-blue-500 font-semibold cursor-pointer"
+                        className={`w-full border rounded-xl p-3 text-sm outline-none focus:border-blue-500 font-semibold cursor-pointer transition ${
+                          theme === 'light'
+                            ? 'border-gray-200 bg-gray-50 text-gray-900'
+                            : 'border-slate-700 bg-slate-800 text-white [&>option]:bg-slate-800 [&>option]:text-white'
+                        }`}
                       >
                         <option value="">-- Choose Seat --</option>
                         {seats
@@ -2975,13 +2977,17 @@ Warm regards,
                     </div>
 
                     <div>
-                      <label className="text-xs font-bold text-gray-700 block mb-1">
+                      <label className={`text-xs font-bold block mb-1 ${theme === 'light' ? 'text-gray-700' : 'text-slate-300'}`}>
                         3. Target Shift
                       </label>
                       <select
                         value={targetShift}
                         onChange={(e) => setTargetShift(e.target.value)}
-                        className="w-full border border-gray-200 rounded-xl p-3 text-sm bg-gray-50 outline-none focus:border-blue-500 font-semibold cursor-pointer"
+                        className={`w-full border rounded-xl p-3 text-sm outline-none focus:border-blue-500 font-semibold cursor-pointer transition ${
+                          theme === 'light'
+                            ? 'border-gray-200 bg-gray-50 text-gray-900'
+                            : 'border-slate-700 bg-slate-800 text-white [&>option]:bg-slate-800 [&>option]:text-white'
+                        }`}
                       >
                         <option value="Morning">🌅 Morning Shift</option>
                         <option value="Afternoon">☀️ Afternoon Shift</option>
@@ -2999,7 +3005,15 @@ Warm regards,
                     const occupant = tSeat[keyMap[targetShift]];
 
                     return (
-                      <div className={`p-3 rounded-xl border text-xs font-semibold mb-5 ${occupant ? "bg-amber-50 text-amber-900 border-amber-200" : "bg-emerald-50 text-emerald-900 border-emerald-200"}`}>
+                      <div className={`p-3 rounded-xl border text-xs font-semibold mb-5 ${
+                        occupant 
+                          ? (theme === 'light' 
+                              ? "bg-amber-50 text-amber-900 border-amber-200" 
+                              : "bg-amber-950/40 text-amber-300 border-amber-500/30") 
+                          : (theme === 'light' 
+                              ? "bg-emerald-50 text-emerald-900 border-emerald-200" 
+                              : "bg-emerald-950/40 text-emerald-300 border-emerald-500/30")
+                      }`}>
                         {occupant ? (
                           <p>🔄 <b>SWAP MODE:</b> Seat {targetSeatId} ({targetShift}) par pehle se <b>{occupant}</b> hain. Dono students aapas me badal jayenge.</p>
                         ) : (
@@ -3016,10 +3030,21 @@ Warm regards,
                         alert("Please select a target seat.");
                         return;
                       }
+
+                      // 🛑 Confirmation Pop-up with OK & Cancel
+                      const confirmTransfer = window.confirm(
+                        `⚠️ Are you sure?\n\nSeat ${selectedSeat.id} (${transferShift}) to Seat ${targetSeatId} (${targetShift})`
+                      );
+
+                      // If Cancel is pressed, the function will stop here
+                      if (!confirmTransfer) {
+                        return;
+                      }
+
                       await handleSeatTransfer(selectedSeat.id, targetSeatId, transferShift, targetShift);
                       setShowTransferModal(false);
                     }}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all text-sm"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all text-sm cursor-pointer active:scale-95"
                   >
                     Confirm &amp; Execute
                   </button>
