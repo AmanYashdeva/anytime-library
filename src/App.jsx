@@ -764,7 +764,7 @@ export default function App() {
     const targetSeat = seats.find((s) => s.id === Number(seatId));
 
     const confirmApprove = window.confirm(
-      `⚠️ SEAT BOOKING APPROVE CONFIRMATION\n\nKya aap ${req.name} ki booking approve karna chahte hain?\n\n📌 Details:\n• Student: ${req.name}\n• Seat Number: Seat ${req.seat}\n• Plan: ${req.plan}\n• Fees: ₹${req.amount || 0}\n\n• Approve karne ke liye 'OK' dabayein.\n• Rokne ke liye 'Cancel' dabayein.`
+      `⚠️ SEAT BOOKING APPROVE CONFIRMATION\n\nDo you want to approve ${req.name} ki booking?\n\n📌 Details:\n• Student: ${req.name}\n• Seat Number: Seat ${req.seat}\n• Plan: ${req.plan}\n• Fees: ₹${req.amount || 0}\n`
     );
 
     // Agar Cancel dabaya toh yahi ruk jayega
