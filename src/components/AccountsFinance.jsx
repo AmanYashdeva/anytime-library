@@ -104,7 +104,7 @@ const AccountsFinance = ({
       (snapshot) => {
         const hList = [];
         snapshot.forEach((docSnap) => {
-          hList.push(docSnap.data());
+         hList.push({ id: docSnap.id, ...docSnap.data() });
         });
         setFeeHistoryList(hList);
       },
@@ -158,6 +158,65 @@ const AccountsFinance = ({
   };
 
   // ==========================================
+  // 🗑️ DELETE FEE RECORD FROM FIREBASE & REVERT SEAT
+  // ==========================================
+  const handleDeleteFeeRecord = async (record) => {
+    const confirmDelete = window.confirm(
+      `⚠️ KYA AAP SURE HAIN?\n\nSeat ${record.seat} (${record.name}) ka ₹${record.amount} ka fee record delete karna chahte hain?\n\n• Yeh entry Firebase fee_history aur Accounts se permanently delete ho jayegi.\n• Aage badhne ke liye 'OK' dabayein, rokne ke liye 'Cancel'.`
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      // 1. Firebase fee_history collection se document delete karein
+      let docIdToDelete = record.id;
+
+      // Fallback: Agar kisi wajah se ID na mile to list se match karein
+      if (!docIdToDelete) {
+        const found = feeHistoryList.find(
+          (f) =>
+            Number(f.seatId) === Number(record.seat) &&
+            f.studentName === record.name &&
+            Number(f.amount) === Number(record.amount)
+        );
+        if (found) docIdToDelete = found.id;
+      }
+
+      if (docIdToDelete) {
+        await deleteDoc(doc(db, "fee_history", docIdToDelete));
+      }
+
+      // 2. Agar ye student abhi live seat par bhi 'Submitted' hai, toh usko 'Pending' kar dein
+      // taaki live seat se ye fees wapas na jud jaye
+      const liveSeat = seats.find((s) => s.id === Number(record.seat));
+      if (liveSeat) {
+        let seatChanged = false;
+        const updatedSeat = { ...liveSeat };
+        const shifts = ["morning", "afternoon", "night", "fullDay"];
+
+        for (const p of shifts) {
+          if (
+            updatedSeat[`${p}Student`] === record.name &&
+            updatedSeat[`${p}Payment`] === "Submitted"
+          ) {
+            updatedSeat[`${p}Payment`] = "Pending";
+            seatChanged = true;
+          }
+        }
+
+        if (seatChanged) {
+          await setDoc(doc(db, "bookings", `seat-${liveSeat.id}`), updatedSeat);
+        }
+      }
+
+      alert(`✅ Seat ${record.seat} (${record.name}) ka fee record successfully delete ho gaya!`);
+    } catch (error) {
+      console.error("Fee record delete error:", error);
+      alert("Fee record delete karne me error aayi. Please console check karein.");
+    }
+  };
+
+  // ==========================================
   // 💰 4. STUDENT REVENUE AGGREGATION (COMBINED: LIVE + FEE HISTORY)
   // ==========================================
   const liveCollections = [];
@@ -186,6 +245,7 @@ const AccountsFinance = ({
   });
 
   const historyCollections = feeHistoryList.map((item) => ({
+    id: item.id,
     name: item.studentName || "",
     seat: item.seatId || 0,
     plan: item.plan || "",
@@ -200,11 +260,12 @@ const AccountsFinance = ({
   })).filter((student) => student.name && student.payment === "Submitted");
 
   // Merge both without duplicates
-  // Merge both without duplicates (safe trim & lowercase)
+  // Merge both without duplicates (Preserving Firebase Doc ID)
   const combinedMap = new Map();
   [...historyCollections, ...liveCollections].forEach((item) => {
     const key = `${item.seat}-${(item.name || "").trim().toLowerCase()}-${(item.paidDate || "").trim()}-${item.amount}`;
-    combinedMap.set(key, item);
+    const existing = combinedMap.get(key);
+    combinedMap.set(key, { ...item, id: item.id || existing?.id });
   });
   const allCollections = Array.from(combinedMap.values());
 
@@ -1253,10 +1314,29 @@ const AccountsFinance = ({
                   </div>
                 </div>
 
-                <div className="text-right font-mono">
-                  <p className={`font-black text-sm ${isLight ? "text-emerald-800" : "text-emerald-400"}`}>
-                    +₹{student.amount.toLocaleString("en-IN")}
-                  </p>
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="text-right font-mono">
+                    <p className={`font-black text-sm ${isLight ? "text-emerald-800" : "text-emerald-400"}`}>
+                      +₹{student.amount.toLocaleString("en-IN")}
+                    </p>
+                    <span className={`text-[9px] uppercase font-bold tracking-wider ${isLight ? "text-emerald-700" : "text-emerald-500/80"}`}>
+                      Verified
+                    </span>
+                  </div>
+
+                  {/* 🗑️ DELETE FEE RECORD BUTTON */}
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteFeeRecord(student)}
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition cursor-pointer active:scale-95 ${
+                      isLight
+                        ? "bg-rose-500/15 text-rose-700 hover:bg-rose-600 hover:text-white border border-rose-300/40"
+                        : "bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white"
+                    }`}
+                    title="Delete Fee Record from Database"
+                  >
+                    🗑
+                  </button>
                 </div>
               </div>
             ))

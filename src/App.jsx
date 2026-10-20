@@ -948,11 +948,25 @@ Warm regards,
     }
   };
 
-  // =====================================================
-  // ⚡ 1-CLICK RENEW NEXT 30 DAYS FUNCTION
+// =====================================================
+  // ⚡ 1-CLICK DYNAMIC RENEW + GUARANTEED WHATSAPP (OK / CANCEL)
   // =====================================================
   const renewSeatShift = (fromField, toField, paymentField) => {
     if (!selectedSeat) return;
+
+    // 1. Prompt for days
+    const inputDays = window.prompt(
+      `📅 Seat ${selectedSeat.id} Renewal:\nEnter number of days to renew (e.g., 15, 30, 60):`,
+      "30"
+    );
+
+    if (inputDays === null) return;
+
+    const daysToAdd = parseInt(inputDays, 10);
+    if (isNaN(daysToAdd) || daysToAdd <= 0) {
+      alert("⚠️ Please enter a valid number of days (e.g., 15, 30, 60).");
+      return;
+    }
 
     const currentTo = selectedSeat[toField];
     let baseDate = new Date();
@@ -973,7 +987,7 @@ Warm regards,
 
     const newFrom = formatDate(baseDate);
     const nextDate = new Date(baseDate);
-    nextDate.setDate(nextDate.getDate() + 30);
+    nextDate.setDate(nextDate.getDate() + daysToAdd);
     const newTo = formatDate(nextDate);
 
     const todayPaidDate = formatDate(new Date());
@@ -988,12 +1002,101 @@ Warm regards,
       [`${prefix}PaymentMode`]: selectedSeat[`${prefix}PaymentMode`] || "Cash",
     };
 
-    setSeats((prev) =>
-      prev.map((s) => (s.id === selectedSeat.id ? { ...s, ...updates } : s))
-    );
-    setSelectedSeat((prev) => ({ ...prev, ...updates }));
+    const updatedSeat = { ...selectedSeat, ...updates };
 
-    alert(`✅ Seat ${selectedSeat.id} Renewed (+30 Days)!\nFrom: ${newFrom}\nTo: ${newTo}\nPaid Date: ${todayPaidDate}\nType: Renewal\n\n(Save button dabakar data confirm karein)`);
+    // 2. State & Firebase Database Update
+    setSeats((prev) =>
+      prev.map((s) => (s.id === selectedSeat.id ? updatedSeat : s))
+    );
+    setSelectedSeat(updatedSeat);
+    saveSeatToFirebase(updatedSeat);
+
+    // 3. Student Details Retrieval
+    const sName = selectedSeat[`${prefix}Student`] || "Student";
+    let rawPhone = selectedSeat[`${prefix}Phone`] || "";
+    if (!rawPhone || rawPhone === "+91") {
+      rawPhone = selectedSeat.phone || "";
+    }
+
+    let cleanPhone = (rawPhone || "").replace(/\D/g, "");
+
+    // 4. Confirmation Dialog (OK = Send, Cancel = Skip)
+    const sendWhatsApp = window.confirm(
+      `✅ Seat ${selectedSeat.id} renewed successfully (+${daysToAdd} Days)!\n\n` +
+      `• Student: ${sName}\n` +
+      `• Validity: ${newFrom} to ${newTo}\n\n` +
+      `Do you want to send a Renewal Confirmation Slip to ${sName} on WhatsApp?\n\n` +
+      `• Click 'OK' to send WhatsApp slip.\n` +
+      `• Click 'Cancel' to skip sending.`
+    );
+
+    // Agar Cancel dabaya toh yahi ruk jayega
+    if (!sendWhatsApp) {
+      return;
+    }
+
+    // Agar number incomplete ya missing ho toh maang lo
+    if (!cleanPhone || cleanPhone === "91" || cleanPhone.length < 10) {
+      const enteredPhone = window.prompt(
+        `📱 Mobile number is missing for ${sName}.\nEnter 10-digit WhatsApp number:`,
+        ""
+      );
+      if (enteredPhone) {
+        cleanPhone = enteredPhone.replace(/\D/g, "");
+        updatedSeat[`${prefix}Phone`] = enteredPhone;
+        saveSeatToFirebase(updatedSeat);
+      }
+    }
+
+    if (cleanPhone.length === 10) {
+      cleanPhone = `91${cleanPhone}`;
+    }
+
+    if (!cleanPhone || cleanPhone.length < 10) {
+      alert("⚠️ Valid mobile number not provided. WhatsApp message cancelled.");
+      return;
+    }
+
+    const sPlan = selectedSeat.status === "24 Hours" 
+      ? "24 Hours Plan" 
+      : prefix === "fullDay" 
+        ? "Full Day Shift" 
+        : `${prefix.charAt(0).toUpperCase() + prefix.slice(1)} Shift`;
+    const sMode = selectedSeat[`${prefix}PaymentMode`] || "Cash";
+    const sAmount = selectedSeat[`${prefix}Amount`] || "";
+
+    const renewalMsg = `*Dear ${sName},*
+
+🎉 *MEMBERSHIP RENEWAL CONFIRMED* - *ANY TIME LIBRARY* 📚✨
+
+Your library seat subscription has been successfully *RENEWED*.
+
+📌 *Renewal Details:*
+- *Seat Number:* Seat ${selectedSeat.id}
+- *Shift / Plan:* ${sPlan}
+- *Validity Period:* ${newFrom} to ${newTo} (${daysToAdd} Days)
+- *Status:* Paid & Active (Renewal)
+- *Payment Mode:* ${sMode}
+${sAmount ? `- *Fees Amount:* ₹${sAmount}\n` : ""}
+🔍 *Check your seat allocation online:*
+👉 https://anytime-library-ruddy.vercel.app/
+
+And follow us on Instagram for library updates:
+👉 https://www.instagram.com/anytime_library/
+
+Thank you for continuing your journey with Any Time Library! Wishing you productive study sessions ahead. 🚀
+
+Warm regards,  
+*Management Team*  
+*Any Time Library*`;
+
+    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(renewalMsg)}`;
+
+    // 5. 🚀 Popup Blocker Fallback (New Tab try karega, agar block hua to guaranteed redirect karega)
+    const win = window.open(whatsappUrl, "_blank");
+    if (!win || win.closed || typeof win.closed === "undefined") {
+      window.location.href = whatsappUrl;
+    }
   };
 
   // =====================================================
