@@ -104,7 +104,7 @@ const AccountsFinance = ({
       (snapshot) => {
         const hList = [];
         snapshot.forEach((docSnap) => {
-         hList.push({ id: docSnap.id, ...docSnap.data() });
+          hList.push({ id: docSnap.id, ...docSnap.data() });
         });
         setFeeHistoryList(hList);
       },
@@ -156,6 +156,7 @@ const AccountsFinance = ({
       }
     }
   };
+
 
   // ==========================================
   // 🗑️ DELETE FEE RECORD FROM FIREBASE & REVERT SEAT
@@ -213,6 +214,47 @@ const AccountsFinance = ({
     } catch (error) {
       console.error("Fee record delete error:", error);
       alert("Fee record delete karne me error aayi. Please console check karein.");
+    }
+  };
+
+  // ==========================================
+  // 📦 1-CLICK YEARLY AUDIT ARCHIVE TO FIREBASE
+  // ==========================================
+  const handleArchiveYear = async () => {
+    const confirmArchive = window.confirm(
+      `⚠️ LOCK & ARCHIVE ANNUAL AUDIT (${selectedYear})\n\nAre you sure you want to permanently lock and archive the financial summary for ${selectedYear}?\n\n• Gross Revenue: ₹${annualFeesTotal.toLocaleString("en-IN")}\n• Total Expenses: ₹${annualExpensesTotal.toLocaleString("en-IN")}\n• Net Profit: ₹${annualNetProfit.toLocaleString("en-IN")}\n\nClick 'OK' to save into permanent historical archive.`
+    );
+
+    if (!confirmArchive) return;
+
+    try {
+      const yearDocId = String(selectedYear);
+
+      await setDoc(
+        doc(db, "yearly_summary", yearDocId),
+        {
+          year: Number(selectedYear),
+          totalFees: annualFeesTotal,
+          totalExpenses: annualExpensesTotal,
+          netProfit: annualNetProfit,
+          cashTotal: annualCashTotal,
+          onlineTotal: annualOnlineTotal,
+          totalAdmissions: currentYearCollections.length,
+          status: "Audited & Locked",
+          savedAt: new Date().toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          }),
+          archivedAt: Date.now(),
+        },
+        { merge: true }
+      );
+
+      alert(`✅ Year ${selectedYear} financial summary successfully archived to permanent records!`);
+    } catch (error) {
+      console.error("Year archive error:", error);
+      alert("Failed to archive yearly record. Please check console.");
     }
   };
 
@@ -435,6 +477,71 @@ const AccountsFinance = ({
     return () => unsub();
   }, []);
 
+  // =========================================================================
+  // 🤖 FULLY AUTOMATIC BACKGROUND YEAR-END ARCHIVE ENGINE (NO BUTTON NEEDED)
+  // =========================================================================
+  useEffect(() => {
+    // Agar fees aur expenses abhi load nahi huye hain to ruko
+    if (allCollections.length === 0 && expensesList.length === 0) return;
+
+    // 1. Data me se saare saal nikaalo
+    const yearsWithData = new Set([
+      ...allCollections.map((s) =>
+        s.paidDate && s.paidDate !== "0-0-0"
+          ? new Date(s.paidDate).getFullYear()
+          : null
+      ),
+      ...expensesList.map((e) =>
+        e.date ? new Date(e.date).getFullYear() : null
+      ),
+    ]);
+
+    // 2. Har pichhle saal (year < currentYear) ke liye check karo
+    yearsWithData.forEach(async (y) => {
+      if (!y || y >= currentYear) return; // Sirf bite huye saalon ke liye chalega
+
+      // Check karo ki kya yeh saal already yearly_summary me save hai
+      const alreadySaved = archivedYears.some(
+        (a) => Number(a.year) === Number(y)
+      );
+
+      // Agar save nahi hai, to apne-aap calculate karke Firebase me save kar do
+      if (!alreadySaved) {
+        const pastYearFees = allCollections
+          .filter(
+            (s) => s.paidDate && new Date(s.paidDate).getFullYear() === y
+          )
+          .reduce((acc, curr) => acc + curr.amount, 0);
+
+        const pastYearExpenses = expensesList
+          .filter((e) => e.date && new Date(e.date).getFullYear() === y)
+          .reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+
+        const pastNetProfit = pastYearFees - pastYearExpenses;
+
+        try {
+          await setDoc(
+            doc(db, "yearly_summary", String(y)),
+            {
+              year: Number(y),
+              totalFees: pastYearFees,
+              totalExpenses: pastYearExpenses,
+              netProfit: pastNetProfit,
+              status: "Archived",
+              savedAt: `Year End ${y}`,
+              archivedAt: Date.now(),
+            },
+            { merge: true }
+          );
+          console.log(`✅ Auto-archived year ${y} to yearly_summary successfully.`);
+        } catch (err) {
+          console.error(`Auto-archive failed for year ${y}:`, err);
+        }
+      }
+    });
+  }, [allCollections.length, expensesList.length, archivedYears.length, currentYear]);
+
+
   // ==========================================
   // 🖨 7. PRINT REPORT (UPDATED WITH FROM - TO DATE)
   // ==========================================
@@ -567,8 +674,8 @@ const AccountsFinance = ({
           </div>
           <h2 className={`text-3xl sm:text-4xl font-black tracking-tight ${isLight ? "text-slate-900" : "text-white"}`}>
             Accounts & <span className={`text-transparent bg-clip-text ${isLight
-                ? "bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600"
-                : "bg-gradient-to-r from-amber-500 via-yellow-500 to-emerald-500"
+              ? "bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600"
+              : "bg-gradient-to-r from-amber-500 via-yellow-500 to-emerald-500"
               }`}>Financial Ledger</span>
           </h2>
           <p className={`text-xs mt-0.5 ${isLight ? "text-slate-600 font-medium" : "text-slate-400"}`}>
@@ -579,8 +686,8 @@ const AccountsFinance = ({
         <button
           onClick={printFinancialReport}
           className={`font-bold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider transition flex items-center gap-2 shadow-sm self-start lg:self-auto cursor-pointer ${isLight
-              ? "bg-white/40 backdrop-blur-2xl text-slate-800 border border-white/80 shadow-[0_4px_20px_rgba(14,165,233,0.1)] hover:bg-white/60 hover:text-sky-700"
-              : "bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700"
+            ? "bg-white/40 backdrop-blur-2xl text-slate-800 border border-white/80 shadow-[0_4px_20px_rgba(14,165,233,0.1)] hover:bg-white/60 hover:text-sky-700"
+            : "bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700"
             }`}
         >
           <span>🖨</span> Print Statement
@@ -591,9 +698,8 @@ const AccountsFinance = ({
       {/* Year & Month Selector Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
         {/* Year Controls */}
-        <div className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-2xl border shrink-0 ${
-          isLight ? "bg-white/40 backdrop-blur-2xl border-white/80" : "bg-[#090e1a] border-slate-800"
-        }`}>
+        <div className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-2xl border shrink-0 ${isLight ? "bg-white/40 backdrop-blur-2xl border-white/80" : "bg-[#090e1a] border-slate-800"
+          }`}>
           <button
             type="button"
             onClick={() => setSelectedYear((prev) => prev - 1)}
@@ -616,42 +722,39 @@ const AccountsFinance = ({
         </div>
 
         {/* Month Selector Tabs (Clean Single Bar • Auto-Center • No Arrows) */}
-      <div
-        className={`p-1.5 rounded-2xl flex items-center gap-1.5 w-full max-w-full overflow-x-auto scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] border transition-all ${
-          isLight
-            ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
-            : "bg-[#090e1a] border-slate-800/90 shadow-md"
-        }`}
-      >
-        {monthNames.map((m, idx) => (
-          <button
-            key={m}
-            ref={selectedMonth === idx ? activeMonthRef : null}
-            type="button"
-            onClick={() => setSelectedMonth(idx)}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap shrink-0 transition-all duration-300 flex items-center gap-1.5 cursor-pointer ${
-              selectedMonth === idx
-                ? (isLight
+        <div
+          className={`p-1.5 rounded-2xl flex items-center gap-1.5 w-full max-w-full overflow-x-auto scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] border transition-all ${isLight
+              ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
+              : "bg-[#090e1a] border-slate-800/90 shadow-md"
+            }`}
+        >
+          {monthNames.map((m, idx) => (
+            <button
+              key={m}
+              ref={selectedMonth === idx ? activeMonthRef : null}
+              type="button"
+              onClick={() => setSelectedMonth(idx)}
+              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap shrink-0 transition-all duration-300 flex items-center gap-1.5 cursor-pointer ${selectedMonth === idx
+                  ? (isLight
                     ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/30 scale-105"
                     : "bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 shadow-md scale-105")
-                : (isLight
+                  : (isLight
                     ? "text-slate-700 hover:text-slate-950 hover:bg-white/40"
                     : "text-slate-400 hover:text-white hover:bg-slate-800/60")
-            }`}
-          >
-            <span>{m}</span>
-            {idx === currentMonthIndex && (
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  selectedMonth === idx
-                    ? (isLight ? "bg-white" : "bg-slate-950")
-                    : (isLight ? "bg-sky-500" : "bg-amber-400")
                 }`}
-              ></span>
-            )}
-          </button>
-        ))}
-      </div>
+            >
+              <span>{m}</span>
+              {idx === currentMonthIndex && (
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${selectedMonth === idx
+                      ? (isLight ? "bg-white" : "bg-slate-950")
+                      : (isLight ? "bg-sky-500" : "bg-amber-400")
+                    }`}
+                ></span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* =========================================================================
@@ -661,8 +764,8 @@ const AccountsFinance = ({
 
         {/* REVENUE */}
         <div className={`p-5 rounded-3xl border transition-all duration-300 hover:-translate-y-1 ${isLight
-            ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
-            : "bg-[#0b1120] border-slate-800/90 shadow-lg"
+          ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
+          : "bg-[#0b1120] border-slate-800/90 shadow-lg"
           }`}>
           <div className={`flex items-center justify-between text-[10px] font-black uppercase tracking-wider ${isLight ? "text-emerald-800" : "text-emerald-400"
             }`}>
@@ -679,8 +782,8 @@ const AccountsFinance = ({
 
         {/* EXPENSES */}
         <div className={`p-5 rounded-3xl border transition-all duration-300 hover:-translate-y-1 ${isLight
-            ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
-            : "bg-[#0b1120] border-slate-800/90 shadow-lg"
+          ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
+          : "bg-[#0b1120] border-slate-800/90 shadow-lg"
           }`}>
           <div className={`flex items-center justify-between text-[10px] font-black uppercase tracking-wider ${isLight ? "text-rose-800" : "text-rose-400"
             }`}>
@@ -697,8 +800,8 @@ const AccountsFinance = ({
 
         {/* NET PROFIT */}
         <div className={`p-5 rounded-3xl border transition-all duration-300 hover:-translate-y-1 ${isLight
-            ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
-            : "bg-[#0b1120] border-slate-800/90 shadow-lg"
+          ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
+          : "bg-[#0b1120] border-slate-800/90 shadow-lg"
           }`}>
           <div className={`flex items-center justify-between text-[10px] font-black uppercase tracking-wider ${isLight ? "text-sky-800" : "text-amber-400"
             }`}>
@@ -716,8 +819,8 @@ const AccountsFinance = ({
 
         {/* PAYMENT SPLIT */}
         <div className={`p-5 rounded-3xl border transition-all duration-300 hover:-translate-y-1 ${isLight
-            ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
-            : "bg-[#0b1120] border-slate-800/90 shadow-lg"
+          ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
+          : "bg-[#0b1120] border-slate-800/90 shadow-lg"
           }`}>
           <div className={`flex items-center justify-between text-[10px] font-black uppercase tracking-wider ${isLight ? "text-sky-800" : "text-sky-400"
             }`}>
@@ -742,8 +845,8 @@ const AccountsFinance = ({
 
         {/* LEFT (7 COLS): THE DONUT CHART CONTAINER */}
         <div className={`lg:col-span-7 border rounded-[32px] p-6 shadow-sm flex flex-col justify-between transition-colors ${isLight
-            ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
-            : "bg-[#0b1120] border-slate-800 shadow-xl"
+          ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
+          : "bg-[#0b1120] border-slate-800 shadow-xl"
           }`}>
           <div>
             <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b ${isLight ? "border-white/40" : "border-slate-800/80"
@@ -765,8 +868,8 @@ const AccountsFinance = ({
                     setHoveredSliceIndex(null);
                   }}
                   className={`px-3 py-1 rounded-xl text-[10px] font-black tracking-wider transition cursor-pointer ${pieMode === "flow"
-                      ? (isLight ? "bg-sky-500 text-white shadow-md shadow-sky-500/25" : "bg-amber-400 text-slate-950 shadow-sm")
-                      : (isLight ? "text-slate-700 hover:text-slate-950" : "text-slate-400 hover:text-white")
+                    ? (isLight ? "bg-sky-500 text-white shadow-md shadow-sky-500/25" : "bg-amber-400 text-slate-950 shadow-sm")
+                    : (isLight ? "text-slate-700 hover:text-slate-950" : "text-slate-400 hover:text-white")
                     }`}
                 >
                   Combined Flow (Month)
@@ -778,8 +881,8 @@ const AccountsFinance = ({
                     setHoveredSliceIndex(null);
                   }}
                   className={`px-3 py-1 rounded-xl text-[10px] font-black tracking-wider transition cursor-pointer ${pieMode === "detailed"
-                      ? (isLight ? "bg-sky-500 text-white shadow-md shadow-sky-500/25" : "bg-amber-400 text-slate-950 shadow-sm")
-                      : (isLight ? "text-slate-700 hover:text-slate-950" : "text-slate-400 hover:text-white")
+                    ? (isLight ? "bg-sky-500 text-white shadow-md shadow-sky-500/25" : "bg-amber-400 text-slate-950 shadow-sm")
+                    : (isLight ? "text-slate-700 hover:text-slate-950" : "text-slate-400 hover:text-white")
                     }`}
                 >
                   All Heads ({selectedYear})
@@ -838,8 +941,8 @@ const AccountsFinance = ({
                         {pieMode === "flow" ? "Net Profit" : `Annual Net (${selectedYear})`}
                       </span>
                       <span className={`text-base font-black font-mono mt-0.5 ${(pieMode === "flow" ? netProfit : annualNetProfit) >= 0
-                          ? (isLight ? "text-emerald-800" : "text-amber-400")
-                          : "text-rose-600"
+                        ? (isLight ? "text-emerald-800" : "text-amber-400")
+                        : "text-rose-600"
                         }`}>
                         ₹{(pieMode === "flow" ? netProfit : annualNetProfit).toLocaleString("en-IN")}
                       </span>
@@ -864,8 +967,8 @@ const AccountsFinance = ({
                       onMouseEnter={() => setHoveredSliceIndex(idx)}
                       onMouseLeave={() => setHoveredSliceIndex(null)}
                       className={`p-2.5 rounded-2xl border flex items-center justify-between text-xs transition cursor-pointer ${isLight
-                          ? "bg-white/45 backdrop-blur-md border-white/70 hover:bg-white/65 shadow-sm"
-                          : "bg-[#080d16] border-slate-800/80 hover:border-slate-700"
+                        ? "bg-white/45 backdrop-blur-md border-white/70 hover:bg-white/65 shadow-sm"
+                        : "bg-[#080d16] border-slate-800/80 hover:border-slate-700"
                         }`}
                     >
                       <div className="flex items-center gap-2 truncate">
@@ -901,8 +1004,8 @@ const AccountsFinance = ({
 
         {/* RIGHT (5 COLS): CAPITAL REALIZATION CONTAINER */}
         <div className={`lg:col-span-5 border rounded-[32px] p-6 shadow-sm flex flex-col justify-between transition-colors ${isLight
-            ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
-            : "bg-[#0b1120] border-slate-800 shadow-xl"
+          ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
+          : "bg-[#0b1120] border-slate-800 shadow-xl"
           }`}>
           <div>
             <div className={`pb-3 border-b ${isLight ? "border-white/40" : "border-slate-800/80"}`}>
@@ -910,7 +1013,7 @@ const AccountsFinance = ({
                 }`}>
                 <span>📈</span> Capital Realization
               </h3>
-              
+
             </div>
 
             <div className="py-5 space-y-3">
@@ -968,8 +1071,8 @@ const AccountsFinance = ({
                   <div
                     style={{ width: `${Math.max(0, Math.min(profitMargin, 100))}%` }}
                     className={`h-full rounded-full transition-all duration-300 ${isLight
-                        ? "bg-gradient-to-r from-sky-500 to-emerald-500"
-                        : "bg-gradient-to-r from-amber-400 to-emerald-500"
+                      ? "bg-gradient-to-r from-sky-500 to-emerald-500"
+                      : "bg-gradient-to-r from-amber-400 to-emerald-500"
                       }`}
                   ></div>
                 </div>
@@ -995,14 +1098,14 @@ const AccountsFinance = ({
 
         {/* ADD EXPENSE FORM */}
         <div className={`lg:col-span-5 border rounded-[32px] p-6 shadow-sm transition-colors ${isLight
-            ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
-            : "bg-[#0b1120] border-slate-800 shadow-xl"
+          ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
+          : "bg-[#0b1120] border-slate-800 shadow-xl"
           }`}>
           <div className={`flex items-center justify-between pb-3 mb-4 border-b ${isLight ? "border-white/40" : "border-slate-800"
             }`}>
             <div>
               <h3 className={`font-black text-sm uppercase tracking-wider ${isLight ? "text-slate-900" : "text-white"}`}>Record Expense</h3>
-              
+
             </div>
             <span className={`text-[10px] font-mono px-2.5 py-0.5 rounded-full border font-bold ${isLight ? "text-sky-900 bg-sky-400/20 border-sky-400/40" : "text-amber-400 bg-amber-400/10 border-amber-400/20"
               }`}>
@@ -1020,8 +1123,8 @@ const AccountsFinance = ({
                 onChange={(e) => setExpDate(e.target.value)}
                 required
                 className={`w-full border rounded-xl px-3.5 py-2 text-xs font-semibold outline-none shadow-sm transition ${isLight
-                    ? "bg-white/60 backdrop-blur-md border-white/90 text-slate-900 focus:border-sky-500 focus:bg-white"
-                    : "bg-[#080d16] border-slate-700/80 text-white focus:border-amber-400"
+                  ? "bg-white/60 backdrop-blur-md border-white/90 text-slate-900 focus:border-sky-500 focus:bg-white"
+                  : "bg-[#080d16] border-slate-700/80 text-white focus:border-amber-400"
                   }`}
               />
             </div>
@@ -1033,8 +1136,8 @@ const AccountsFinance = ({
                 value={expCategory}
                 onChange={(e) => setExpCategory(e.target.value)}
                 className={`w-full border rounded-xl px-3.5 py-2 text-xs font-semibold outline-none cursor-pointer shadow-sm transition ${isLight
-                    ? "bg-white/60 backdrop-blur-md border-white/90 text-slate-900 focus:border-sky-500 focus:bg-white"
-                    : "bg-[#080d16] border-slate-700/80 text-white focus:border-amber-400"
+                  ? "bg-white/60 backdrop-blur-md border-white/90 text-slate-900 focus:border-sky-500 focus:bg-white"
+                  : "bg-[#080d16] border-slate-700/80 text-white focus:border-amber-400"
                   }`}
               >
                 <option value="Electricity Bill" className={isLight ? "bg-white text-slate-900" : "bg-[#080d16] text-white"}>⚡ Electricity Bill</option>
@@ -1054,8 +1157,8 @@ const AccountsFinance = ({
                 value={expDescription}
                 onChange={(e) => setExpDescription(e.target.value)}
                 className={`w-full border rounded-xl px-3.5 py-2 text-xs outline-none shadow-sm transition ${isLight
-                    ? "bg-white/60 backdrop-blur-md border-white/90 text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:bg-white"
-                    : "bg-[#080d16] border-slate-700/80 text-white placeholder-slate-500 focus:border-amber-400"
+                  ? "bg-white/60 backdrop-blur-md border-white/90 text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:bg-white"
+                  : "bg-[#080d16] border-slate-700/80 text-white placeholder-slate-500 focus:border-amber-400"
                   }`}
               />
             </div>
@@ -1077,8 +1180,8 @@ const AccountsFinance = ({
                 required
                 min="1"
                 className={`w-full border rounded-xl px-3.5 py-2 text-sm font-black outline-none font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-sm transition ${isLight
-                    ? "bg-white/60 backdrop-blur-md border-white/90 text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:bg-white"
-                    : "bg-[#080d16] border-slate-700/80 text-white placeholder-slate-500 focus:border-amber-400"
+                  ? "bg-white/60 backdrop-blur-md border-white/90 text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:bg-white"
+                  : "bg-[#080d16] border-slate-700/80 text-white placeholder-slate-500 focus:border-amber-400"
                   }`}
               />
             </div>
@@ -1088,8 +1191,8 @@ const AccountsFinance = ({
               type="submit"
               disabled={isSubmitting}
               className={`w-full font-black py-3.5 rounded-xl text-xs uppercase tracking-wider transition shadow-md mt-1 cursor-pointer active:scale-98 ${isLight
-                  ? "bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:brightness-110 text-white shadow-sky-500/30"
-                  : "bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950"
+                ? "bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:brightness-110 text-white shadow-sky-500/30"
+                : "bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950"
                 }`}
             >
               {isSubmitting ? "Saving..." : "Add Expense Record"}
@@ -1099,8 +1202,8 @@ const AccountsFinance = ({
 
         {/* EXPENSE LEDGER */}
         <div className={`lg:col-span-7 border rounded-[32px] p-6 shadow-sm flex flex-col justify-between min-h-[440px] transition-colors ${isLight
-            ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
-            : "bg-[#0b1120] border-slate-800 shadow-xl"
+          ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
+          : "bg-[#0b1120] border-slate-800 shadow-xl"
           }`}>
           <div>
             <div className={`flex items-center justify-between pb-3 mb-3 border-b ${isLight ? "border-white/40" : "border-slate-800"
@@ -1122,12 +1225,12 @@ const AccountsFinance = ({
                 type="button"
                 onClick={() => setSelectedCategoryFilter("ALL")}
                 className={`px-2.5 py-1 rounded-xl text-[10px] font-bold uppercase whitespace-nowrap transition cursor-pointer ${selectedCategoryFilter === "ALL"
-                    ? (isLight
-                      ? "bg-sky-500 text-white font-black shadow-md shadow-sky-500/25"
-                      : "bg-amber-400 text-slate-950 font-black shadow-sm")
-                    : (isLight
-                      ? "bg-white/60 border border-white/80 text-slate-700 hover:text-slate-900"
-                      : "bg-slate-900 text-slate-400 hover:text-white")
+                  ? (isLight
+                    ? "bg-sky-500 text-white font-black shadow-md shadow-sky-500/25"
+                    : "bg-amber-400 text-slate-950 font-black shadow-sm")
+                  : (isLight
+                    ? "bg-white/60 border border-white/80 text-slate-700 hover:text-slate-900"
+                    : "bg-slate-900 text-slate-400 hover:text-white")
                   }`}
               >
                 All ({selectedMonthExpenses.length})
@@ -1141,10 +1244,10 @@ const AccountsFinance = ({
                     type="button"
                     onClick={() => setSelectedCategoryFilter(cat)}
                     className={`px-2.5 py-1 rounded-xl text-[10px] font-bold whitespace-nowrap transition flex items-center gap-1.5 cursor-pointer ${selectedCategoryFilter === cat
-                        ? (isLight ? "bg-sky-600 text-white font-black shadow-sm" : "bg-slate-200 text-slate-950 font-black")
-                        : (isLight
-                          ? "bg-white/60 border border-white/80 text-slate-700 hover:text-slate-900"
-                          : "bg-slate-900 text-slate-400 hover:text-white")
+                      ? (isLight ? "bg-sky-600 text-white font-black shadow-sm" : "bg-slate-200 text-slate-950 font-black")
+                      : (isLight
+                        ? "bg-white/60 border border-white/80 text-slate-700 hover:text-slate-900"
+                        : "bg-slate-900 text-slate-400 hover:text-white")
                       }`}
                   >
                     <span>{cat}</span>
@@ -1165,8 +1268,8 @@ const AccountsFinance = ({
                   <div
                     key={exp.id}
                     className={`p-3 rounded-2xl border flex items-center justify-between gap-3 transition ${isLight
-                        ? "bg-white/45 backdrop-blur-md border-white/80 hover:bg-white/65 shadow-sm"
-                        : "bg-[#080d16] border-slate-800/80 hover:border-slate-700"
+                      ? "bg-white/45 backdrop-blur-md border-white/80 hover:bg-white/65 shadow-sm"
+                      : "bg-[#080d16] border-slate-800/80 hover:border-slate-700"
                       }`}
                   >
                     <div className="flex items-center gap-3">
@@ -1206,8 +1309,8 @@ const AccountsFinance = ({
                         type="button"
                         onClick={() => handleDeleteExpense(exp.id, exp.description, exp.amount)}
                         className={`w-7 h-7 rounded-lg flex items-center justify-center transition cursor-pointer ${isLight
-                            ? "bg-rose-500/15 text-rose-700 hover:bg-rose-600 hover:text-white border border-rose-300/40"
-                            : "bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white"
+                          ? "bg-rose-500/15 text-rose-700 hover:bg-rose-600 hover:text-white border border-rose-300/40"
+                          : "bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white"
                           }`}
                         title="Delete Record"
                       >
@@ -1235,8 +1338,8 @@ const AccountsFinance = ({
           👥 5. REVENUE ROSTER & PAYMENT TILES
       ========================================================================= */}
       <div className={`border rounded-[32px] p-6 shadow-sm space-y-4 transition-colors ${isLight
-          ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
-          : "bg-[#0b1120] border-slate-800 shadow-xl"
+        ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
+        : "bg-[#0b1120] border-slate-800 shadow-xl"
         }`}>
         <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b ${isLight ? "border-white/40" : "border-slate-800"
           }`}>
@@ -1254,16 +1357,14 @@ const AccountsFinance = ({
               placeholder="Search Name or Seat No..."
               value={studentSearch}
               onChange={(e) => setStudentSearch(e.target.value)}
-              className={`px-3 py-1.5 text-xs rounded-xl border outline-none font-medium transition ${
-                isLight 
-                  ? "bg-white/80 border-white/90 text-slate-900 placeholder-slate-400 focus:border-sky-500" 
+              className={`px-3 py-1.5 text-xs rounded-xl border outline-none font-medium transition ${isLight
+                  ? "bg-white/80 border-white/90 text-slate-900 placeholder-slate-400 focus:border-sky-500"
                   : "bg-slate-900 border-slate-700 text-white placeholder-slate-500 focus:border-amber-400"
-              }`}
+                }`}
             />
             <p><span className={`text-xs font-black ${isLight ? "text-slate-900" : "text-white"}`}>{selectedMonthCollections.length} Submissions</span></p>
-            <span className={`text-xs font-black px-3 py-1.5 rounded-xl border font-mono ${
-              isLight ? "text-emerald-800 bg-emerald-500/15 border-emerald-300/60" : "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-            }`}>
+            <span className={`text-xs font-black px-3 py-1.5 rounded-xl border font-mono ${isLight ? "text-emerald-800 bg-emerald-500/15 border-emerald-300/60" : "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+              }`}>
               ₹{totalFeesRealized.toLocaleString("en-IN")}
             </span>
           </div>
@@ -1280,8 +1381,8 @@ const AccountsFinance = ({
               <div
                 key={`${student.name}-${student.seat}-${idx}`}
                 className={`p-3 rounded-2xl border flex items-center justify-between text-xs transition ${isLight
-                    ? "bg-white/45 backdrop-blur-md border-white/80 hover:bg-white/65 shadow-sm"
-                    : "bg-[#080d16] border-slate-800/80 hover:border-slate-700"
+                  ? "bg-white/45 backdrop-blur-md border-white/80 hover:bg-white/65 shadow-sm"
+                  : "bg-[#080d16] border-slate-800/80 hover:border-slate-700"
                   }`}
               >
                 <div className="flex items-center gap-3">
@@ -1294,15 +1395,15 @@ const AccountsFinance = ({
                       <p className={`font-bold text-sm ${isLight ? "text-slate-900" : "text-white"}`}>{student.name}</p>
 
                       <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border ${student.paymentMode === "Cash"
-                          ? (isLight ? "bg-emerald-500/15 text-emerald-800 border-emerald-300/60" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30")
-                          : (isLight ? "bg-sky-500/15 text-sky-800 border-sky-300/60" : "bg-sky-500/10 text-sky-400 border-sky-500/30")
+                        ? (isLight ? "bg-emerald-500/15 text-emerald-800 border-emerald-300/60" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30")
+                        : (isLight ? "bg-sky-500/15 text-sky-800 border-sky-300/60" : "bg-sky-500/10 text-sky-400 border-sky-500/30")
                         }`}>
                         {student.paymentMode === "Cash" ? "💵 Cash" : "📱 Online"}
                       </span>
 
                       <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border ${student.entryType === "Renewal"
-                          ? (isLight ? "bg-blue-500/15 text-blue-800 border-blue-300/60" : "bg-blue-500/10 text-blue-400 border-blue-500/30")
-                          : (isLight ? "bg-purple-500/15 text-purple-800 border-purple-300/60" : "bg-purple-500/10 text-purple-400 border-purple-500/30")
+                        ? (isLight ? "bg-blue-500/15 text-blue-800 border-blue-300/60" : "bg-blue-500/10 text-blue-400 border-blue-500/30")
+                        : (isLight ? "bg-purple-500/15 text-purple-800 border-purple-300/60" : "bg-purple-500/10 text-purple-400 border-purple-500/30")
                         }`}>
                         {student.entryType}
                       </span>
@@ -1328,11 +1429,10 @@ const AccountsFinance = ({
                   <button
                     type="button"
                     onClick={() => handleDeleteFeeRecord(student)}
-                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition cursor-pointer active:scale-95 ${
-                      isLight
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition cursor-pointer active:scale-95 ${isLight
                         ? "bg-rose-500/15 text-rose-700 hover:bg-rose-600 hover:text-white border border-rose-300/40"
                         : "bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white"
-                    }`}
+                      }`}
                     title="Delete Fee Record from Database"
                   >
                     🗑
@@ -1357,7 +1457,7 @@ const AccountsFinance = ({
                   }`}>
                   Cash in Hand
                 </span>
-               
+
               </div>
             </div>
             <div className="text-right">
@@ -1401,8 +1501,8 @@ const AccountsFinance = ({
           🏆 6. ANNUAL PERFORMANCE & AUTO-ARCHIVE DISPLAY
       ========================================================================= */}
       <div className={`border rounded-[32px] p-6 shadow-sm space-y-5 transition-colors ${isLight
-          ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
-          : "bg-[#0b1120] border-slate-800 shadow-xl"
+        ? "bg-white/35 backdrop-blur-2xl border-white/70 shadow-[0_8px_32px_rgba(14,165,233,0.08)]"
+        : "bg-[#0b1120] border-slate-800 shadow-xl"
         }`}>
         <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b ${isLight ? "border-white/40" : "border-slate-800"
           }`}>
@@ -1492,8 +1592,8 @@ const AccountsFinance = ({
                   <div
                     key={item.id}
                     className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${isLight
-                        ? "bg-white/45 backdrop-blur-md border-white/80 shadow-sm"
-                        : "bg-[#080d16] border-slate-800"
+                      ? "bg-white/45 backdrop-blur-md border-white/80 shadow-sm"
+                      : "bg-[#080d16] border-slate-800"
                       }`}
                   >
                     <div className="flex items-center gap-3">
