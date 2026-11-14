@@ -1896,8 +1896,8 @@ Warm regards,
                               label="Fees Status"
                               value={selectedSeat.nightPayment || "Available"}
                               onChange={(e) => updateSeat("nightPayment", e.target.value)}
-                              options={isDateExpired(selectedSeat.nightTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
-                              disabled={isDateExpired(selectedSeat.nightTo)}
+                              options={["Available", "Submitted", "Pending"]}
+                              disabled={false}
                             />
 
                             <FormSelect
@@ -1988,8 +1988,8 @@ Warm regards,
                                     label="Fees Status"
                                     value={selectedSeat.morningPayment || "Available"}
                                     onChange={(e) => updateSeat("morningPayment", e.target.value)}
-                                    options={isDateExpired(selectedSeat.morningTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
-                                    disabled={isDateExpired(selectedSeat.morningTo)}
+                                    options={["Available", "Submitted", "Pending"]}
+                                    disabled={false}
                                   />
 
                                   <FormSelect
@@ -2134,8 +2134,8 @@ Warm regards,
                                     label="Fees Status"
                                     value={selectedSeat.afternoonPayment || "Available"}
                                     onChange={(e) => updateSeat("afternoonPayment", e.target.value)}
-                                    options={isDateExpired(selectedSeat.afternoonTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
-                                    disabled={isDateExpired(selectedSeat.afternoonTo)}
+                                    options={["Available", "Submitted", "Pending"]}
+                                    disabled={false}
                                   />
 
                                   <FormSelect
@@ -2278,8 +2278,8 @@ Warm regards,
                                     label="Fees Status"
                                     value={selectedSeat.nightPayment || "Available"}
                                     onChange={(e) => updateSeat("nightPayment", e.target.value)}
-                                    options={isDateExpired(selectedSeat.nightTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
-                                    disabled={isDateExpired(selectedSeat.nightTo)}
+                                    options={["Available", "Submitted", "Pending"]}
+                                    disabled={false}
                                   />
 
                                   <FormSelect
@@ -2430,8 +2430,8 @@ Warm regards,
                                     label="Fees Status"
                                     value={selectedSeat.fullDayPayment || "Available"}
                                     onChange={(e) => updateSeat("fullDayPayment", e.target.value)}
-                                    options={isDateExpired(selectedSeat.fullDayTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
-                                    disabled={isDateExpired(selectedSeat.fullDayTo)}
+                                    options={["Available", "Submitted", "Pending"]}
+                                    disabled={false}
                                   />
 
                                   <FormSelect
@@ -2573,8 +2573,8 @@ Warm regards,
                                     label="Fees Status"
                                     value={selectedSeat.nightPayment || "Available"}
                                     onChange={(e) => updateSeat("nightPayment", e.target.value)}
-                                    options={isDateExpired(selectedSeat.nightTo) ? ["Pending"] : ["Available", "Submitted", "Pending"]}
-                                    disabled={isDateExpired(selectedSeat.nightTo)}
+                                    options={["Available", "Submitted", "Pending"]}
+                                    disabled={false}
                                   />
 
                                    <FormSelect
